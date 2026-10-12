@@ -1,0 +1,150 @@
+// Capa de datos. Toda la app lee de `datos` (en memoria) y escribe con
+// guardar()/borrar(), que actualizan la memoria y el almacenamiento:
+//   - modo local: localStorage del navegador
+//   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+// En orden de dependencia: las primeras son referenciadas por las siguientes.
+export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
+
+export const datos = {
+  categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [],
+  perfil: { ingreso_mensual: 0, meta_ahorro: 0, pago_extra_deudas: 0 },
+};
+
+export let modo = 'local';
+let supabase = null;
+let usuarioId = null;
+
+const PREFIJO = 'lucas:v1:';
+
+function leerLocal(clave, porDefecto) {
+  try {
+    const texto = localStorage.getItem(PREFIJO + clave);
+    return texto ? JSON.parse(texto) : porDefecto;
+  } catch {
+    return porDefecto;
+  }
+}
+
+function escribirLocal(clave, valor) {
+  try {
+    localStorage.setItem(PREFIJO + clave, JSON.stringify(valor));
+  } catch (e) {
+    console.error('No se pudo guardar en el navegador', e);
+  }
+}
+
+export const nuevoId = () => crypto.randomUUID();
+
+// Devuelve el usuario conectado (modo nube), null si falta iniciar sesión,
+// o 'local' si no hay nube configurada.
+export async function iniciar() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    modo = 'local';
+    for (const t of TABLAS) datos[t] = leerLocal(t, []);
+    Object.assign(datos.perfil, leerLocal('perfil', {}));
+    return 'local';
+  }
+
+  modo = 'nube';
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
+  supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) return null;
+  usuarioId = session.user.id;
+
+  const respuestas = await Promise.all(TABLAS.map(t => supabase.from(t).select('*')));
+  respuestas.forEach((r, i) => {
+    if (r.error) throw r.error;
+    datos[TABLAS[i]] = r.data;
+  });
+  const { data: perfil, error } = await supabase.from('perfil').select('*').maybeSingle();
+  if (error) throw error;
+  if (perfil) Object.assign(datos.perfil, perfil);
+  return session.user;
+}
+
+export async function enviarEnlaceAcceso(email) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: location.origin + location.pathname },
+  });
+  if (error) throw error;
+}
+
+export async function cerrarSesion() {
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+// Inserta o actualiza una fila (según si su id ya existe).
+export async function guardar(tabla, fila) {
+  if (!fila.id) fila.id = nuevoId();
+  const lista = datos[tabla];
+  const i = lista.findIndex(f => f.id === fila.id);
+  if (i >= 0) lista[i] = { ...lista[i], ...fila };
+  else lista.push(fila);
+
+  if (modo === 'local') {
+    escribirLocal(tabla, lista);
+  } else {
+    const { error } = await supabase.from(tabla).upsert(sinUsuario(fila));
+    if (error) throw error;
+  }
+  return fila;
+}
+
+export async function guardarVarios(tabla, filas) {
+  for (const f of filas) if (!f.id) f.id = nuevoId();
+  for (const f of filas) {
+    const i = datos[tabla].findIndex(x => x.id === f.id);
+    if (i >= 0) datos[tabla][i] = { ...datos[tabla][i], ...f };
+    else datos[tabla].push(f);
+  }
+  if (modo === 'local') {
+    escribirLocal(tabla, datos[tabla]);
+  } else if (filas.length) {
+    const { error } = await supabase.from(tabla).upsert(filas.map(sinUsuario));
+    if (error) throw error;
+  }
+}
+
+export async function borrar(tabla, id) {
+  datos[tabla] = datos[tabla].filter(f => f.id !== id);
+  if (modo === 'local') {
+    escribirLocal(tabla, datos[tabla]);
+  } else {
+    const { error } = await supabase.from(tabla).delete().eq('id', id);
+    if (error) throw error;
+  }
+}
+
+export async function guardarPerfil(cambios) {
+  Object.assign(datos.perfil, cambios);
+  if (modo === 'local') {
+    escribirLocal('perfil', datos.perfil);
+  } else {
+    const { error } = await supabase.from('perfil').upsert({ ...sinUsuario(datos.perfil), user_id: usuarioId });
+    if (error) throw error;
+  }
+}
+
+// user_id lo pone la base de datos (default auth.uid()); no lo mandamos.
+function sinUsuario(fila) {
+  const { user_id, creado, ...resto } = fila;
+  return resto;
+}
+
+export function exportar() {
+  const copia = { version: 1, exportado: new Date().toISOString(), perfil: datos.perfil };
+  for (const t of TABLAS) copia[t] = datos[t];
+  return copia;
+}
+
+export async function importar(copia) {
+  if (!copia || copia.version !== 1) throw new Error('El archivo no es un respaldo de Lucas');
+  // Primero las tablas que otras referencian.
+  for (const t of TABLAS) await guardarVarios(t, copia[t] || []);
+  await guardarPerfil(copia.perfil || {});
+}

@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas · Lucas</title>
+  <style>
+    body { font: 15px/1.5 system-ui, sans-serif; margin: 24px; background: #fcfcfb; color: #0b0b0b; }
+    .ok { color: #0a7f0a; } .falla { color: #c13030; font-weight: 600; }
+    @media (prefers-color-scheme: dark) { body { background: #1a1a19; color: #f0efec; } .ok { color: #3cb83c; } .falla { color: #ec6b6b; } }
+  </style>
+</head>
+<body>
+  <h1>Pruebas</h1>
+  <p id="resumen">Corriendo…</p>
+  <ol id="resultados"></ol>
+  <script type="module">
+    // Abre esta página con la app servida (ver README) para correr las pruebas.
+    // No toca tus datos: trabaja sobre datos en memoria.
+    import { datos } from '../js/db.js';
+    import { clasificar } from '../js/clasificador.js';
+    import { planDeudas, disponibleDelMes, estadoPresupuesto } from '../js/calculos.js';
+    import { leerMonto, sumarMeses, mesActual } from '../js/util.js';
+
+    const resultados = [];
+    const prueba = (nombre, fn) => {
+      try { fn(); resultados.push([nombre, null]); }
+      catch (e) { resultados.push([nombre, e.message]); }
+    };
+    const igual = (real, esperado, msg = '') => {
+      if (JSON.stringify(real) !== JSON.stringify(esperado)) throw new Error(`${msg} esperaba ${JSON.stringify(esperado)}, llegó ${JSON.stringify(real)}`);
+    };
+
+    const cat = (id, nombre, extra = {}) => ({ id, nombre, icono: '', tipo: 'gasto', ...extra });
+    datos.categorias = [cat('super', 'Supermercado'), cat('comida', 'Comida fuera'), cat('trans', 'Transporte'), cat('regalos', 'Regalos'), cat('mascota', 'Mascota', { palabras: 'veterinaria, pet' }), cat('sueldo', 'Sueldo', { tipo: 'ingreso' })];
+    datos.eventos = [{ id: 'matri', nombre: 'Matrimonio', palabras: 'matri, boda', activo: true }, { id: 'viejo', nombre: 'Mudanza', activo: false }];
+    datos.reglas = [{ id: 'r1', patron: 'mercadopago*tienda', categoria_id: 'regalos' }];
+
+    prueba('Comercio conocido por palabra clave', () => igual(clasificar({ comercio: 'LIDER EXPRESS' }).categoria_id, 'super'));
+    prueba('La palabra más larga gana: "uber eats" es comida, no transporte', () => igual(clasificar({ comercio: 'UBER EATS' }).categoria_id, 'comida'));
+    prueba('Uber solo es transporte', () => igual(clasificar({ comercio: 'UBER' }).categoria_id, 'trans'));
+    prueba('Lo que escribes manda sobre el comercio', () => igual(clasificar({ comercio: 'UBER', descripcion: 'regalo para la suegra' }).categoria_id, 'regalos'));
+    prueba('Detecta el evento por palabra clave ("matri")', () => igual(clasificar({ comercio: 'UBER', descripcion: 'uber al aeropuerto para lo del matri' }).evento_id, 'matri'));
+    prueba('No asocia eventos cerrados', () => igual(clasificar({ descripcion: 'cajas para la mudanza' }).evento_id, null));
+    prueba('Usa las reglas aprendidas', () => igual(clasificar({ comercio: 'MercadoPago*Tienda' }).categoria_id, 'regalos'));
+    prueba('Palabras clave propias de una categoría', () => igual(clasificar({ descripcion: 'vacuna en la veterinaria' }).categoria_id, 'mascota'));
+    prueba('Palabras cortas no calzan dentro de otras ("tag" en "etiqueta")', () => igual(clasificar({ descripcion: 'etagere' }).categoria_id, null));
+    prueba('Acentos y mayúsculas no importan', () => igual(clasificar({ descripcion: 'ALMACÉN de la esquina' }).categoria_id, 'super'));
+    prueba('Nunca clasifica un gasto como ingreso', () => igual(clasificar({ descripcion: 'sueldo' }).categoria_id, null));
+
+    prueba('Deuda sin interés: 1.000 con cuota 100 = 10 meses', () => {
+      const p = planDeudas([{ id: 'a', nombre: 'A', saldo: 1000, cuota_mensual: 100, cae: 0 }]);
+      igual(p.meses, 10); igual(Math.round(p.interesTotal), 0);
+    });
+    prueba('El abono extra acorta el plazo', () => {
+      const d = [{ id: 'a', nombre: 'A', saldo: 1000, cuota_mensual: 100, cae: 0 }];
+      igual(planDeudas(d, 100).meses, 5);
+    });
+    prueba('Avalancha termina primero la de CAE más alto', () => {
+      const d = [
+        { id: 'barata', nombre: 'Barata', saldo: 500000, cuota_mensual: 20000, cae: 10 },
+        { id: 'cara', nombre: 'Cara', saldo: 500000, cuota_mensual: 20000, cae: 50 },
+      ];
+      igual(planDeudas(d, 100000, 'avalancha').deudas[0].id, 'cara');
+      igual(planDeudas(d, 100000, 'bola-de-nieve').deudas.length, 2);
+    });
+    prueba('Avalancha nunca paga más intereses que bola de nieve', () => {
+      const d = [
+        { id: 'a', nombre: 'A', saldo: 300000, cuota_mensual: 15000, cae: 45 },
+        { id: 'b', nombre: 'B', saldo: 2000000, cuota_mensual: 80000, cae: 20 },
+        { id: 'c', nombre: 'C', saldo: 900000, cuota_mensual: 30000, cae: 30 },
+      ];
+      const av = planDeudas(d, 50000, 'avalancha').interesTotal;
+      const bn = planDeudas(d, 50000, 'bola-de-nieve').interesTotal;
+      if (av > bn + 1) throw new Error(`avalancha ${av} > bola de nieve ${bn}`);
+    });
+    prueba('Detecta deudas que nunca se pagan (cuota menor que el interés)', () => {
+      const p = planDeudas([{ id: 'a', nombre: 'A', saldo: 1000000, cuota_mensual: 10000, cae: 60 }]);
+      igual(p.imposible, true); igual(p.meses, null);
+    });
+    prueba('La fecha de término de una deuda de 1 mes es este mes', () => {
+      const p = planDeudas([{ id: 'a', nombre: 'A', saldo: 100, cuota_mensual: 100, cae: 0 }]);
+      igual(p.deudas[0].mesTermino, mesActual());
+    });
+
+    prueba('Disponible = ingreso − fijos − cuotas − ahorro − gasto variable', () => {
+      const mes = mesActual();
+      datos.perfil = { ingreso_mensual: 1000000, meta_ahorro: 50000, pago_extra_deudas: 0 };
+      datos.compromisos = [
+        { id: 'c1', nombre: 'Arriendo', monto: 400000, activo: true },
+        { id: 'c2', nombre: 'TV en cuotas', monto: 30000, activo: true, hasta_mes: sumarMeses(mes, -1) },
+      ];
+      datos.deudas = [{ id: 'd1', nombre: 'CMR', saldo: 500000, cuota_mensual: 100000, cae: 40 }];
+      datos.movimientos = [
+        { id: 'm1', fecha: mes + '-01', monto: 20000, tipo: 'gasto' },
+        { id: 'm2', fecha: mes + '-01', monto: 400000, tipo: 'gasto', compromiso_id: 'c1' },
+        { id: 'm3', fecha: mes + '-01', monto: 100000, tipo: 'gasto', deuda_id: 'd1' },
+      ];
+      const d = disponibleDelMes(mes);
+      igual(d.fijos, 400000, 'la TV en cuotas ya terminó;');
+      igual(d.paraVariable, 450000);
+      igual(d.gastado, 20000, 'los pagos planificados no se cuentan dos veces;');
+      igual(d.restante, 430000);
+    });
+
+    prueba('Estados del presupuesto', () => {
+      igual(estadoPresupuesto(50, 100), 'ok');
+      igual(estadoPresupuesto(80, 100), 'alerta');
+      igual(estadoPresupuesto(101, 100), 'excedido');
+      igual(estadoPresupuesto(10, 0), 'sin-tope');
+    });
+    prueba('Leer montos escritos a la chilena', () => {
+      igual(leerMonto('$12.990'), 12990);
+      igual(leerMonto('1.500.000'), 1500000);
+      igual(leerMonto('abc'), 0);
+    });
+    prueba('Sumar meses cruza el año', () => igual(sumarMeses('2026-11', 3), '2027-02'));
+
+    const fallas = resultados.filter(([, e]) => e);
+    document.getElementById('resumen').innerHTML = fallas.length
+      ? `<span class="falla">${fallas.length} de ${resultados.length} pruebas fallaron</span>`
+      : `<span class="ok">Las ${resultados.length} pruebas pasaron</span>`;
+    document.getElementById('resultados').innerHTML = resultados
+      .map(([n, e]) => `<li class="${e ? 'falla' : 'ok'}">${e ? '✕' : '✓'} ${n}${e ? ' — ' + e : ''}</li>`).join('');
+  </script>
+</body>
+</html>

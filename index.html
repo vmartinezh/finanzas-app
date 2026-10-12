@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Lucas</title>
+  <meta name="description" content="Presupuesto, deudas y gastos del mes, sin anotar todo a mano.">
+  <meta name="theme-color" content="#f4f3ef" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#111110" media="(prefers-color-scheme: dark)">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Lucas">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="barra-superior">
+    <h1 id="titulo">Lucas</h1>
+    <span id="modo" class="chip-modo"></span>
+  </header>
+
+  <main id="vista" tabindex="-1"></main>
+
+  <nav class="nav-inferior" aria-label="Secciones">
+    <a href="#/inicio" data-ruta="inicio"><span aria-hidden="true">◉</span>Inicio</a>
+    <a href="#/movimientos" data-ruta="movimientos"><span aria-hidden="true">≡</span>Movimientos</a>
+    <a href="#/presupuesto" data-ruta="presupuesto"><span aria-hidden="true">◔</span>Presupuesto</a>
+    <a href="#/deudas" data-ruta="deudas"><span aria-hidden="true">↘</span>Deudas</a>
+    <a href="#/mas" data-ruta="mas"><span aria-hidden="true">⋯</span>Más</a>
+  </nav>
+
+  <button id="boton-agregar" class="boton-flotante" aria-label="Agregar gasto">+</button>
+
+  <dialog id="dialogo"><form method="dialog" id="dialogo-form"></form></dialog>
+  <div id="aviso" class="aviso" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
