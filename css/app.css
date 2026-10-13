@@ -79,7 +79,9 @@ body {
   line-height: 1.45;
   padding-bottom: calc(var(--nav-alto) + 88px + env(safe-area-inset-bottom));
 }
-body.sin-sesion .nav-inferior, body.sin-sesion .boton-flotante { display: none; }
+body.sin-sesion .nav-inferior, body.sin-sesion .boton-flotante,
+body.cargando .nav-inferior, body.cargando .boton-flotante { display: none; }
+.cargando-texto { text-align: center; color: var(--texto-3); margin-top: 30vh; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
 h2 { font-size: 1.05rem; font-weight: 650; }

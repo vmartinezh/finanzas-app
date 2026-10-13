@@ -67,12 +67,32 @@ export async function iniciar() {
   return session.user;
 }
 
-export async function enviarEnlaceAcceso(email) {
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
+// Acceso con correo y contraseña. No depende de enviar correos (el servicio de
+// correo por defecto de Supabase solo llega a los miembros del proyecto).
+// Devuelve true si la cuenta quedó lista, o false si Supabase pide confirmar el correo.
+export async function crearCuenta(email, contraseña) {
+  const { data, error } = await supabase.auth.signUp({
+    email, password: contraseña,
     options: { emailRedirectTo: location.origin + location.pathname },
   });
-  if (error) throw error;
+  if (error) throw traducirError(error);
+  return !!data.session;
+}
+
+export async function entrar(email, contraseña) {
+  const { error } = await supabase.auth.signInWithPassword({ email, password: contraseña });
+  if (error) throw traducirError(error);
+}
+
+function traducirError(error) {
+  const mensajes = {
+    invalid_credentials: 'Correo o contraseña incorrectos.',
+    user_already_exists: 'Ya existe una cuenta con ese correo. Usa "Entrar".',
+    weak_password: 'La contraseña es muy corta: usa al menos 8 caracteres.',
+    email_not_confirmed: 'Falta confirmar el correo. Revisa tu bandeja de entrada.',
+    over_email_send_rate_limit: 'Se alcanzó el límite de correos. Intenta en una hora.',
+  };
+  return new Error(mensajes[error.code] || error.message);
 }
 
 export async function cerrarSesion() {

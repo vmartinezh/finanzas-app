@@ -1,4 +1,4 @@
-import { iniciar, modo, enviarEnlaceAcceso } from './db.js';
+import { iniciar, modo, crearCuenta, entrar } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
 import { avisar } from './ui.js';
@@ -47,25 +47,48 @@ export function refrescar() {
   }
 }
 
-function pantallaAcceso() {
+function pantallaAcceso(nueva = false) {
   document.body.classList.add('sin-sesion');
+  document.getElementById('titulo').textContent = 'Lucas';
   vista.innerHTML = `
     <section class="tarjeta acceso">
-      <h2>Entra a Lucas</h2>
-      <p>Te mandamos un enlace a tu correo para entrar, sin contraseña.</p>
+      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Lucas'}</h2>
+      <p class="ayuda">${nueva
+        ? 'Tus datos quedan en tu cuenta y nadie más puede verlos.'
+        : 'Presupuesto, deudas y gastos del mes, sin anotar todo a mano.'}</p>
       <form id="form-acceso">
-        <label class="campo"><span>Tu correo</span><input type="email" name="email" required autocomplete="email"></label>
-        <button class="boton primario ancho">Enviarme el enlace</button>
+        <label class="campo"><span>Correo</span><input type="email" name="email" required autocomplete="email"></label>
+        <label class="campo"><span>Contraseña</span>
+          <input type="password" name="clave" required minlength="8" autocomplete="${nueva ? 'new-password' : 'current-password'}">
+          ${nueva ? '<small>Al menos 8 caracteres.</small>' : ''}
+        </label>
+        <button class="boton primario ancho">${nueva ? 'Crear cuenta' : 'Entrar'}</button>
       </form>
+      <p class="ayuda">${nueva ? '¿Ya tienes cuenta?' : '¿Primera vez?'} <a href="#" id="cambiar-acceso">${nueva ? 'Entrar' : 'Crear una cuenta'}</a></p>
     </section>`;
+  vista.querySelector('#cambiar-acceso').addEventListener('click', e => {
+    e.preventDefault();
+    pantallaAcceso(!nueva);
+  });
   vista.querySelector('#form-acceso').addEventListener('submit', async e => {
     e.preventDefault();
+    const boton = e.target.querySelector('button');
     const email = e.target.email.value.trim();
+    boton.disabled = true;
     try {
-      await enviarEnlaceAcceso(email);
-      vista.querySelector('.acceso').innerHTML = `<h2>Revisa tu correo</h2><p>Mandamos un enlace a <b>${esc(email)}</b>. Ábrelo en este mismo dispositivo.</p>`;
+      if (nueva) {
+        const lista = await crearCuenta(email, e.target.clave.value);
+        if (!lista) {
+          vista.querySelector('.acceso').innerHTML = `<h2>Confirma tu correo</h2><p>Mandamos un enlace a <b>${esc(email)}</b>. Ábrelo y después entra con tu contraseña.</p>`;
+          return;
+        }
+      } else {
+        await entrar(email, e.target.clave.value);
+      }
+      location.reload();
     } catch (err) {
-      avisar('No se pudo enviar: ' + err.message, 'error');
+      avisar(err.message, 'error');
+      boton.disabled = false;
     }
   });
 }
@@ -75,10 +98,12 @@ async function arrancar() {
   try {
     usuario = await iniciar();
   } catch (e) {
+    document.body.classList.replace('cargando', 'sin-sesion');
     console.error(e);
     vista.innerHTML = `<div class="tarjeta error"><h2>No pudimos cargar tus datos</h2><p>${esc(e.message)}</p><p>Revisa tu conexión y vuelve a abrir la app.</p></div>`;
     return;
   }
+  document.body.classList.remove('cargando');
   if (!usuario) return pantallaAcceso();
 
   const chip = document.getElementById('modo');

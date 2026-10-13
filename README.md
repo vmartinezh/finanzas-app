@@ -28,29 +28,39 @@ Para ver cómo se ve con datos ficticios, abre la app con `?demo=1` al final de 
 | | Modo local | Modo nube |
 |---|---|---|
 | Dónde quedan los datos | Solo en tu navegador | En una base de datos Supabase |
-| Cuenta | No necesita | Entras con un enlace a tu correo |
+| Cuenta | No necesita | Correo y contraseña |
 | Varios dispositivos | No | Sí |
-| Configuración | Ninguna | 10 minutos (abajo) |
+| Configuración | Ninguna | 15 minutos (abajo) |
 
 Si `js/config.js` está vacío, la app funciona en modo local. En ese modo, **descarga un respaldo** de vez en cuando desde *Ajustes*.
 
-## Publicar tu propia copia
+## Publicarla para que cualquiera la use (Vercel + Supabase)
 
-### 1. La app (GitHub Pages, gratis)
+La app se publica en **Vercel** y guarda los datos en **Supabase**. Los dos son gratis para este uso. Cada persona crea su cuenta y **solo ve sus propios datos**: lo garantiza la base de datos con Row Level Security, no la app.
 
-1. Haz un *fork* de este repositorio o súbelo a tu cuenta de GitHub.
-2. En el repo: *Settings → Pages → Branch: `main` / root → Save*.
-3. En un par de minutos queda en `https://TU-USUARIO.github.io/finanzas-app/`.
+### 1. Supabase (la base de datos)
 
-### 2. La nube (Supabase, opcional y gratis)
-
-1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ve a *SQL Editor*, pega el contenido de [`supabase/schema.sql`](supabase/schema.sql) y presiona *Run*.
-3. En *Authentication → URL Configuration*, pon la dirección de tu GitHub Pages en *Site URL* y en *Redirect URLs*.
-4. En *Project Settings → API*, copia la **Project URL** y la **anon public key** a `js/config.js`.
-5. Sube el cambio. Listo: cada amigo entra con su correo y **solo ve sus propios datos** (lo garantiza la base de datos con Row Level Security).
+1. Crea una cuenta y un proyecto en [supabase.com](https://supabase.com). Elige la región **South America (São Paulo)**, que es la más cercana a Chile.
+2. Ve a *SQL Editor → New query*, pega todo [`supabase/schema.sql`](supabase/schema.sql) y presiona *Run*.
+3. Ve a *Authentication → Sign In / Providers → Email* y **desactiva "Confirm email"**. El servicio de correo que trae Supabase solo envía a los miembros de tu proyecto y como máximo 2 correos por hora, así que con la confirmación activada tus amigos no podrían crear su cuenta. Si más adelante configuras tu propio SMTP (por ejemplo Brevo o Resend), puedes volver a activarla.
+4. En *Project Settings → API* (o *Data API*) copia la **Project URL** y la **anon public key** a `js/config.js` y sube el cambio a GitHub.
 
 > La *anon key* es pública por diseño y puede ir en el repo. **Nunca** subas la *service_role key*.
+
+### 2. Vercel (la página)
+
+1. Crea una cuenta en [vercel.com](https://vercel.com) entrando con GitHub.
+2. *Add New → Project*, elige el repositorio `finanzas-app` y presiona *Deploy*. No hay que configurar nada: no tiene paso de compilación.
+3. Queda publicada en `https://finanzas-app-XXXX.vercel.app`. Cada vez que subas cambios a GitHub, Vercel la actualiza sola.
+4. De vuelta en Supabase, en *Authentication → URL Configuration*, pon esa dirección en *Site URL*.
+
+### Alternativa: GitHub Pages
+
+También funciona en GitHub Pages (*Settings → Pages → Branch: `main` / root*), en `https://TU-USUARIO.github.io/finanzas-app/`.
+
+### Si alguien olvida su contraseña
+
+Sin SMTP propio no se pueden mandar correos de recuperación. Desde Supabase, en *Authentication → Users*, puedes borrar al usuario para que cree la cuenta de nuevo (se pierden sus datos), o configurar SMTP para habilitar la recuperación.
 
 ## Probar en tu computador
 
