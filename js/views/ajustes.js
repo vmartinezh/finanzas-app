@@ -136,7 +136,7 @@ export function montar(raiz, refrescar) {
     if (!archivo) return;
     try {
       const copia = JSON.parse(await archivo.text());
-      if (!(await confirmar('Se van a agregar los datos del respaldo a los que ya tienes. ¿Seguir?'))) return;
+      if (!(await confirmar('Esto REEMPLAZA todos tus datos actuales por los del respaldo. ¿Seguir?'))) return;
       await ejecutar(() => importar(copia), 'Respaldo restaurado', refrescar);
     } catch (e) {
       avisar('No se pudo leer el archivo: ' + e.message, 'error');

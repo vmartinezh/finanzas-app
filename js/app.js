@@ -1,4 +1,4 @@
-import { iniciar, modo, crearCuenta, entrar } from './db.js';
+import { iniciar, modo, crearCuenta, entrar, datos } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
 import { avisar } from './ui.js';
@@ -114,8 +114,12 @@ async function arrancar() {
     : 'Tus datos están guardados en tu cuenta.';
 
   await sembrarCategorias();
+  // ?demo=1 carga datos ficticios, pero solo en una app vacía: un enlace
+  // recibido nunca debe mezclar datos inventados con los reales de alguien.
   if (new URLSearchParams(location.search).has('demo')) {
-    await cargarEjemplo();
+    const vacia = !datos.movimientos.length && !datos.deudas.length && !datos.compromisos.length;
+    if (vacia) await cargarEjemplo();
+    else setTimeout(() => avisar('Ya tienes datos propios, así que no cargué el ejemplo.'), 300);
     history.replaceState(null, '', location.pathname + location.hash);
   }
 

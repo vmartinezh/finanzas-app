@@ -3,6 +3,7 @@
 //   - modo local: localStorage del navegador
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { normalizarTabla, normalizarPerfil } from './validar.js';
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
 export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
@@ -59,8 +60,8 @@ export async function iniciar() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     modo = 'local';
     migrarPrefijoAnterior();
-    for (const t of TABLAS) datos[t] = leerLocal(t, []);
-    Object.assign(datos.perfil, leerLocal('perfil', {}));
+    for (const t of TABLAS) datos[t] = normalizarTabla(t, leerLocal(t, []));
+    Object.assign(datos.perfil, normalizarPerfil(leerLocal('perfil', {})));
     return 'local';
   }
 
@@ -74,11 +75,11 @@ export async function iniciar() {
   const respuestas = await Promise.all(TABLAS.map(t => supabase.from(t).select('*')));
   respuestas.forEach((r, i) => {
     if (r.error) throw r.error;
-    datos[TABLAS[i]] = r.data;
+    datos[TABLAS[i]] = normalizarTabla(TABLAS[i], r.data);
   });
   const { data: perfil, error } = await supabase.from('perfil').select('*').maybeSingle();
   if (error) throw error;
-  if (perfil) Object.assign(datos.perfil, perfil);
+  if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
   return session.user;
 }
 
@@ -182,18 +183,24 @@ export function exportar() {
 // Restaura un respaldo REEMPLAZANDO los datos actuales (si no, las categorías
 // que se crean al abrir la app por primera vez quedarían duplicadas).
 export async function importar(copia) {
-  if (!copia || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
+  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
+  // Un respaldo puede venir de otra persona: se valida fila por fila y se
+  // descarta lo que no tenga la forma esperada.
+  const limpio = {};
+  for (const t of TABLAS) limpio[t] = normalizarTabla(t, copia[t]);
+  if (!limpio.categorias.length) throw new Error('El respaldo no trae categorías válidas');
+
   // Se borra de atrás hacia adelante y se inserta en orden de dependencia.
   for (const t of [...TABLAS].reverse()) {
-    const conservar = new Set((copia[t] || []).map(f => f.id));
+    const conservar = new Set(limpio[t].map(f => f.id));
     for (const f of datos[t].filter(f => !conservar.has(f.id))) await borrar(t, f.id);
   }
-  for (const t of TABLAS) await guardarVarios(t, copia[t] || []);
-  // Respaldos anteriores guardaban solo el abono extra; se convierte al total.
-  const perfil = { ...(copia.perfil || {}) };
-  if (perfil.presupuesto_deudas == null && perfil.pago_extra_deudas) {
-    perfil.presupuesto_deudas = (copia.deudas || []).reduce((s, d) => s + (d.cuota_mensual || 0), 0) + perfil.pago_extra_deudas;
+  for (const t of TABLAS) await guardarVarios(t, limpio[t]);
+
+  const { pago_extra_deudas, user_id, ...perfil } = normalizarPerfil(copia.perfil);
+  // Respaldos de la primera versión guardaban solo el abono extra; se convierte al total.
+  if (copia.perfil?.presupuesto_deudas == null && pago_extra_deudas) {
+    perfil.presupuesto_deudas = limpio.deudas.reduce((s, d) => s + d.cuota_mensual, 0) + pago_extra_deudas;
   }
-  delete perfil.pago_extra_deudas;
   await guardarPerfil(perfil);
 }

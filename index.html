@@ -3,6 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Solo se ejecuta código de la app y del SDK de Supabase: aunque un texto
+       malicioso llegara a la página, el navegador no lo correría. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <title>Simplifica</title>
   <meta name="description" content="Tus cuentas, más simples. Presupuesto, deudas y gastos del mes, sin anotar todo a mano.">
   <meta name="theme-color" content="#A8B9A0" media="(prefers-color-scheme: light)">

@@ -20,7 +20,8 @@
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo } from '../js/calculos.js';
-    import { leerMonto, sumarMeses, mesActual } from '../js/util.js';
+    import { leerMonto, sumarMeses, mesActual, esc } from '../js/util.js';
+    import { normalizarFila, normalizarTabla, normalizarPerfil } from '../js/validar.js';
 
     const resultados = [];
     const prueba = (nombre, fn) => {
@@ -165,6 +166,39 @@
       igual(leerMonto('abc'), 0);
     });
     prueba('Sumar meses cruza el año', () => igual(sumarMeses('2026-11', 3), '2027-02'));
+
+    // Seguridad: un respaldo manipulado no puede meter HTML ni valores raros.
+    const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
+    const ATAQUE = '"><img src=x onerror=alert(1)>';
+    prueba('Descarta filas cuyo id no es un UUID', () => {
+      igual(normalizarFila('deudas', { id: ATAQUE, nombre: 'x', saldo: 1 }), null);
+      igual(normalizarTabla('deudas', [{ id: ATAQUE }, { id: ID, nombre: 'ok' }]).length, 1);
+    });
+    prueba('Los números manipulados quedan como números', () => {
+      const d = normalizarFila('deudas', { id: ID, nombre: 'x', saldo: ATAQUE, dia_pago: ATAQUE, cae: '-5', cupo_total: 'mil' });
+      igual([d.saldo, d.dia_pago, d.cae, d.cupo_total], [0, null, 0, null]);
+    });
+    prueba('Los valores de lista solo aceptan opciones conocidas', () => {
+      const m = normalizarFila('movimientos', { id: ID, fecha: '2026-10-12', monto: 100, tipo: ATAQUE, estado: ATAQUE, origen: ATAQUE });
+      igual([m.tipo, m.estado, m.origen], ['gasto', 'clasificado', 'manual']);
+    });
+    prueba('Movimientos sin fecha válida se descartan', () => {
+      igual(normalizarFila('movimientos', { id: ID, fecha: ATAQUE, monto: 1 }), null);
+      igual(normalizarFila('movimientos', { id: ID, fecha: '2026-13-40', monto: 1 }), null);
+    });
+    prueba('Las referencias inválidas se anulan y los textos se acotan', () => {
+      const c = normalizarFila('compromisos', { id: ID, nombre: 'a'.repeat(500), categoria_id: ATAQUE, pagados: ['2026-10', ATAQUE, '2026-10'] });
+      igual([c.nombre.length, c.categoria_id, c.pagados], [80, null, ['2026-10']]);
+    });
+    prueba('Los textos sí se guardan, y al mostrarlos se escapan', () => {
+      const e = normalizarFila('eventos', { id: ID, nombre: ATAQUE });
+      igual(e.nombre, ATAQUE);
+      if (esc(e.nombre).includes('<')) throw new Error('esc() dejó pasar "<"');
+    });
+    prueba('El perfil solo conserva campos conocidos', () => {
+      igual(normalizarPerfil({ ingreso_mensual: '1500000', revisado_mes: ATAQUE, raro: 1 }),
+        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null });
+    });
 
     const fallas = resultados.filter(([, e]) => e);
     document.getElementById('resumen').innerHTML = fallas.length
