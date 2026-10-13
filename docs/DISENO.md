@@ -65,7 +65,9 @@ agregadores como Fintoc cuando tengan una opción accesible para personas.
   con las categorías y los eventos de la persona, y vuelve "Transporte · Matrimonio".
 - Cada respuesta se guarda como regla, así que con el tiempo la IA se usa cada vez menos.
 
-### Fase 4: amigos
-- Guía de instalación paso a paso.
-- Invitaciones.
+### Fase 4: lanzamiento
+- Prueba cerrada con un grupo pequeño de usuarios y ronda de comentarios.
+- Términos de uso y política de privacidad (datos financieros: Ley 19.628 y Ley 21.719).
+- Plan gratis completo + suscripción opcional de **apoyador**: financia el desarrollo
+  y da extras que no bloquean lo esencial (temas de color, insignia, acceso anticipado).
 - Exportar a Excel.

@@ -1,7 +1,7 @@
 # Simplifica 🌿
 
 App de finanzas personales para ordenar la plata **sin tener que anotar cada gasto**.
-Hecha en Chile, para amigos, gratis y de código abierto.
+Hecha en Chile y de código abierto. La app base es gratis y completa: ordenar tus cuentas nunca va a estar detrás de un pago.
 
 - **Cuánto puedes gastar hoy**: ingreso − pagos fijos − cuotas de deudas − ahorro − lo ya gastado, dividido por los días que quedan del mes.
 - **Presupuesto por categoría**, con avisos al 80% y al pasarte.
@@ -42,7 +42,7 @@ La app se publica en **Vercel** y guarda los datos en **Supabase**. Los dos son 
 
 1. Crea una cuenta y un proyecto en [supabase.com](https://supabase.com). Elige la región **South America (São Paulo)**, que es la más cercana a Chile.
 2. Ve a *SQL Editor → New query*, pega todo [`supabase/schema.sql`](supabase/schema.sql) y presiona *Run*.
-3. Ve a *Authentication → Sign In / Providers → Email* y **desactiva "Confirm email"**. El servicio de correo que trae Supabase solo envía a los miembros de tu proyecto y como máximo 2 correos por hora, así que con la confirmación activada tus amigos no podrían crear su cuenta. Si más adelante configuras tu propio SMTP (por ejemplo Brevo o Resend), puedes volver a activarla.
+3. Ve a *Authentication → Sign In / Providers → Email* y **desactiva "Confirm email"**. El servicio de correo que trae Supabase solo envía a los miembros de tu proyecto y como máximo 2 correos por hora, así que con la confirmación activada nadie fuera de tu equipo podría crear su cuenta. Si más adelante configuras tu propio SMTP (por ejemplo Brevo o Resend), puedes volver a activarla.
 4. En *Project Settings → API* (o *Data API*) copia la **Project URL** y la **anon public key** a `js/config.js` y sube el cambio a GitHub.
 
 > La *anon key* es pública por diseño y puede ir en el repo. **Nunca** subas la *service_role key*.
@@ -94,7 +94,7 @@ docs/DISENO.md        diseño y fases siguientes
 - La app **nunca te pide las claves del banco**.
 - En modo local, nada sale de tu teléfono.
 - Si trabajas en el código, guarda tus respaldos o planes personales en `privado/`: git ignora esa carpeta y los archivos `plan_financiero*.md`.
-- En modo nube, los datos quedan en el proyecto Supabase de quien publicó la app. Si un amigo te publica la app, él administra esa base de datos. Si prefieres que nadie más la administre, publica tu propia copia (arriba).
+- En modo nube, los datos quedan en la base de datos Supabase de quien publica la app, protegidos para que cada cuenta vea solo lo suyo. Si prefieres que nadie más la administre, puedes publicar tu propia copia (arriba).
 
 ## Licencia
 
