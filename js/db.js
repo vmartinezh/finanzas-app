@@ -17,6 +17,9 @@ export const datos = {
 };
 
 export let modo = 'local';
+// 'lista' si se abrió la app desde el correo para recuperar la contraseña,
+// 'vencida' si ese enlace ya no sirve, null en cualquier otro caso.
+export let recuperacion = null;
 let supabase = null;
 let usuarioId = null;
 
@@ -67,9 +70,17 @@ export async function iniciar() {
   }
 
   modo = 'nube';
+  // El enlace del correo para recuperar la contraseña vuelve a la app con
+  // #access_token=…&type=recovery, o con #error_code=… si ya venció. Se lee
+  // antes de crear el cliente, que consume esos datos para abrir la sesión.
+  const enlace = new URLSearchParams(location.hash.slice(1));
+  recuperacion = enlace.get('type') === 'recovery' ? 'lista' : enlace.get('error_code') ? 'vencida' : null;
+
   const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm');
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const { data: { session } } = await supabase.auth.getSession();
+  // Los tokens no se quedan en la barra de direcciones ni en el historial.
+  if (recuperacion) history.replaceState(null, '', location.pathname + location.search);
   if (!session) return null;
   usuarioId = session.user.id;
 
@@ -84,8 +95,9 @@ export async function iniciar() {
   return session.user;
 }
 
-// Acceso con correo y contraseña. No depende de enviar correos (el servicio de
-// correo por defecto de Supabase solo llega a los miembros del proyecto).
+// Acceso con correo y contraseña. Crear la cuenta y entrar no envían correos;
+// solo recuperar la contraseña, y para eso Supabase necesita un SMTP propio
+// (el que trae por defecto solo llega a los miembros del proyecto).
 // Devuelve true si la cuenta quedó lista, o false si Supabase pide confirmar el correo.
 export async function crearCuenta(email, contraseña) {
   const { data, error } = await supabase.auth.signUp({
@@ -101,6 +113,20 @@ export async function entrar(email, contraseña) {
   if (error) throw traducirError(error);
 }
 
+// Manda el correo con el enlace para crear una contraseña nueva. Supabase no
+// avisa si el correo no tiene cuenta, así nadie puede averiguar quién la usa.
+export async function pedirRecuperacion(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  if (error) throw traducirError(error);
+}
+
+// Con la sesión que abrió el enlace del correo.
+export async function cambiarContraseña(nueva) {
+  const { error } = await supabase.auth.updateUser({ password: nueva });
+  if (error) throw traducirError(error);
+  recuperacion = null;
+}
+
 function traducirError(error) {
   const mensajes = {
     invalid_credentials: 'Correo o contraseña incorrectos.',
@@ -108,6 +134,7 @@ function traducirError(error) {
     weak_password: 'La contraseña es muy corta: usa al menos 8 caracteres.',
     email_not_confirmed: 'Falta confirmar el correo. Revisa tu bandeja de entrada.',
     over_email_send_rate_limit: 'Se alcanzó el límite de correos. Intenta en una hora.',
+    same_password: 'La contraseña nueva tiene que ser distinta de la anterior.',
   };
   return new Error(mensajes[error.code] || error.message);
 }

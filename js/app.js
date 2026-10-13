@@ -1,4 +1,4 @@
-import { iniciar, modo, crearCuenta, entrar, datos } from './db.js';
+import { iniciar, modo, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
 import { avisar } from './ui.js';
@@ -67,10 +67,15 @@ function pantallaAcceso(nueva = false) {
         <button class="boton primario ancho">${nueva ? 'Crear cuenta' : 'Entrar'}</button>
       </form>
       <p class="ayuda">${nueva ? '¿Ya tienes cuenta?' : '¿Primera vez?'} <a href="#" id="cambiar-acceso">${nueva ? 'Entrar' : 'Crear una cuenta'}</a></p>
+      ${nueva ? '' : '<p class="ayuda"><a href="#" id="olvide">¿Olvidaste tu contraseña?</a></p>'}
     </section>`;
   vista.querySelector('#cambiar-acceso').addEventListener('click', e => {
     e.preventDefault();
     pantallaAcceso(!nueva);
+  });
+  vista.querySelector('#olvide')?.addEventListener('click', e => {
+    e.preventDefault();
+    pantallaRecuperar(vista.querySelector('[name=email]').value.trim());
   });
   vista.querySelector('#form-acceso').addEventListener('submit', async e => {
     e.preventDefault();
@@ -95,6 +100,70 @@ function pantallaAcceso(nueva = false) {
   });
 }
 
+function pantallaRecuperar(email = '', aviso = '') {
+  document.body.classList.add('sin-sesion');
+  document.getElementById('titulo').textContent = 'Simplifica';
+  vista.innerHTML = `
+    <section class="tarjeta acceso">
+      <h2>Recupera tu contraseña</h2>
+      ${aviso ? `<p class="mensaje">${esc(aviso)}</p>` : ''}
+      <p class="ayuda">Te mandamos un correo con un enlace para crear una contraseña nueva.</p>
+      <form id="form-recuperar">
+        <label class="campo"><span>Correo</span><input type="email" name="email" required autocomplete="email" value="${esc(email)}"></label>
+        <button class="boton primario ancho">Enviar enlace</button>
+      </form>
+      <p class="ayuda"><a href="#" id="volver-acceso">Volver a entrar</a></p>
+    </section>`;
+  vista.querySelector('#volver-acceso').addEventListener('click', e => {
+    e.preventDefault();
+    pantallaAcceso();
+  });
+  vista.querySelector('#form-recuperar').addEventListener('submit', async e => {
+    e.preventDefault();
+    const boton = e.target.querySelector('button');
+    const correo = e.target.email.value.trim();
+    boton.disabled = true;
+    try {
+      await pedirRecuperacion(correo);
+      vista.querySelector('.acceso').innerHTML = `<h2>Revisa tu correo</h2>
+        <p>Si <b>${esc(correo)}</b> tiene una cuenta, te llegó un enlace para crear una contraseña nueva. Ábrelo en este mismo dispositivo.</p>
+        <p class="ayuda">¿No llega? Revisa la carpeta de spam.</p>`;
+    } catch (err) {
+      avisar(err.message, 'error');
+      boton.disabled = false;
+    }
+  });
+}
+
+// Se llega aquí desde el enlace del correo, que ya abrió la sesión.
+function pantallaNuevaContraseña() {
+  document.body.classList.add('sin-sesion');
+  document.getElementById('titulo').textContent = 'Simplifica';
+  vista.innerHTML = `
+    <section class="tarjeta acceso">
+      <h2>Crea tu contraseña nueva</h2>
+      <form id="form-nueva">
+        <label class="campo"><span>Contraseña nueva</span>
+          <input type="password" name="clave" required minlength="8" autocomplete="new-password">
+          <small>Al menos 8 caracteres.</small>
+        </label>
+        <button class="boton primario ancho">Guardar y entrar</button>
+      </form>
+    </section>`;
+  vista.querySelector('#form-nueva').addEventListener('submit', async e => {
+    e.preventDefault();
+    const boton = e.target.querySelector('button');
+    boton.disabled = true;
+    try {
+      await cambiarContraseña(e.target.clave.value);
+      location.reload();
+    } catch (err) {
+      avisar(err.message, 'error');
+      boton.disabled = false;
+    }
+  });
+}
+
 async function arrancar() {
   let usuario;
   try {
@@ -106,7 +175,9 @@ async function arrancar() {
     return;
   }
   document.body.classList.remove('cargando');
+  if (recuperacion === 'vencida') return pantallaRecuperar('', 'Ese enlace ya venció o ya se usó. Pide uno nuevo.');
   if (!usuario) return pantallaAcceso();
+  if (recuperacion === 'lista') return pantallaNuevaContraseña();
 
   const chip = document.getElementById('modo');
   chip.textContent = modo === 'local' ? 'En este dispositivo' : 'En la nube';

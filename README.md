@@ -59,9 +59,17 @@ La app se publica en **Vercel** y guarda los datos en **Supabase**. Los dos son 
 
 También funciona en GitHub Pages (*Settings → Pages → Branch: `main` / root*), en `https://TU-USUARIO.github.io/finanzas-app/`.
 
-### Si alguien olvida su contraseña
+### 3. Correo para recuperar la contraseña (Brevo)
 
-Sin SMTP propio no se pueden mandar correos de recuperación. Desde Supabase, en *Authentication → Users*, puedes borrar al usuario para que cree la cuenta de nuevo (se pierden sus datos), o configurar SMTP para habilitar la recuperación.
+La app tiene "¿Olvidaste tu contraseña?", pero el correo que trae Supabase solo llega a los miembros del proyecto. Con un SMTP propio le llega a cualquiera:
+
+1. Crea una cuenta gratis en [brevo.com](https://www.brevo.com) (300 correos al día).
+2. En *Senders, Domains & Dedicated IPs → Senders* agrega y verifica el correo que va a aparecer como remitente.
+3. En *SMTP & API → SMTP* genera una clave SMTP.
+4. En Supabase, *Authentication → Emails → SMTP Settings*, activa *Custom SMTP* con: host `smtp-relay.brevo.com`, puerto `587`, usuario = el *login* SMTP que muestra Brevo, contraseña = la clave SMTP, remitente = el correo verificado y nombre `Simplifica`.
+5. En *Authentication → URL Configuration*, agrega la dirección de la app en *Redirect URLs* (además de *Site URL*): el enlace del correo solo puede volver a direcciones de esa lista.
+
+Con dominio propio conviene cambiar a un remitente de ese dominio (por ejemplo con Resend), para que los correos no lleguen a spam.
 
 ## Probar en tu computador
 
