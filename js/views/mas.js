@@ -3,6 +3,7 @@ export const titulo = 'Más';
 const OPCIONES = [
   ['#/compromisos', '📅', 'Pagos fijos', 'Arriendo, cuentas y compras en cuotas: lo que debes mes a mes'],
   ['#/analisis', '📊', 'Gráficos', 'En qué se te va la plata y cómo vas este mes'],
+  ['#/revision', '✅', 'Revisión del mes', 'El checklist de fin de mes: pagos, saldos y alertas'],
   ['#/ajustes', '⚙️', 'Ajustes', 'Tu ingreso, categorías, eventos y respaldos'],
 ];
 

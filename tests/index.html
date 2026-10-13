@@ -19,7 +19,7 @@
     // No toca tus datos: trabaja sobre datos en memoria.
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
-    import { planDeudas, disponibleDelMes, estadoPresupuesto } from '../js/calculos.js';
+    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo } from '../js/calculos.js';
     import { leerMonto, sumarMeses, mesActual } from '../js/util.js';
 
     const resultados = [];
@@ -54,15 +54,15 @@
     });
     prueba('El abono extra acorta el plazo', () => {
       const d = [{ id: 'a', nombre: 'A', saldo: 1000, cuota_mensual: 100, cae: 0 }];
-      igual(planDeudas(d, 100).meses, 5);
+      igual(planDeudas(d, 200).meses, 5, 'con 200 al mes en total;');
     });
     prueba('Avalancha termina primero la de CAE más alto', () => {
       const d = [
         { id: 'barata', nombre: 'Barata', saldo: 500000, cuota_mensual: 20000, cae: 10 },
         { id: 'cara', nombre: 'Cara', saldo: 500000, cuota_mensual: 20000, cae: 50 },
       ];
-      igual(planDeudas(d, 100000, 'avalancha').deudas[0].id, 'cara');
-      igual(planDeudas(d, 100000, 'bola-de-nieve').deudas.length, 2);
+      igual(planDeudas(d, 140000, 'avalancha').deudas[0].id, 'cara');
+      igual(planDeudas(d, 140000, 'bola-de-nieve').deudas.length, 2);
     });
     prueba('Avalancha nunca paga más intereses que bola de nieve', () => {
       const d = [
@@ -70,8 +70,8 @@
         { id: 'b', nombre: 'B', saldo: 2000000, cuota_mensual: 80000, cae: 20 },
         { id: 'c', nombre: 'C', saldo: 900000, cuota_mensual: 30000, cae: 30 },
       ];
-      const av = planDeudas(d, 50000, 'avalancha').interesTotal;
-      const bn = planDeudas(d, 50000, 'bola-de-nieve').interesTotal;
+      const av = planDeudas(d, 175000, 'avalancha').interesTotal;
+      const bn = planDeudas(d, 175000, 'bola-de-nieve').interesTotal;
       if (av > bn + 1) throw new Error(`avalancha ${av} > bola de nieve ${bn}`);
     });
     prueba('Detecta deudas que nunca se pagan (cuota menor que el interés)', () => {
@@ -85,7 +85,7 @@
 
     prueba('Disponible = ingreso − fijos − cuotas − ahorro − gasto variable', () => {
       const mes = mesActual();
-      datos.perfil = { ingreso_mensual: 1000000, meta_ahorro: 50000, pago_extra_deudas: 0 };
+      datos.perfil = { ingreso_mensual: 1000000, meta_ahorro: 50000, presupuesto_deudas: 0 };
       datos.compromisos = [
         { id: 'c1', nombre: 'Arriendo', monto: 400000, activo: true },
         { id: 'c2', nombre: 'TV en cuotas', monto: 30000, activo: true, hasta_mes: sumarMeses(mes, -1) },
@@ -101,6 +101,56 @@
       igual(d.paraVariable, 450000);
       igual(d.gastado, 20000, 'los pagos planificados no se cuentan dos veces;');
       igual(d.restante, 430000);
+    });
+
+    prueba('Los ingresos extra no suben lo que puedes gastar', () => {
+      const mes = mesActual();
+      datos.movimientos.push(
+        { id: 'i1', fecha: mes + '-02', monto: 1000000, tipo: 'ingreso', categoria_id: 'sueldo' },
+        { id: 'i2', fecha: mes + '-03', monto: 380000, tipo: 'ingreso', categoria_id: null, descripcion: 'cambio de reales' },
+      );
+      const d = disponibleDelMes(mes);
+      igual(d.ingreso, 1000000);
+      igual(d.ingresosExtra, 380000);
+      igual(d.paraVariable, 450000);
+    });
+
+    prueba('El total para deudas nunca es menor que las cuotas mínimas', () => {
+      datos.perfil.presupuesto_deudas = 50000;
+      igual(destinoDeudas().total, 100000);
+      datos.perfil.presupuesto_deudas = 300000;
+      igual(destinoDeudas().total, 300000);
+      igual(disponibleDelMes(mesActual()).extraDeudas, 200000);
+    });
+
+    prueba('Las deudas en pausa no descuentan cuota ni entran al plan', () => {
+      datos.perfil.presupuesto_deudas = 0;
+      datos.deudas.push({ id: 'papa', nombre: 'Papá', saldo: 1600000, cuota_mensual: 200000, cae: 0, estado: 'pausa' });
+      igual(destinoDeudas().cuotas, 100000);
+      igual(planDeudas(datos.deudas, 300000).deudas.map(x => x.id), ['d1']);
+    });
+
+    prueba('Una deuda con fecha límite queda pagada a tiempo aunque no tenga interés', () => {
+      const limite = sumarMeses(mesActual(), 5);
+      const d = [
+        { id: 'tarjeta', nombre: 'Tarjeta', saldo: 3000000, cuota_mensual: 100000, cae: 45 },
+        { id: 'mama', nombre: 'Mamá', saldo: 500000, cuota_mensual: 0, cae: 0, fecha_limite: limite },
+      ];
+      const p = planDeudas(d, 600000);
+      const mama = p.deudas.find(x => x.id === 'mama');
+      if (mama.mesTermino > limite) throw new Error(`terminó en ${mama.mesTermino}, límite ${limite}`);
+      igual(p.fueraDePlazo.length, 0);
+    });
+
+    prueba('Avisa cuando una fecha límite no se alcanza', () => {
+      const d = [{ id: 'mama', nombre: 'Mamá', saldo: 500000, cuota_mensual: 0, cae: 0, fecha_limite: mesActual() }];
+      igual(planDeudas(d, 100000).fueraDePlazo.map(x => x.id), ['mama']);
+    });
+
+    prueba('Uso del cupo con alerta al 85%', () => {
+      igual(usoCupo({ saldo: 800000, cupo_total: 1000000 }).estado, 'alerta');
+      igual(usoCupo({ saldo: 900000, cupo_total: 1000000 }).estado, 'excedido');
+      igual(usoCupo({ saldo: 100, cupo_total: 0 }), null);
     });
 
     prueba('Estados del presupuesto', () => {

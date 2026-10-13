@@ -6,7 +6,8 @@ Hecha en Chile, para amigos, gratis y de código abierto.
 - **Cuánto puedes gastar hoy**: ingreso − pagos fijos − cuotas de deudas − ahorro − lo ya gastado, dividido por los días que quedan del mes.
 - **Presupuesto por categoría**, con avisos al 80% y al pasarte.
 - **Pagos fijos mes a mes**: arriendo, cuentas y compras en cuotas, con lo que ya tienes comprometido los próximos 6 meses.
-- **Plan para salir de las deudas**: método avalancha o bola de nieve, la fecha en que quedas libre y cuánto ahorras en intereses abonando extra.
+- **Plan para salir de las deudas**: avalancha o bola de nieve con un total mensual fijo, deudas en pausa (acuerdos con la familia), deudas con fecha límite, uso del cupo de las tarjetas con alerta al 85%, y la fecha en que quedas libre.
+- **Revisión de fin de mes**: checklist con ingreso, gastos, pagos de cada deuda, saldos según la cartola y alertas.
 - **Gráficos**: en qué se te va la plata, si vas al ritmo del presupuesto y los últimos 6 meses.
 - **Eventos** (matrimonio, viaje, mudanza): sus gastos se ven aparte para que no distorsionen un mes normal.
 - **"¿Qué fue esta compra?"**: escribes en tus palabras ("uber al aeropuerto para lo del matri") y la app lo clasifica sola (*Transporte · Matrimonio*). Además aprende cada comercio para la próxima vez.
@@ -82,6 +83,7 @@ docs/DISENO.md        diseño y fases siguientes
 
 - La app **nunca te pide las claves del banco**.
 - En modo local, nada sale de tu teléfono.
+- Si trabajas en el código, guarda tus respaldos o planes personales en `privado/`: git ignora esa carpeta y los archivos `plan_financiero*.md`.
 - En modo nube, los datos quedan en el proyecto Supabase de quien publicó la app. Si un amigo te publica la app, él administra esa base de datos. Si prefieres que nadie más la administre, publica tu propia copia (arriba).
 
 ## Licencia

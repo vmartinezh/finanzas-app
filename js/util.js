@@ -57,7 +57,12 @@ export function fechaCorta(fechaISO) {
   return `${d} ${MESES[m - 1].slice(0, 3)}`;
 }
 
+// Minúsculas y sin tildes. El rango del replace son las marcas de acento
+// combinables (U+0300 a U+036F) que deja normalize('NFD').
 export const normalizar = texto => String(texto ?? '')
   .toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .trim();
+
+// Porcentajes con un decimal si lo tienen: 32,5% · 45%
+export const porcentaje = n => (n || 0).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + '%';

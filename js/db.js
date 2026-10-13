@@ -9,7 +9,9 @@ export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimi
 
 export const datos = {
   categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [],
-  perfil: { ingreso_mensual: 0, meta_ahorro: 0, pago_extra_deudas: 0 },
+  // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
+  // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
+  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null },
 };
 
 export let modo = 'local';
@@ -142,9 +144,21 @@ export function exportar() {
   return copia;
 }
 
+// Restaura un respaldo REEMPLAZANDO los datos actuales (si no, las categorías
+// que se crean al abrir la app por primera vez quedarían duplicadas).
 export async function importar(copia) {
   if (!copia || copia.version !== 1) throw new Error('El archivo no es un respaldo de Lucas');
-  // Primero las tablas que otras referencian.
+  // Se borra de atrás hacia adelante y se inserta en orden de dependencia.
+  for (const t of [...TABLAS].reverse()) {
+    const conservar = new Set((copia[t] || []).map(f => f.id));
+    for (const f of datos[t].filter(f => !conservar.has(f.id))) await borrar(t, f.id);
+  }
   for (const t of TABLAS) await guardarVarios(t, copia[t] || []);
-  await guardarPerfil(copia.perfil || {});
+  // Respaldos anteriores guardaban solo el abono extra; se convierte al total.
+  const perfil = { ...(copia.perfil || {}) };
+  if (perfil.presupuesto_deudas == null && perfil.pago_extra_deudas) {
+    perfil.presupuesto_deudas = (copia.deudas || []).reduce((s, d) => s + (d.cuota_mensual || 0), 0) + perfil.pago_extra_deudas;
+  }
+  delete perfil.pago_extra_deudas;
+  await guardarPerfil(perfil);
 }

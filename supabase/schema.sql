@@ -9,7 +9,8 @@ create table if not exists public.perfil (
   user_id uuid primary key default auth.uid() references auth.users on delete cascade,
   ingreso_mensual bigint not null default 0,
   meta_ahorro bigint not null default 0,
-  pago_extra_deudas bigint not null default 0,
+  presupuesto_deudas bigint not null default 0, -- total al mes para deudas (cuotas + abono extra)
+  revisado_mes text,                            -- último mes con revisión de fin de mes, 'YYYY-MM'
   creado timestamptz not null default now()
 );
 
@@ -43,6 +44,10 @@ create table if not exists public.deudas (
   cuota_mensual bigint not null default 0,
   cae numeric(6, 2) not null default 0,
   dia_pago smallint check (dia_pago between 1 and 31),
+  cupo_total bigint,                    -- tarjetas: cupo autorizado, para la alerta de uso
+  fecha_limite text,                    -- 'YYYY-MM': debe quedar pagada a más tardar ese mes
+  estado text not null default 'activa' check (estado in ('activa', 'pausa')),
+  notas text,                           -- acuerdos: "cuotas de honor", "pausa hasta resolver tarjetas"
   creado timestamptz not null default now()
 );
 

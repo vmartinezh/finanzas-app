@@ -33,6 +33,9 @@ gasto variable, porque ya estaba descontado.
 Disponible del día, presupuesto, pagos fijos y cuotas, deudas con plan avalancha
 o bola de nieve, gráficos, eventos, clasificador por palabras clave que aprende
 comercios, modo local y modo nube (Supabase con RLS), y respaldo en JSON.
+También: total mensual para deudas (las cuotas que terminan pasan a la
+siguiente), deudas en pausa y con fecha límite, uso del cupo con alerta al 85%,
+revisión de fin de mes, e ingresos extra que no inflan lo que puedes gastar.
 
 ### Fase 2: captura automática desde el correo del banco
 Los bancos chilenos y las casas comerciales mandan un correo por cada compra con

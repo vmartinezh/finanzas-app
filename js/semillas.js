@@ -23,10 +23,10 @@ export async function cargarEjemplo() {
   const topes = { 'Supermercado': 280000, 'Comida fuera': 90000, 'Transporte': 80000, 'Entretención': 40000, 'Ropa': 30000, 'Regalos': 30000, 'Otros': 40000 };
   await guardarVarios('categorias', datos.categorias.filter(c => topes[c.nombre]).map(c => ({ ...c, tope_mensual: topes[c.nombre] })));
 
-  await guardarPerfil({ ingreso_mensual: 1800000, meta_ahorro: 50000, pago_extra_deudas: 50000 });
+  await guardarPerfil({ ingreso_mensual: 1800000, meta_ahorro: 50000, presupuesto_deudas: 335000 });
 
   const deudas = [
-    { id: nuevoId(), nombre: 'Tarjeta CMR', acreedor: 'Falabella', saldo: 1200000, cuota_mensual: 85000, cae: 45, dia_pago: 5 },
+    { id: nuevoId(), nombre: 'Tarjeta CMR', acreedor: 'Falabella', saldo: 1200000, cuota_mensual: 85000, cae: 45, dia_pago: 5, cupo_total: 1500000 },
     { id: nuevoId(), nombre: 'Crédito de consumo', acreedor: 'Banco', saldo: 3500000, cuota_mensual: 160000, cae: 22, dia_pago: 10 },
     { id: nuevoId(), nombre: 'Línea de crédito', acreedor: 'Banco', saldo: 600000, cuota_mensual: 40000, cae: 30, dia_pago: 1 },
   ];

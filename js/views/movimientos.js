@@ -168,13 +168,13 @@ export async function editarMovimiento(mov, refrescar) {
     if (fila.comercio && fila.categoria_id) await aprender(fila.comercio, fila.categoria_id);
 
     // Un pago nuevo de compromiso lo marca como pagado ese mes.
-    if (fila.compromiso_id && fila.compromiso_id !== m.compromiso_id) {
+    if (fila.compromiso_id && (nuevo || fila.compromiso_id !== m.compromiso_id)) {
       const c = datos.compromisos.find(x => x.id === fila.compromiso_id);
       const mes = mesDe(fila.fecha);
       if (c && !(c.pagados || []).includes(mes)) await guardar('compromisos', { ...c, pagados: [...(c.pagados || []), mes] });
     }
     // Un pago nuevo de deuda baja el saldo (después lo puedes ajustar con la cartola).
-    if (fila.deuda_id && fila.deuda_id !== m.deuda_id) {
+    if (fila.deuda_id && (nuevo || fila.deuda_id !== m.deuda_id)) {
       const d = datos.deudas.find(x => x.id === fila.deuda_id);
       if (d) await guardar('deudas', { ...d, saldo: Math.max(0, (d.saldo || 0) - fila.monto) });
     }

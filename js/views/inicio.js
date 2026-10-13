@@ -1,8 +1,8 @@
 import { datos, guardar } from '../db.js';
-import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario } from '../calculos.js';
+import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision } from '../calculos.js';
 import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO } from '../ui.js';
-import { clp, esc, mesActual, nombreMes, hoyISO } from '../util.js';
+import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
 
 export const titulo = 'Inicio';
@@ -24,8 +24,23 @@ export function render() {
     .sort((a, b) => b.gastado / b.c.tope_mensual - a.gastado / a.c.tope_mensual);
 
   const enRojo = d.restante < 0;
+  const tarjetasAltas = datos.deudas.filter(x => x.saldo > 0 && usoCupo(x)?.estado === 'excedido');
+  const revision = tocaRevision();
+  const masCara = datos.deudas.filter(x => x.saldo > 0 && x.estado !== 'pausa').sort((a, b) => (b.cae || 0) - (a.cae || 0))[0];
 
   return `
+    ${revision.pendiente ? `
+      <a class="tarjeta destacada enlace-tarjeta" href="#/revision">
+        <h2>✅ Toca la revisión de ${esc(nombreMes(revision.mesARevisar, false))}</h2>
+        <p>Diez minutos: confirmar pagos, actualizar saldos y ver si el plan va bien.</p>
+      </a>` : ''}
+
+    ${tarjetasAltas.map(t => `
+      <section class="tarjeta alerta-tarjeta">
+        <h2>⚠ ${esc(t.nombre)} sobre el 85% del cupo</h2>
+        <p>Usas el ${Math.round(usoCupo(t).pct)}%. No la uses para gastos del día a día hasta bajarla.</p>
+      </section>`).join('')}
+
     ${sinConfigurar ? `
       <section class="tarjeta destacada">
         <h2>Partamos por lo básico</h2>
@@ -53,6 +68,12 @@ export function render() {
         </dl>
       </details>
     </section>
+
+    ${d.ingresosExtra ? `
+      <section class="tarjeta">
+        <h2>Plata extra este mes: ${clp(d.ingresosExtra)}</h2>
+        <p class="ayuda">No la sumé a lo que puedes gastar.${masCara?.cae ? ` Donde más rinde es abonándola a <b>${esc(masCara.nombre)}</b> (CAE ${porcentaje(masCara.cae)}), o guardándola como fondo de emergencia.` : ' Puedes guardarla como fondo de emergencia.'}</p>
+      </section>` : ''}
 
     ${pendientes.length ? `
       <section class="tarjeta">
