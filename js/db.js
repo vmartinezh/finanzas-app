@@ -12,7 +12,8 @@ export const datos = {
   categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [],
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
-  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null },
+  // tarjetas: ids del catálogo de descuentos (js/beneficios.js) que la persona tiene.
+  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [] },
 };
 
 export let modo = 'local';

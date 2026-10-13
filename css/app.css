@@ -473,3 +473,21 @@ dialog .espacio { flex: 1; }
 }
 /* En Inicio el título es la marca, en minúsculas como el logo. */
 body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
+
+/* ── Descuentos de las tarjetas ─────────────────── */
+.descuento {
+  flex: none; padding: 2px 8px; border-radius: 8px; white-space: nowrap;
+  background: var(--acento-suave); color: var(--acento); font-weight: 700; font-size: .9rem;
+}
+.fila-texto small.nota { margin-top: 1px; }
+.subtitulo { font-size: .8rem; color: var(--texto-2); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 6px; }
+.tarjeta .selector-dia { flex-wrap: nowrap; justify-content: space-between; gap: 4px; }
+.selector-dia .chip { flex: 1; min-width: 0; padding: 0; position: relative; text-transform: capitalize; }
+.punto-hoy {
+  position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
+  border-radius: 50%; background: currentColor;
+}
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}

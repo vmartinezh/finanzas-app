@@ -11,6 +11,7 @@ create table if not exists public.perfil (
   meta_ahorro bigint not null default 0,
   presupuesto_deudas bigint not null default 0, -- total al mes para deudas (cuotas + abono extra)
   revisado_mes text,                            -- último mes con revisión de fin de mes, 'YYYY-MM'
+  tarjetas text[] not null default '{}',        -- tarjetas del catálogo de descuentos (js/beneficios.js)
   creado timestamptz not null default now()
 );
 
@@ -92,6 +93,9 @@ create table if not exists public.reglas (
   creado timestamptz not null default now(),
   unique (user_id, patron)
 );
+
+-- Instalaciones anteriores: columnas agregadas después de crear las tablas.
+alter table public.perfil add column if not exists tarjetas text[] not null default '{}';
 
 create index if not exists movimientos_usuario_fecha on public.movimientos (user_id, fecha desc);
 

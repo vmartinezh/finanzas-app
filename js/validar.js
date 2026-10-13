@@ -29,6 +29,9 @@ const decimal = v => {
 const opcion = (v, opciones) => (opciones.includes(v) ? v : opciones[0]);
 const mes = v => (typeof v === 'string' && MES.test(v) ? v : null);
 const logico = v => v !== false;
+// Ids del catálogo de tarjetas (js/beneficios.js): 'santander', 'lider-bci'.
+const ID_TARJETA = /^[a-z0-9-]{1,40}$/;
+const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
 
 const FORMAS = {
   categorias: f => ({
@@ -109,6 +112,7 @@ export function normalizarPerfil(p) {
     meta_ahorro: entero(p.meta_ahorro),
     presupuesto_deudas: entero(p.presupuesto_deudas),
     revisado_mes: mes(p.revisado_mes),
+    tarjetas: tarjetas(p.tarjetas),
   };
   // Respaldos de la primera versión guardaban solo el abono extra.
   if (p.pago_extra_deudas != null) limpio.pago_extra_deudas = entero(p.pago_extra_deudas);

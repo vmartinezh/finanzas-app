@@ -31,6 +31,13 @@ export function hoyISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Suma días a una fecha 'YYYY-MM-DD' (cruza meses y años).
+export function sumarDias(fechaISO, n) {
+  const [a, m, d] = fechaISO.split('-').map(Number);
+  const f = new Date(a, m - 1, d + n);
+  return `${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`;
+}
+
 export const mesDe = fechaISO => fechaISO.slice(0, 7);
 export const mesActual = () => mesDe(hoyISO());
 

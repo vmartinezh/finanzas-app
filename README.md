@@ -10,6 +10,7 @@ Hecha en Chile y de código abierto. La app base es gratis y completa: ordenar t
 - **Revisión de fin de mes**: checklist con ingreso, gastos, pagos de cada deuda, saldos según la cartola y alertas.
 - **Gráficos**: en qué se te va la plata, si vas al ritmo del presupuesto y los últimos 6 meses.
 - **Eventos** (matrimonio, viaje, mudanza): sus gastos se ven aparte para que no distorsionen un mes normal.
+- **Descuentos de tus tarjetas**: marcas las tarjetas que tienes (Santander, CMR, Banco de Chile…) y te dice en qué tienes descuento hoy y el resto de la semana, como el 40% de los jueves en Burger King con Santander. El catálogo se revisa cada semana contra la página de beneficios de cada banco.
 - **"¿Qué fue esta compra?"**: escribes en tus palabras ("uber al aeropuerto para lo del matri") y la app lo clasifica sola (*Transporte · Matrimonio*). Además aprende cada comercio para la próxima vez.
 
 > 🚧 **Estado:** fase 1 (la app base). La captura automática de compras desde los correos del banco y las notificaciones vienen en las fases 2 y 3. Ver [docs/DISENO.md](docs/DISENO.md).
@@ -41,7 +42,7 @@ La app se publica en **Vercel** y guarda los datos en **Supabase**. Los dos son 
 ### 1. Supabase (la base de datos)
 
 1. Crea una cuenta y un proyecto en [supabase.com](https://supabase.com). Elige la región **South America (São Paulo)**, que es la más cercana a Chile.
-2. Ve a *SQL Editor → New query*, pega todo [`supabase/schema.sql`](supabase/schema.sql) y presiona *Run*.
+2. Ve a *SQL Editor → New query*, pega todo [`supabase/schema.sql`](supabase/schema.sql) y presiona *Run*. Si ya la tenías instalada, vuelve a correrlo cuando cambie: solo agrega lo nuevo y no borra datos.
 3. Ve a *Authentication → Sign In / Providers → Email* y **desactiva "Confirm email"**. El servicio de correo que trae Supabase solo envía a los miembros de tu proyecto y como máximo 2 correos por hora, así que con la confirmación activada nadie fuera de tu equipo podría crear su cuenta. Si más adelante configuras tu propio SMTP (por ejemplo Brevo o Resend), puedes volver a activarla.
 4. En *Project Settings → API* (o *Data API*) copia la **Project URL** y la **anon public key** a `js/config.js` y sube el cambio a GitHub.
 
@@ -83,6 +84,7 @@ js/db.js              datos: modo local (localStorage) o nube (Supabase)
 js/calculos.js        disponible del mes, presupuesto, plan de deudas
 js/clasificador.js    adivina la categoría de una compra y aprende
 js/graficos.js        gráficos SVG livianos, sin librerías
+js/beneficios.js      catálogo de descuentos por día de cada tarjeta (se revisa cada semana)
 js/views/             cada pantalla
 supabase/schema.sql   tablas y seguridad para la nube
 tests/index.html      pruebas

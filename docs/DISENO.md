@@ -37,6 +37,23 @@ También: total mensual para deudas (las cuotas que terminan pasan a la
 siguiente), deudas en pausa y con fecha límite, uso del cupo con alerta al 85%,
 revisión de fin de mes, e ingresos extra que no inflan lo que puedes gastar.
 
+### Descuentos de las tarjetas
+Cada persona marca qué tarjetas tiene y la app le muestra los descuentos del
+día y de la semana. No se conecta al banco: el catálogo vive en
+`js/beneficios.js` y se revisa a mano cada semana contra la página de
+beneficios de cada banco (cada descuento guarda el link a su ficha oficial).
+
+Revisión semanal:
+1. Para cada tarjeta, abrir su página de beneficios y comparar con el catálogo.
+2. Borrar lo vencido o retirado, corregir lo que cambió y agregar lo nuevo de
+   los comercios del día a día (comida rápida, cafés, farmacias, bencina,
+   supermercados, delivery, cine).
+3. Actualizar `REVISADO` y correr `/tests/` (revisa que cada descuento esté
+   bien escrito).
+4. Para sumar una tarjeta: agregarla a `TARJETAS` y sus descuentos.
+
+Si pasan más de dos semanas sin revisión, la app avisa que puede haber cambios.
+
 ### Fase 2: captura automática desde el correo del banco
 Los bancos chilenos y las casas comerciales mandan un correo por cada compra con
 tarjeta. Plan:

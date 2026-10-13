@@ -22,6 +22,7 @@
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo } from '../js/calculos.js';
     import { leerMonto, sumarMeses, mesActual, esc } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil } from '../js/validar.js';
+    import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
 
     const resultados = [];
     const prueba = (nombre, fn) => {
@@ -197,7 +198,65 @@
     });
     prueba('El perfil solo conserva campos conocidos', () => {
       igual(normalizarPerfil({ ingreso_mensual: '1500000', revisado_mes: ATAQUE, raro: 1 }),
-        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null });
+        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [] });
+    });
+    prueba('Las tarjetas del perfil solo aceptan ids simples, sin repetir', () => {
+      igual(normalizarPerfil({ tarjetas: ['santander', ATAQUE, 'santander', 7, 'lider-bci'] }).tarjetas, ['santander', 'lider-bci']);
+      igual(normalizarPerfil({ tarjetas: 'santander' }).tarjetas, []);
+    });
+
+    // Descuentos de las tarjetas
+    prueba('Día de la semana: lunes = 1, domingo = 7', () => {
+      igual(diaSemana('2026-10-12'), 1);
+      igual(diaSemana('2026-10-15'), 4);
+      igual(diaSemana('2026-10-18'), 7);
+    });
+    prueba('Los jueves con Santander: 40% en Burger King', () => {
+      const jueves = beneficiosDelDia(['santander'], '2026-10-15');
+      if (!jueves.some(b => b.comercio === 'Burger King' && b.descuento === '40%')) throw new Error('no apareció Burger King');
+      if (beneficiosDelDia(['santander'], '2026-10-14').some(b => b.comercio === 'Burger King')) throw new Error('apareció un miércoles');
+    });
+    prueba('Solo muestra las tarjetas elegidas, y primero los descuentos del día', () => {
+      const lista = beneficiosDelDia(['bci'], '2026-10-12');
+      igual([...new Set(lista.map(b => b.tarjeta))], ['bci']);
+      const primeroDeTodos = lista.findIndex(b => !b.dias.length);
+      if (primeroDeTodos >= 0 && lista.slice(primeroDeTodos).some(b => b.dias.length)) throw new Error('mezcló el orden');
+      igual(beneficiosDelDia([], '2026-10-12'), []);
+    });
+    prueba('Dentro de cada grupo, los descuentos más altos primero', () => {
+      const pct = b => Number(/(\d+)%/.exec(b.descuento)?.[1] ?? 0);
+      const delDia = beneficiosDelDia(['santander', 'cmr', 'banco-de-chile'], '2026-10-13').filter(b => b.dias.length);
+      for (let i = 1; i < delDia.length; i++) {
+        if (pct(delDia[i]) > pct(delDia[i - 1])) throw new Error(`${delDia[i].comercio} quedó después de ${delDia[i - 1].comercio}`);
+      }
+    });
+    prueba('No muestra descuentos vencidos', () => {
+      const vencido = { tarjeta: 'santander', comercio: 'Prueba', rubro: 'cafe', descuento: '10%', dias: [4], hasta: '2026-10-31', fuente: 'https://x.cl' };
+      BENEFICIOS.push(vencido);
+      try {
+        if (!beneficiosDelDia(['santander'], '2026-10-29').includes(vencido)) throw new Error('no apareció el último jueves vigente');
+        if (beneficiosDelDia(['santander'], '2026-11-05').includes(vencido)) throw new Error('siguió apareciendo en noviembre');
+      } finally {
+        BENEFICIOS.pop();
+      }
+    });
+    prueba('Días en palabras', () => {
+      igual(textoDias([4]), 'jueves');
+      igual(textoDias([1, 5]), 'lunes y viernes');
+      igual(textoDias([1, 6, 7]), 'lunes, sábado y domingo');
+      igual(textoDias([]), 'todos los días');
+    });
+    prueba('Cada descuento del catálogo está bien escrito', () => {
+      const tarjetas = new Set(TARJETAS.map(t => t.id));
+      for (const b of BENEFICIOS) {
+        const quien = `${b.comercio} (${b.tarjeta}):`;
+        if (!tarjetas.has(b.tarjeta)) throw new Error(`${quien} tarjeta desconocida`);
+        if (!RUBROS[b.rubro]) throw new Error(`${quien} rubro desconocido`);
+        if (!b.dias.every(d => Number.isInteger(d) && d >= 1 && d <= 7)) throw new Error(`${quien} día inválido`);
+        if (!/^https:\/\//.test(b.fuente)) throw new Error(`${quien} la fuente no es https`);
+        if (b.hasta !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.hasta)) throw new Error(`${quien} fecha "hasta" inválida`);
+        if (!b.descuento) throw new Error(`${quien} sin descuento`);
+      }
     });
 
     const fallas = resultados.filter(([, e]) => e);

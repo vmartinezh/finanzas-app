@@ -4,6 +4,8 @@ import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO } from '../ui.js';
 import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
+import { filaBeneficio } from './beneficios.js';
+import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
 
 export const titulo = 'Simplifica';
 
@@ -26,7 +28,10 @@ export function render() {
   const enRojo = d.restante < 0;
   const tarjetasAltas = datos.deudas.filter(x => x.saldo > 0 && usoCupo(x)?.estado === 'excedido');
   const revision = tocaRevision();
-  const masCara = datos.deudas.filter(x => x.saldo > 0 && x.estado !== 'pausa').sort((a, b) => (b.cae || 0) - (a.cae || 0))[0];
+  // Descuentos que son solo de hoy: los de todos los días no son noticia.
+  const tarjetasElegidas = (datos.perfil.tarjetas || []).length > 0;
+  const descuentosHoy = beneficiosDelDia(datos.perfil.tarjetas || [], hoyISO()).filter(b => b.dias.length);
+  const masCara =datos.deudas.filter(x => x.saldo > 0 && x.estado !== 'pausa').sort((a, b) => (b.cae || 0) - (a.cae || 0))[0];
 
   // ¿Va al ritmo? Lo gastado contra lo que "tocaba" gastar hasta hoy.
   const diaDelMes = d.totalDias - d.diasRestantes + 1;
@@ -81,6 +86,13 @@ export function render() {
         <a class="boton primario" href="#/ajustes">Configurar mi mes</a>
       </section>` : ''}
 
+    ${tarjetasElegidas && descuentosHoy.length ? `
+      <section class="tarjeta">
+        <h2>Hoy ${DIAS[diaSemana(hoyISO()) - 1]} tienes descuento en</h2>
+        <ul class="lista">${descuentosHoy.slice(0, 4).map(b => filaBeneficio(b)).join('')}</ul>
+        <a class="enlace" href="#/beneficios">${descuentosHoy.length > 4 ? `Ver los ${descuentosHoy.length}` : 'Ver la semana'}</a>
+      </section>` : ''}
+
     ${d.ingresosExtra ? `
       <section class="tarjeta">
         <h2>Plata extra este mes: ${clp(d.ingresosExtra)}</h2>
@@ -126,6 +138,12 @@ export function render() {
         <p class="ayuda">Si la línea verde pasa por arriba de la punteada, vas gastando más rápido de lo que alcanza el mes.</p>
         ${graficoRitmo({ acumulado: acumuladoDiario(mes), presupuesto: d.paraVariable, totalDias: d.totalDias }).html}
       </section>` : ''}
+
+    ${!tarjetasElegidas && !sinConfigurar ? `
+      <a class="tarjeta enlace-tarjeta" href="#/beneficios">
+        <h2>¿En qué tienes descuento hoy?</h2>
+        <p class="ayuda">Marca tus tarjetas y te muestro sus descuentos de cada día, como el 40% de los jueves en Burger King con Santander.</p>
+      </a>` : ''}
   `;
 }
 
