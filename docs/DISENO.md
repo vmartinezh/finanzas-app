@@ -1,4 +1,4 @@
-# Diseño de Lucas
+# Diseño de Simplifica
 
 ## El problema
 

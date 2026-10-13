@@ -5,7 +5,7 @@ import { ejecutar, barraProgreso, ICONO_ESTADO } from '../ui.js';
 import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
 
-export const titulo = 'Inicio';
+export const titulo = 'Simplifica';
 
 export function render() {
   const mes = mesActual();
@@ -28,32 +28,25 @@ export function render() {
   const revision = tocaRevision();
   const masCara = datos.deudas.filter(x => x.saldo > 0 && x.estado !== 'pausa').sort((a, b) => (b.cae || 0) - (a.cae || 0))[0];
 
+  // ¿Va al ritmo? Lo gastado contra lo que "tocaba" gastar hasta hoy.
+  const diaDelMes = d.totalDias - d.diasRestantes + 1;
+  const ideal = d.paraVariable * diaDelMes / d.totalDias;
+  const adelantado = d.gastado - ideal;
+
   return `
-    ${revision.pendiente ? `
-      <a class="tarjeta destacada enlace-tarjeta" href="#/revision">
-        <h2>✅ Toca la revisión de ${esc(nombreMes(revision.mesARevisar, false))}</h2>
-        <p>Diez minutos: confirmar pagos, actualizar saldos y ver si el plan va bien.</p>
-      </a>` : ''}
-
-    ${tarjetasAltas.map(t => `
-      <section class="tarjeta alerta-tarjeta">
-        <h2>⚠ ${esc(t.nombre)} sobre el 85% del cupo</h2>
-        <p>Usas el ${Math.round(usoCupo(t).pct)}%. No la uses para gastos del día a día hasta bajarla.</p>
-      </section>`).join('')}
-
-    ${sinConfigurar ? `
-      <section class="tarjeta destacada">
-        <h2>Partamos por lo básico</h2>
-        <p>Dime cuánto te entra al mes y tus pagos fijos, y la app te dirá cuánto puedes gastar cada día.</p>
-        <a class="boton primario" href="#/ajustes">Configurar mi mes</a>
-      </section>` : ''}
-
-    <section class="tarjeta hero" aria-labelledby="titulo-disponible">
-      <p class="hero-etiqueta" id="titulo-disponible">${enRojo ? 'Este mes te pasaste por' : 'Puedes gastar hoy'}</p>
-      <p class="hero-numero ${enRojo ? 'negativo' : ''}">${clp(enRojo ? -d.restante : d.porDia)}</p>
+    <section class="tarjeta hero hero-salvia" aria-labelledby="titulo-disponible">
+      <p class="hero-etiqueta" id="titulo-disponible">${enRojo ? 'Este mes se fue más de lo planeado' : 'Hoy puedes gastar'}</p>
+      <p class="hero-numero">${clp(enRojo ? -d.restante : d.porDia)}</p>
       <p class="hero-detalle">${enRojo
-        ? 'Ya gastaste más de lo disponible para el mes. Lo que gastes ahora sale del ahorro o de deuda.'
+        ? 'Lo que gastes desde ahora sale del ahorro o de deuda. Mañana partimos de nuevo: anota lo justo y el próximo mes se ordena.'
         : `Te quedan <b>${clp(d.restante)}</b> para ${d.diasRestantes} ${d.diasRestantes === 1 ? 'día' : 'días'} de ${esc(nombreMes(mes, false))}.`}</p>
+      ${!enRojo && d.paraVariable > 0 ? `
+        <div class="estado-ritmo">
+          ${adelantado <= 0
+            ? '<b><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Vas al ritmo del mes</b>'
+            : `<b><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4.5M12 16h.01"/></svg>Vas ${clp(adelantado)} sobre el ritmo</b>`}
+          <span>día ${diaDelMes} de ${d.totalDias}</span>
+        </div>` : ''}
       <details class="desglose">
         <summary>¿De dónde sale este número?</summary>
         <dl>
@@ -68,6 +61,25 @@ export function render() {
         </dl>
       </details>
     </section>
+
+    ${revision.pendiente ? `
+      <a class="tarjeta destacada enlace-tarjeta" href="#/revision">
+        <h2>Toca la revisión de ${esc(nombreMes(revision.mesARevisar, false))}</h2>
+        <p>Diez minutos para confirmar pagos, actualizar saldos y ver que el plan va bien.</p>
+      </a>` : ''}
+
+    ${tarjetasAltas.map(t => `
+      <section class="tarjeta alerta-tarjeta">
+        <h2>${esc(t.nombre)} está sobre el 85% del cupo</h2>
+        <p>Usas el ${Math.round(usoCupo(t).pct)}%. Déjala descansar para el día a día hasta que baje.</p>
+      </section>`).join('')}
+
+    ${sinConfigurar ? `
+      <section class="tarjeta destacada">
+        <h2>Partamos por lo básico</h2>
+        <p>Cuéntame cuánto te entra al mes y tus pagos fijos, y te digo cuánto puedes gastar cada día.</p>
+        <a class="boton primario" href="#/ajustes">Configurar mi mes</a>
+      </section>` : ''}
 
     ${d.ingresosExtra ? `
       <section class="tarjeta">
@@ -85,7 +97,7 @@ export function render() {
 
     ${alertas.length ? `
       <section class="tarjeta">
-        <h2>Ojo con estas categorías</h2>
+        <h2>Para tener en cuenta</h2>
         <ul class="lista-presupuesto">${alertas.map(({ c, gastado, estado }) => `
           <li>
             <div class="fila-presupuesto"><span>${esc(c.icono)} ${esc(c.nombre)}</span><span>${clp(gastado)} de ${clp(c.tope_mensual)}</span></div>
@@ -111,7 +123,7 @@ export function render() {
     ${d.paraVariable > 0 ? `
       <section class="tarjeta">
         <h2>¿Vas al ritmo?</h2>
-        <p class="ayuda">Si la línea azul pasa por arriba de la punteada, vas gastando más rápido de lo que alcanza.</p>
+        <p class="ayuda">Si la línea verde pasa por arriba de la punteada, vas gastando más rápido de lo que alcanza el mes.</p>
         ${graficoRitmo({ acumulado: acumuladoDiario(mes), presupuesto: d.paraVariable, totalDias: d.totalDias }).html}
       </section>` : ''}
   `;

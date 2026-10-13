@@ -1,69 +1,97 @@
+/* Simplifica · verde salvia (#A8B9A0) */
 :root {
   color-scheme: light;
-  --fondo: #f4f3ef;
-  --superficie: #fcfcfb;
-  --superficie-2: #efeee9;
-  --borde: #e2e0d8;
-  --texto: #0b0b0b;
-  --texto-2: #52514e;
-  --texto-3: #75736d;
-  --acento: #2a78d6;
+  --fondo: #f0f3ee;
+  --superficie: #ffffff;
+  --superficie-2: #eaefe6;
+  --borde: #dde4d8;
+  --texto: #1f281c;
+  --texto-2: #4e5b49;
+  --texto-3: #6e7a69;
+  /* La salvia es clara: el texto encima siempre va oscuro. */
+  --salvia: #a8b9a0;
+  --salvia-suave: #dfe7da;
+  --salvia-texto: #1f281c;
+  --salvia-texto-2: #33402e;
+  --salvia-velo: rgb(255 255 255 / .35);
+  --acento: #46583f;
   --acento-texto: #ffffff;
-  --acento-suave: #e3eefb;
-  --serie-1: #2a78d6;
-  --serie-2: #eb6834;
-  --referencia: #8a8880;
-  --grilla: #e7e5de;
-  --bien: #0a7f0a;
-  --alerta: #b97f00;
-  --alerta-barra: #fab219;
-  --critico: #c13030;
+  --acento-suave: #dfe7da;
+  --nav-fondo: #232d20;
+  --nav-icono: #a8b9a0;
+  --nav-activo: #f2f5ef;
+  --serie-1: #5e7556;
+  --serie-2: #4e7bb0;
+  --referencia: #8c9488;
+  --grilla: #e3e8df;
+  --bien: #2f7a2f;
+  --alerta: #9a6b00;
+  --alerta-barra: #e9b23a;
+  --critico: #b83232;
   --critico-barra: #d03b3b;
-  --sombra: 0 1px 2px rgb(0 0 0 / .05), 0 4px 16px rgb(0 0 0 / .04);
-  --radio: 14px;
-  --nav-alto: 64px;
-  --fuente: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --sombra: 0 1px 2px rgb(31 40 28 / .04), 0 8px 24px rgb(31 40 28 / .05);
+  --radio: 22px;
+  --nav-alto: 68px;
+  --fuente: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --fondo: #111110;
-    --superficie: #1a1a19;
-    --superficie-2: #252523;
-    --borde: #2f2f2c;
-    --texto: #f0efec;
-    --texto-2: #c3c2b7;
-    --texto-3: #9a998f;
-    --acento: #3987e5;
-    --acento-suave: #1b2c42;
-    --serie-1: #3987e5;
-    --serie-2: #d95926;
-    --referencia: #8f8e86;
-    --grilla: #2c2c29;
-    --bien: #3cb83c;
-    --alerta: #fab219;
+    --fondo: #121512;
+    --superficie: #1b201a;
+    --superficie-2: #252b23;
+    --borde: #2e352b;
+    --texto: #eef2ea;
+    --texto-2: #c2cbbd;
+    --texto-3: #95a08f;
+    --salvia: #2e3b2a;
+    --salvia-suave: #263022;
+    --salvia-texto: #eef2ea;
+    --salvia-texto-2: #c8d4c1;
+    --salvia-velo: rgb(255 255 255 / .07);
+    --acento: #a8b9a0;
+    --acento-texto: #1f281c;
+    --acento-suave: #2a3427;
+    --nav-fondo: #0b0e0a;
+    --nav-icono: #8fa287;
+    --nav-activo: #eef2ea;
+    --serie-1: #93ac89;
+    --serie-2: #6e9bd0;
+    --referencia: #858e81;
+    --grilla: #2a3127;
+    --bien: #5cbf5c;
+    --alerta: #e9b23a;
     --critico: #ec6b6b;
     --sombra: none;
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --fondo: #111110;
-  --superficie: #1a1a19;
-  --superficie-2: #252523;
-  --borde: #2f2f2c;
-  --texto: #f0efec;
-  --texto-2: #c3c2b7;
-  --texto-3: #9a998f;
-  --acento: #3987e5;
-  --acento-suave: #1b2c42;
-  --serie-1: #3987e5;
-  --serie-2: #d95926;
-  --referencia: #8f8e86;
-  --grilla: #2c2c29;
-  --bien: #3cb83c;
-  --alerta: #fab219;
+  --fondo: #121512;
+  --superficie: #1b201a;
+  --superficie-2: #252b23;
+  --borde: #2e352b;
+  --texto: #eef2ea;
+  --texto-2: #c2cbbd;
+  --texto-3: #95a08f;
+  --salvia: #2e3b2a;
+  --salvia-suave: #263022;
+  --salvia-texto: #eef2ea;
+  --salvia-texto-2: #c8d4c1;
+  --salvia-velo: rgb(255 255 255 / .07);
+  --acento: #a8b9a0;
+  --acento-texto: #1f281c;
+  --acento-suave: #2a3427;
+  --nav-fondo: #0b0e0a;
+  --nav-icono: #8fa287;
+  --nav-activo: #eef2ea;
+  --serie-1: #93ac89;
+  --serie-2: #6e9bd0;
+  --referencia: #858e81;
+  --grilla: #2a3127;
+  --bien: #5cbf5c;
+  --alerta: #e9b23a;
   --critico: #ec6b6b;
   --sombra: none;
 }
@@ -77,14 +105,14 @@ body {
   font-family: var(--fuente);
   font-size: 16px;
   line-height: 1.45;
-  padding-bottom: calc(var(--nav-alto) + 88px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--nav-alto) + 40px + env(safe-area-inset-bottom));
 }
-body.sin-sesion .nav-inferior, body.sin-sesion .boton-flotante,
-body.cargando .nav-inferior, body.cargando .boton-flotante { display: none; }
+body.sin-sesion .nav-inferior, body.sin-sesion .boton-mas,
+body.cargando .nav-inferior, body.cargando .boton-mas { display: none; }
 .cargando-texto { text-align: center; color: var(--texto-3); margin-top: 30vh; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
-h2 { font-size: 1.05rem; font-weight: 650; }
+h2 { font-size: 1.05rem; font-weight: 700; }
 a { color: var(--acento); }
 small { color: var(--texto-2); }
 button { font: inherit; color: inherit; }
@@ -93,19 +121,34 @@ button { font: inherit; color: inherit; }
 /* ── Estructura ─────────────────────────────────── */
 .barra-superior {
   position: sticky; top: 0; z-index: 5;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: center; gap: 10px;
   padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
   background: color-mix(in srgb, var(--fondo) 88%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-.barra-superior h1 { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; }
+.barra-superior h1 { flex: 1; min-width: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.logo { flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: inherit; }
+.marca-hoja { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.marca-hoja .hoja { fill: var(--salvia-suave); }
+.boton-mas {
+  flex: none; width: 44px; height: 44px; border-radius: 50%;
+  border: 1px solid var(--borde); display: grid; place-items: center; color: inherit;
+}
+.boton-mas svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+.boton-mas[aria-current="page"] { background: var(--acento-suave); }
 .chip-modo {
-  font-size: .75rem; color: var(--texto-2);
+  font-size: .72rem; color: var(--texto-2);
   background: var(--superficie-2); border-radius: 999px; padding: 3px 10px;
   white-space: nowrap;
 }
 .chip-modo:empty { display: none; }
+
+/* En Inicio, la barra y el número del día forman un solo bloque salvia. */
+body[data-ruta="inicio"] .barra-superior { background: var(--salvia); color: var(--salvia-texto); }
+body[data-ruta="inicio"] .chip-modo { background: var(--salvia-velo); color: var(--salvia-texto-2); }
+body[data-ruta="inicio"] .boton-mas { border-color: color-mix(in srgb, var(--salvia-texto) 22%, transparent); }
+body[data-ruta="inicio"] .marca-hoja .hoja { fill: color-mix(in srgb, var(--salvia-suave) 70%, transparent); }
 
 main {
   max-width: 560px; margin: 0 auto; padding: 4px 16px 0;
@@ -113,30 +156,31 @@ main {
 }
 main:focus { outline: none; }
 
+/* Barra inferior flotante */
 .nav-inferior {
-  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-  display: grid; grid-template-columns: repeat(5, 1fr);
-  height: calc(var(--nav-alto) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--superficie);
-  border-top: 1px solid var(--borde);
+  position: fixed; z-index: 10;
+  left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  max-width: 520px; margin: 0 auto;
+  height: var(--nav-alto);
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center;
+  padding: 0 6px;
+  background: var(--nav-fondo);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / .18);
 }
 .nav-inferior a {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  color: var(--texto-3); text-decoration: none; font-size: .7rem; font-weight: 550;
+  min-height: 54px; margin: 0 2px; border-radius: 16px;
+  color: var(--nav-icono); text-decoration: none; font-size: .66rem; font-weight: 600;
 }
-.nav-inferior a span { font-size: 1.25rem; line-height: 1; }
-.nav-inferior a[aria-current="page"] { color: var(--acento); }
-
-.boton-flotante {
-  position: fixed; z-index: 11;
-  right: max(16px, calc(50vw - 264px));
-  bottom: calc(var(--nav-alto) + 16px + env(safe-area-inset-bottom));
-  width: 56px; height: 56px; border-radius: 50%; border: none;
-  background: var(--acento); color: var(--acento-texto);
-  font-size: 1.9rem; line-height: 1; cursor: pointer;
-  box-shadow: 0 4px 14px rgb(0 0 0 / .22);
+.nav-inferior svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.nav-inferior a[aria-current="page"] { color: var(--nav-activo); background: rgb(255 255 255 / .1); }
+.boton-agregar {
+  justify-self: center; width: 52px; height: 52px; border-radius: 18px; border: none;
+  display: grid; place-items: center; cursor: pointer;
+  background: #a8b9a0; color: #1f281c;
 }
+.boton-agregar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; }
 
 /* ── Tarjetas ───────────────────────────────────── */
 .tarjeta {
@@ -313,7 +357,7 @@ dialog .espacio { flex: 1; }
 
 .aviso {
   position: fixed; left: 50%; z-index: 20;
-  bottom: calc(var(--nav-alto) + 84px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-alto) + 28px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   max-width: calc(100vw - 32px); width: max-content;
   padding: 10px 16px; border-radius: 12px;
@@ -392,3 +436,38 @@ dialog .espacio { flex: 1; }
 .punto-revision[data-estado="alerta"] .punto-icono { background: color-mix(in srgb, var(--alerta-barra) 22%, transparent); color: var(--alerta); }
 .punto-texto { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
 .punto-texto .boton { margin-top: 6px; }
+
+/* ── Inicio: el número del día sobre salvia ─────── */
+.hero-salvia {
+  background: var(--salvia); color: var(--salvia-texto);
+  border: none; box-shadow: none;
+  margin: -4px -16px 0; padding: 6px 22px 24px;
+  border-radius: 0 0 34px 34px;
+  gap: 6px;
+}
+.hero-salvia .hero-etiqueta,
+.hero-salvia .hero-detalle,
+.hero-salvia .desglose dt { color: var(--salvia-texto-2); }
+.hero-salvia .hero-detalle b { color: var(--salvia-texto); }
+.hero-salvia .hero-numero { font-size: clamp(2.8rem, 14vw, 3.6rem); font-weight: 800; letter-spacing: -0.04em; }
+.hero-salvia .hero-numero.negativo { color: var(--salvia-texto); }
+.hero-salvia .desglose summary { color: var(--salvia-texto); font-weight: 600; }
+.hero-salvia .desglose .subtotal { border-color: color-mix(in srgb, var(--salvia-texto) 18%, transparent); }
+.hero-salvia .desglose .subtotal dt { color: var(--salvia-texto); }
+.estado-ritmo {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-top: 12px; padding: 12px 14px; border-radius: 16px;
+  background: var(--salvia-velo); font-size: .9rem;
+}
+.estado-ritmo b { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
+.estado-ritmo svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.estado-ritmo span { color: var(--salvia-texto-2); white-space: nowrap; }
+/* En pantallas anchas la barra ya no es salvia: el bloque pasa a ser una tarjeta. */
+@media (min-width: 600px) {
+  body[data-ruta="inicio"] .barra-superior { background: color-mix(in srgb, var(--fondo) 88%, transparent); color: var(--texto); }
+  body[data-ruta="inicio"] .chip-modo { background: var(--superficie-2); color: var(--texto-2); }
+  body[data-ruta="inicio"] .boton-mas { border-color: var(--borde); }
+  .hero-salvia { margin: 0; border-radius: 28px; padding: 24px; }
+}
+/* En Inicio el título es la marca, en minúsculas como el logo. */
+body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }

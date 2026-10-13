@@ -1,4 +1,4 @@
-# Lucas 💸
+# Simplifica 🌿
 
 App de finanzas personales para ordenar la plata **sin tener que anotar cada gasto**.
 Hecha en Chile, para amigos, gratis y de código abierto.

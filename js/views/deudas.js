@@ -3,7 +3,7 @@ import { planDeudas, deudasVigentes, deudasEnPausa, destinoDeudas, usoCupo } fro
 import { abrirFormulario, ejecutar, barraProgreso } from '../ui.js';
 import { clp, esc, nombreMes, porcentaje, mesActual, sumarMeses } from '../util.js';
 
-export const titulo = 'Deudas';
+export const titulo = 'Tu plan';
 
 let estrategia = 'avalancha';
 

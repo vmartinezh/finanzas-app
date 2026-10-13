@@ -1,4 +1,4 @@
-import { datos, guardar, borrar, guardarPerfil, modo, exportar, importar, cerrarSesion, TABLAS } from '../db.js';
+import { datos, guardar, borrar, guardarPerfil, modo, exportar, importar, cerrarSesion, TABLAS, PREFIJO } from '../db.js';
 import { cargarEjemplo } from '../semillas.js';
 import { abrirFormulario, ejecutar, avisar, confirmar } from '../ui.js';
 import { clp, esc, hoyISO } from '../util.js';
@@ -55,7 +55,7 @@ export function render() {
       </div>
     </section>
 
-    <p class="pie">Lucas es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
+    <p class="pie">Simplifica es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
   `;
 }
 
@@ -126,7 +126,7 @@ export function montar(raiz, refrescar) {
     const blob = new Blob([JSON.stringify(exportar(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `lucas-respaldo-${hoyISO()}.json`;
+    a.download = `simplifica-respaldo-${hoyISO()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -151,7 +151,7 @@ export function montar(raiz, refrescar) {
   raiz.querySelector('#salir')?.addEventListener('click', cerrarSesion);
   raiz.querySelector('#borrar-todo')?.addEventListener('click', async () => {
     if (!(await confirmar('Esto borra TODOS tus datos de este navegador y no se puede deshacer. ¿Descargaste un respaldo?'))) return;
-    for (const t of [...TABLAS, 'perfil']) localStorage.removeItem('lucas:v1:' + t);
+    for (const t of [...TABLAS, 'perfil']) localStorage.removeItem(PREFIJO + t);
     location.reload();
   });
 }

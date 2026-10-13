@@ -18,7 +18,21 @@ export let modo = 'local';
 let supabase = null;
 let usuarioId = null;
 
-const PREFIJO = 'lucas:v1:';
+export const PREFIJO = 'simplifica:v1:';
+// La app se llamó "Lucas" al principio: sus datos guardados se traen una vez.
+const PREFIJO_ANTERIOR = 'lucas:v1:';
+
+function migrarPrefijoAnterior() {
+  try {
+    if (localStorage.getItem(PREFIJO + 'categorias') !== null) return;
+    for (const t of [...TABLAS, 'perfil']) {
+      const valor = localStorage.getItem(PREFIJO_ANTERIOR + t);
+      if (valor !== null) localStorage.setItem(PREFIJO + t, valor);
+    }
+  } catch {
+    // Sin acceso a localStorage (modo privado): la app parte vacía.
+  }
+}
 
 function leerLocal(clave, porDefecto) {
   try {
@@ -44,6 +58,7 @@ export const nuevoId = () => crypto.randomUUID();
 export async function iniciar() {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     modo = 'local';
+    migrarPrefijoAnterior();
     for (const t of TABLAS) datos[t] = leerLocal(t, []);
     Object.assign(datos.perfil, leerLocal('perfil', {}));
     return 'local';
@@ -167,7 +182,7 @@ export function exportar() {
 // Restaura un respaldo REEMPLAZANDO los datos actuales (si no, las categorías
 // que se crean al abrir la app por primera vez quedarían duplicadas).
 export async function importar(copia) {
-  if (!copia || copia.version !== 1) throw new Error('El archivo no es un respaldo de Lucas');
+  if (!copia || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
   // Se borra de atrás hacia adelante y se inserta en orden de dependencia.
   for (const t of [...TABLAS].reverse()) {
     const conservar = new Set((copia[t] || []).map(f => f.id));

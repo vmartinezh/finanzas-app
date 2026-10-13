@@ -3,7 +3,7 @@ import { clasificar, aprender } from '../clasificador.js';
 import { abrirFormulario, avisar, ejecutar } from '../ui.js';
 import { clp, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
-export const titulo = 'Movimientos';
+export const titulo = 'Gastos';
 
 let mesVisto = mesActual();
 let filtro = 'todos';

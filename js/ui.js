@@ -104,7 +104,7 @@ export function barraProgreso(gastado, tope, estado) {
   </div>`;
 }
 
-export const ICONO_ESTADO = { ok: '', alerta: '⚠ Cerca del tope', excedido: '✕ Te pasaste', 'sin-tope': '' };
+export const ICONO_ESTADO = { ok: '', alerta: '⚠ Cerca del tope', excedido: '↑ Sobre el tope del mes', 'sin-tope': '' };
 
 // Ejecuta una acción que guarda datos, avisa si falla (por ejemplo, sin
 // internet) y vuelve a dibujar la pantalla.

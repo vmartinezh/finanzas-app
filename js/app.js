@@ -31,9 +31,10 @@ export function refrescar() {
   const nombre = rutaActual();
   const v = RUTAS[nombre];
   document.getElementById('titulo').textContent = v.titulo;
-  document.title = nombre === 'inicio' ? 'Lucas' : `${v.titulo} · Lucas`;
+  document.title = nombre === 'inicio' ? 'Simplifica' : `${v.titulo} · Simplifica`;
+  document.body.dataset.ruta = nombre;
   const pestaña = DENTRO_DE_MAS.includes(nombre) ? 'mas' : nombre;
-  for (const a of document.querySelectorAll('.nav-inferior a')) {
+  for (const a of document.querySelectorAll('.nav-inferior a, .boton-mas')) {
     if (a.dataset.ruta === pestaña) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   }
@@ -49,13 +50,13 @@ export function refrescar() {
 
 function pantallaAcceso(nueva = false) {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Lucas';
+  document.getElementById('titulo').textContent = 'Simplifica';
   vista.innerHTML = `
     <section class="tarjeta acceso">
-      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Lucas'}</h2>
+      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Simplifica'}</h2>
       <p class="ayuda">${nueva
         ? 'Tus datos quedan en tu cuenta y nadie más puede verlos.'
-        : 'Presupuesto, deudas y gastos del mes, sin anotar todo a mano.'}</p>
+        : 'Tus cuentas, más simples. Tus días, más tranquilos.'}</p>
       <form id="form-acceso">
         <label class="campo"><span>Correo</span><input type="email" name="email" required autocomplete="email"></label>
         <label class="campo"><span>Contraseña</span>
