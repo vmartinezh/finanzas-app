@@ -67,10 +67,11 @@ export function compromisosPendientes(mes = mesActual()) {
 // estrategia 'avalancha': el dinero extra va a la deuda de CAE más alto.
 // estrategia 'bola-de-nieve': va a la de menor saldo (más motivador, cuesta más).
 // Cuando una deuda se termina, su cuota se suma al extra para la siguiente.
+// El CAE es una tasa anual efectiva: la tasa mensual equivalente es (1 + CAE)^(1/12) − 1.
 export function planDeudas(deudas, extraMensual = 0, estrategia = 'avalancha') {
   const vivas = deudas
     .filter(d => (d.saldo || 0) > 0)
-    .map(d => ({ id: d.id, nombre: d.nombre, saldo: d.saldo, cuota: d.cuota_mensual || 0, tasa: (d.cae || 0) / 100 / 12, interesPagado: 0, mesFin: null }));
+    .map(d => ({ id: d.id, nombre: d.nombre, saldo: d.saldo, cuota: d.cuota_mensual || 0, tasa: Math.pow(1 + (d.cae || 0) / 100, 1 / 12) - 1, interesPagado: 0, mesFin: null }));
 
   if (!vivas.length) return { meses: 0, interesTotal: 0, deudas: [], imposible: false };
 

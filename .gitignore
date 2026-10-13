@@ -6,3 +6,7 @@
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Datos financieros personales: nunca al repo público
+plan_financiero*.md
+privado/
