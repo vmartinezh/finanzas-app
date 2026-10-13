@@ -49,7 +49,7 @@ export function render() {
         : 'Tus datos están guardados en tu cuenta en la nube.'}</p>
       <div class="botones">
         <button class="boton secundario" id="exportar">Descargar respaldo</button>
-        <label class="boton secundario">Restaurar respaldo<input type="file" id="importar" accept="application/json" hidden></label>
+        <label class="boton secundario">Restaurar respaldo<input type="file" id="importar" accept="application/json,.json" hidden></label>
         <button class="boton secundario" id="ejemplo">Cargar datos de ejemplo</button>
         ${modo === 'nube' ? '<button class="boton secundario" id="salir">Cerrar sesión</button>' : '<button class="boton peligro" id="borrar-todo">Borrar todo</button>'}
       </div>
