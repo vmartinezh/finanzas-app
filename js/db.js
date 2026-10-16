@@ -3,7 +3,7 @@
 //   - modo local: localStorage del navegador
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { normalizarTabla, normalizarPerfil } from './validar.js';
+import { normalizarTabla, normalizarPerfil, soltarHuerfanas } from './validar.js';
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
 export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
@@ -214,8 +214,9 @@ export async function importar(copia) {
   if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
   // Un respaldo puede venir de otra persona: se valida fila por fila y se
   // descarta lo que no tenga la forma esperada.
-  const limpio = {};
-  for (const t of TABLAS) limpio[t] = normalizarTabla(t, copia[t]);
+  // Antes de borrar nada: si una fila apunta a algo que el respaldo no trae,
+  // la base la rechazaría a mitad de camino y quedaría la restauración a medias.
+  const limpio = soltarHuerfanas(Object.fromEntries(TABLAS.map(t => [t, normalizarTabla(t, copia[t])])));
   if (!limpio.categorias.length) throw new Error('El respaldo no trae categorías válidas');
 
   // Se borra de atrás hacia adelante y se inserta en orden de dependencia.

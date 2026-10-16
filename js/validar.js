@@ -105,6 +105,36 @@ export function normalizarTabla(tabla, filas) {
   return Array.isArray(filas) ? filas.map(f => normalizarFila(tabla, f)).filter(Boolean) : [];
 }
 
+// En un respaldo, una fila puede apuntar a una categoría, evento, compromiso o
+// deuda que el mismo respaldo no trae (se borró, o el archivo se editó). La
+// base de datos rechazaría esa fila, así que la referencia se suelta: el
+// movimiento queda "sin categoría" y la regla sin su categoría se descarta.
+// Es la misma lista de claves foráneas de supabase/schema.sql: si agregas una
+// allá, agrégala aquí.
+const REFERENCIAS = {
+  compromisos: { categoria_id: 'categorias' },
+  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas' },
+  reglas: { categoria_id: 'categorias' },
+};
+// Tablas cuya referencia es obligatoria: sin ella, la fila no se guarda.
+const SIN_REFERENCIA_SE_DESCARTA = new Set(['reglas']);
+
+export function soltarHuerfanas(tablas) {
+  const destinos = new Set(Object.values(REFERENCIAS).flatMap(Object.values));
+  const existen = Object.fromEntries([...destinos].map(t => [t, new Set((tablas[t] ?? []).map(f => f.id))]));
+  const resultado = { ...tablas };
+  for (const [tabla, campos] of Object.entries(REFERENCIAS)) {
+    const filas = [];
+    for (const f of tablas[tabla] ?? []) {
+      const rotos = Object.entries(campos).filter(([campo, destino]) => f[campo] && !existen[destino].has(f[campo]));
+      if (!rotos.length) filas.push(f);
+      else if (!SIN_REFERENCIA_SE_DESCARTA.has(tabla)) filas.push({ ...f, ...Object.fromEntries(rotos.map(([campo]) => [campo, null])) });
+    }
+    resultado[tabla] = filas;
+  }
+  return resultado;
+}
+
 export function normalizarPerfil(p) {
   p = p && typeof p === 'object' ? p : {};
   const limpio = {

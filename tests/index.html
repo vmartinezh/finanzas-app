@@ -21,7 +21,7 @@
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo } from '../js/calculos.js';
     import { leerMonto, sumarMeses, mesActual, esc } from '../js/util.js';
-    import { normalizarFila, normalizarTabla, normalizarPerfil } from '../js/validar.js';
+    import { normalizarFila, normalizarTabla, normalizarPerfil, soltarHuerfanas } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
 
     const resultados = [];
@@ -203,6 +203,19 @@
     prueba('Las tarjetas del perfil solo aceptan ids simples, sin repetir', () => {
       igual(normalizarPerfil({ tarjetas: ['santander', ATAQUE, 'santander', 7, 'lider-bci'] }).tarjetas, ['santander', 'lider-bci']);
       igual(normalizarPerfil({ tarjetas: 'santander' }).tarjetas, []);
+    });
+
+    prueba('Un respaldo con referencias a registros que no trae se suelta antes de guardar', () => {
+      const CAT = '11111111-1111-4111-8111-111111111111', OTRA = '22222222-2222-4222-8222-222222222222';
+      const limpio = soltarHuerfanas({
+        categorias: [{ id: CAT }], compromisos: [{ id: ID, categoria_id: OTRA }, { id: OTRA, categoria_id: CAT }],
+        movimientos: [{ id: ID, categoria_id: CAT, evento_id: OTRA, compromiso_id: ID, deuda_id: OTRA }],
+        reglas: [{ id: ID, patron: 'uber', categoria_id: OTRA }, { id: CAT, patron: 'lider', categoria_id: CAT }],
+      });
+      igual(limpio.compromisos.map(c => c.categoria_id), [null, CAT], 'sin eventos ni deudas en el respaldo;');
+      const m = limpio.movimientos[0];
+      igual([m.categoria_id, m.evento_id, m.compromiso_id, m.deuda_id], [CAT, null, ID, null]);
+      igual(limpio.reglas.map(r => r.patron), ['lider']);
     });
 
     // Descuentos de las tarjetas
