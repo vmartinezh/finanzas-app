@@ -5,14 +5,17 @@ const dialogo = () => document.getElementById('dialogo');
 // Abre un formulario en un diálogo y devuelve los valores, null si se cancela,
 // o 'borrar' si se apretó el botón de borrar.
 //   campos: [{ nombre, etiqueta, tipo: 'text'|'monto'|'number'|'date'|'select'|'textarea'|'checkbox',
-//              valor, opciones: [[valor, texto]], requerido, ayuda, placeholder }]
-export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', puedeBorrar = false, intro = '' }) {
+//              valor, opciones: [[valor, texto]], requerido, ayuda, placeholder,
+//              sugerencias: [texto] (para elegir o escribir), min, max }]
+//   vistaPrevia(valores) → texto que se actualiza mientras se escribe ("$25.000 cada uno").
+export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', puedeBorrar = false, intro = '', vistaPrevia = null }) {
   const dlg = dialogo();
   const form = document.getElementById('dialogo-form');
   form.innerHTML = `
     <h2>${esc(titulo)}</h2>
     ${intro ? `<p class="intro">${intro}</p>` : ''}
     ${campos.map(campoHTML).join('')}
+    ${vistaPrevia ? '<p class="vista-previa" aria-live="polite"></p>' : ''}
     <div class="acciones">
       ${puedeBorrar ? '<button value="borrar" class="boton peligro" formnovalidate>Borrar</button>' : ''}
       <span class="espacio"></span>
@@ -20,10 +23,25 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
       <button value="guardar" class="boton primario">${esc(textoGuardar)}</button>
     </div>`;
 
+  const leerValores = () => {
+    const valores = {};
+    for (const c of campos) {
+      const el = form.elements[c.nombre];
+      if (c.tipo === 'checkbox') valores[c.nombre] = el.checked;
+      else if (c.tipo === 'monto' || c.tipo === 'number') valores[c.nombre] = el.value === '' ? null : Number(String(el.value).replace(',', '.'));
+      else valores[c.nombre] = el.value === '' ? null : el.value;
+    }
+    return valores;
+  };
+  const previa = form.querySelector('.vista-previa');
+  const actualizarPrevia = () => { previa.textContent = vistaPrevia(leerValores()) || ''; };
+  if (previa) actualizarPrevia();
+
   return new Promise(resolve => {
     // Se responde al enviar el formulario (botones) o al cerrar con Esc / atrás.
     const terminar = resultado => {
       form.removeEventListener('submit', alEnviar);
+      if (previa) form.removeEventListener('input', actualizarPrevia);
       dlg.removeEventListener('close', alCerrar);
       if (dlg.open) dlg.close();
       resolve(resultado);
@@ -36,16 +54,10 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
       const accion = e.submitter?.value;
       if (accion === 'borrar') return terminar('borrar');
       if (accion !== 'guardar') return terminar(null);
-      const valores = {};
-      for (const c of campos) {
-        const el = form.elements[c.nombre];
-        if (c.tipo === 'checkbox') valores[c.nombre] = el.checked;
-        else if (c.tipo === 'monto' || c.tipo === 'number') valores[c.nombre] = el.value === '' ? null : Number(String(el.value).replace(',', '.'));
-        else valores[c.nombre] = el.value === '' ? null : el.value;
-      }
-      terminar(valores);
+      terminar(leerValores());
     };
     form.addEventListener('submit', alEnviar);
+    if (previa) form.addEventListener('input', actualizarPrevia);
     dlg.addEventListener('close', alCerrar);
     dlg.showModal();
     form.querySelector('input:not([type=checkbox]), select, textarea')?.focus();
@@ -68,15 +80,18 @@ function campoHTML(c) {
       control = `<textarea id="${id}" name="${c.nombre}" rows="2" placeholder="${esc(c.placeholder || '')}" ${req}>${esc(valor)}</textarea>`;
       break;
     case 'checkbox':
-      return `<label class="campo campo-check"><input type="checkbox" name="${c.nombre}" ${valor ? 'checked' : ''}> ${esc(c.etiqueta)}</label>`;
+      return `<label class="campo campo-check"><input type="checkbox" name="${c.nombre}" ${valor ? 'checked' : ''}> <span>${esc(c.etiqueta)}${ayuda}</span></label>`;
     case 'monto':
       control = `<input id="${id}" name="${c.nombre}" type="number" inputmode="numeric" min="0" step="1" value="${esc(valor)}" placeholder="${esc(c.placeholder || '0')}" ${req}>`;
       break;
     case 'number':
-      control = `<input id="${id}" name="${c.nombre}" type="number" inputmode="decimal" step="any" value="${esc(valor)}" placeholder="${esc(c.placeholder || '')}" ${req}>`;
+      control = `<input id="${id}" name="${c.nombre}" type="number" inputmode="decimal" step="any" ${c.min != null ? `min="${c.min}"` : ''} ${c.max != null ? `max="${c.max}"` : ''} value="${esc(valor)}" placeholder="${esc(c.placeholder || '')}" ${req}>`;
       break;
-    default:
-      control = `<input id="${id}" name="${c.nombre}" type="${c.tipo || 'text'}" value="${esc(valor)}" placeholder="${esc(c.placeholder || '')}" ${req}>`;
+    default: {
+      const lista = c.sugerencias?.length ? `lista-${c.nombre}` : '';
+      control = `<input id="${id}" name="${c.nombre}" type="${c.tipo || 'text'}" value="${esc(valor)}" placeholder="${esc(c.placeholder || '')}" ${lista ? `list="${lista}" autocomplete="off"` : ''} ${req}>`
+        + (lista ? `<datalist id="${lista}">${c.sugerencias.map(t => `<option value="${esc(t)}"></option>`).join('')}</datalist>` : '');
+    }
   }
   return `<label class="campo" for="${id}"><span>${esc(c.etiqueta)}</span>${control}${ayuda}</label>`;
 }

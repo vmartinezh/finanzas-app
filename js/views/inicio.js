@@ -1,10 +1,11 @@
 import { datos, guardar } from '../db.js';
-import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision } from '../calculos.js';
+import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision, cobrosDeHoy } from '../calculos.js';
 import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO } from '../ui.js';
 import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
 import { filaBeneficio } from './beneficios.js';
+import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
 
 export const titulo = 'Simplifica';
@@ -28,6 +29,8 @@ export function render() {
   const enRojo = d.restante < 0;
   const tarjetasAltas = datos.deudas.filter(x => x.saldo > 0 && usoCupo(x)?.estado === 'excedido');
   const revision = tocaRevision();
+  const porCobrar = cobrosDeHoy();
+  const cobranHoy = porCobrar.some(x => x.e.situacion === 'hoy');
   // Descuentos que son solo de hoy: los de todos los días no son noticia.
   const tarjetasElegidas = (datos.perfil.tarjetas || []).length > 0;
   const descuentosHoy = beneficiosDelDia(datos.perfil.tarjetas || [], hoyISO()).filter(b => b.dias.length);
@@ -62,6 +65,7 @@ export function render() {
           ${d.ahorro ? `<div><dt>− Ahorro</dt><dd>${clp(d.ahorro)}</dd></div>` : ''}
           <div class="subtotal"><dt>= Para el día a día</dt><dd>${clp(d.paraVariable)}</dd></div>
           <div><dt>− Ya gastado</dt><dd>${clp(d.gastado)}</dd></div>
+          ${d.cobrado ? `<div><dt>+ Te devolvieron</dt><dd>${clp(d.cobrado)}</dd></div>` : ''}
           <div class="subtotal"><dt>= Te queda</dt><dd>${clp(d.restante)}</dd></div>
         </dl>
       </details>
@@ -78,6 +82,18 @@ export function render() {
         <h2>${esc(t.nombre)} está sobre el 85% del cupo</h2>
         <p>Usas el ${Math.round(usoCupo(t).pct)}%. Déjala descansar para el día a día hasta que baje.</p>
       </section>`).join('')}
+
+    ${porCobrar.length ? `
+      <section class="tarjeta">
+        <h2>${cobranHoy ? 'Hoy te pagan' : 'Te tienen que pagar'}</h2>
+        <ul class="lista">${porCobrar.slice(0, 4).map(({ c, e, persona }) => `
+          <li class="fila fila-estatica">
+            <span class="fila-texto"><b>${esc(persona.nombre)}</b><small>${esc(c.concepto)}${e.cuotas > 1 ? ` · cuota ${e.proxima.numero} de ${e.cuotas}` : ''} · ${e.situacion === 'hoy' ? '<span class="etiqueta pendiente">Vence hoy</span>' : '<span class="etiqueta atrasado">Atrasado</span>'}</small></span>
+            <span class="monto">${clp(Math.max(e.vencido, e.proxima.monto))}</span>
+            <button class="boton pequeño" data-pagar-cobro="${c.id}">Me pagó</button>
+          </li>`).join('')}</ul>
+        <a class="enlace" href="#/cobros">${porCobrar.length > 4 ? `Ver los ${porCobrar.length}` : 'Ver todo lo que te deben'}</a>
+      </section>` : ''}
 
     ${sinConfigurar ? `
       <section class="tarjeta destacada">
@@ -149,6 +165,7 @@ export function render() {
 
 export function montar(raiz, refrescar) {
   montarFilas(raiz, refrescar);
+  raiz.querySelectorAll('[data-pagar-cobro]').forEach(b => b.addEventListener('click', () => registrarPago(datos.cobros.find(c => c.id === b.dataset.pagarCobro), refrescar)));
   raiz.querySelectorAll('[data-pagar]').forEach(b => b.addEventListener('click', () => {
     const c = datos.compromisos.find(x => x.id === b.dataset.pagar);
     ejecutar(() => guardar('compromisos', { ...c, pagados: [...(c.pagados || []), mesActual()] }), `${c.nombre}: marcado como pagado`, refrescar);

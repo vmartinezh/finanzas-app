@@ -7,6 +7,7 @@ Hecha en Chile y de código abierto. La app base es gratis y completa: ordenar t
 - **Presupuesto por categoría**, con avisos al 80% y al pasarte.
 - **Pagos fijos mes a mes**: arriendo, cuentas y compras en cuotas, con lo que ya tienes comprometido los próximos 6 meses.
 - **Plan para salir de las deudas**: avalancha o bola de nieve con un total mensual fijo, deudas en pausa (acuerdos con la familia), deudas con fecha límite, uso del cupo de las tarjetas con alerta al 85%, y la fecha en que quedas libre.
+- **Me deben**: anotas lo que prestaste o pagaste por otros, en una vez o en cuotas, y divides un gasto entre varios (el asado). Inicio te avisa lo que vence hoy o está atrasado, y cuando te pagan, esa plata vuelve a lo que puedes gastar.
 - **Revisión de fin de mes**: checklist con ingreso, gastos, pagos de cada deuda, saldos según la cartola y alertas.
 - **Gráficos**: en qué se te va la plata, si vas al ritmo del presupuesto y los últimos 6 meses.
 - **Eventos** (matrimonio, viaje, mudanza): sus gastos se ven aparte para que no distorsionen un mes normal.

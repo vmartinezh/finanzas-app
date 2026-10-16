@@ -36,7 +36,7 @@ const ID_TARJETA = /^[a-z0-9-]{1,40}$/;
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
-export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
+export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
 
 const FORMAS = {
   categorias: f => ({
@@ -73,6 +73,17 @@ const FORMAS = {
     hasta_mes: mes(f.hasta_mes),
     pagados: Array.isArray(f.pagados) ? [...new Set(f.pagados.map(mes).filter(Boolean))] : [],
   }),
+  personas: f => ({
+    nombre: texto(f.nombre, 60) ?? 'Sin nombre',
+  }),
+  cobros: f => ({
+    persona_id: id(f.persona_id),
+    concepto: texto(f.concepto, 80) ?? 'Sin detalle',
+    monto_total: entero(f.monto_total),
+    cuotas: enteroONulo(f.cuotas, 1, 120) ?? 1,
+    primer_vencimiento: esFecha(f.primer_vencimiento) ? f.primer_vencimiento : null,
+    estado: opcion(f.estado, ['pendiente', 'perdonado']),
+  }),
   movimientos: f => ({
     fecha: esFecha(f.fecha) ? f.fecha : null,
     monto: entero(f.monto),
@@ -83,6 +94,7 @@ const FORMAS = {
     evento_id: id(f.evento_id),
     compromiso_id: id(f.compromiso_id),
     deuda_id: id(f.deuda_id),
+    cobro_id: id(f.cobro_id),
     origen: opcion(f.origen, ['manual', 'correo']),
     estado: opcion(f.estado, ['clasificado', 'pendiente']),
   }),
@@ -99,6 +111,7 @@ export function normalizarFila(tabla, fila) {
   const limpia = { id: fila.id.toLowerCase(), ...FORMAS[tabla](fila) };
   if (tabla === 'movimientos' && !limpia.fecha) return null;
   if (tabla === 'reglas' && (!limpia.patron || !limpia.categoria_id)) return null;
+  if (tabla === 'cobros' && !limpia.persona_id) return null;
   // Campos que pone la base de datos en modo nube.
   if (esUuid(fila.user_id)) limpia.user_id = fila.user_id;
   if (fila.creado) limpia.creado = texto(fila.creado, 40);
@@ -113,16 +126,18 @@ export function normalizarTabla(tabla, filas) {
 // En un respaldo, una fila puede apuntar a una categoría, evento, compromiso o
 // deuda que el mismo respaldo no trae (se borró, o el archivo se editó). La
 // base de datos rechazaría esa fila, así que la referencia se suelta: el
-// movimiento queda "sin categoría" y la regla sin su categoría se descarta.
+// movimiento queda "sin categoría"; la regla sin su categoría y el cobro sin
+// su persona se descartan.
 // Es la misma lista de claves foráneas de supabase/schema.sql: si agregas una
 // allá, agrégala aquí.
 const REFERENCIAS = {
   compromisos: { categoria_id: 'categorias' },
-  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas' },
+  cobros: { persona_id: 'personas' },
+  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros' },
   reglas: { categoria_id: 'categorias' },
 };
 // Tablas cuya referencia es obligatoria: sin ella, la fila no se guarda.
-const SIN_REFERENCIA_SE_DESCARTA = new Set(['reglas']);
+const SIN_REFERENCIA_SE_DESCARTA = new Set(['reglas', 'cobros']);
 
 // Devuelve las tablas sin enlaces rotos y cuántos enlaces se soltaron.
 function soltar(tablas) {

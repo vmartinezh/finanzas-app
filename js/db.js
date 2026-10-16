@@ -8,7 +8,7 @@ import { normalizarTabla, normalizarPerfil, prepararRespaldo, TABLAS } from './v
 export { TABLAS };
 
 export const datos = {
-  categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [],
+  categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [], personas: [], cobros: [],
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
   // tarjetas: ids del catálogo de descuentos (js/beneficios.js) que la persona tiene.
@@ -85,6 +85,13 @@ export async function iniciar() {
 
   const respuestas = await Promise.all(TABLAS.map(t => supabase.from(t).select('*')));
   respuestas.forEach((r, i) => {
+    // Una tabla nueva que la base todavía no tiene (falta correr schema.sql):
+    // la app abre igual y esa sección queda vacía hasta actualizar la base.
+    if (r.error?.code === 'PGRST205' || r.error?.code === '42P01') {
+      console.warn(`Falta la tabla ${TABLAS[i]}: corre supabase/schema.sql`);
+      datos[TABLAS[i]] = [];
+      return;
+    }
     if (r.error) throw r.error;
     datos[TABLAS[i]] = normalizarTabla(TABLAS[i], r.data);
   });
@@ -196,8 +203,11 @@ export async function guardarPerfil(cambios) {
 }
 
 // user_id lo pone la base de datos (default auth.uid()); no lo mandamos.
+// Un cobro_id vacío tampoco: así un movimiento se puede guardar aunque la base
+// todavía no tenga esa columna (falta correr supabase/schema.sql).
 function sinUsuario(fila) {
   const { user_id, creado, ...resto } = fila;
+  if (resto.cobro_id == null) delete resto.cobro_id;
   return resto;
 }
 

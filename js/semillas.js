@@ -1,5 +1,5 @@
 import { datos, guardarVarios, guardarPerfil, nuevoId } from './db.js';
-import { mesActual, hoyISO, diasDelMes } from './util.js';
+import { mesActual, hoyISO, diasDelMes, sumarDias } from './util.js';
 
 const CATEGORIAS_BASE = [
   ['Supermercado', '🛒'], ['Comida fuera', '🍔'], ['Transporte', '🚗'], ['Hogar', '🏠'],
@@ -66,5 +66,22 @@ export async function cargarEjemplo() {
     g(12, 9800, 'UBER', 'Transporte'),
     { ...g(12, 27990, 'MERCADOPAGO*TIENDA', null), categoria_id: null, origen: 'correo', estado: 'pendiente' },
     { ...g(12, 6200, 'COMERCIO 4521', null), categoria_id: null, origen: 'correo', estado: 'pendiente' },
+  ]);
+
+  // Me deben: unas zapatillas en cuotas (la primera pagada, la segunda atrasada),
+  // un asado dividido que vence hoy y un préstamo para más adelante.
+  const hoyFecha = hoyISO();
+  const personas = ['Matías', 'Cata', 'Diego'].map(nombre => ({ id: nuevoId(), nombre }));
+  await guardarVarios('personas', personas);
+  const [matias, cata, diego] = personas;
+  const zapatillas = { id: nuevoId(), persona_id: matias.id, concepto: 'Zapatillas de Brasil', monto_total: 121500, cuotas: 3, primer_vencimiento: sumarDias(hoyFecha, -40), estado: 'pendiente' };
+  await guardarVarios('cobros', [
+    zapatillas,
+    { id: nuevoId(), persona_id: cata.id, concepto: 'Asado', monto_total: 18000, cuotas: 1, primer_vencimiento: hoyFecha, estado: 'pendiente' },
+    { id: nuevoId(), persona_id: diego.id, concepto: 'Asado', monto_total: 18000, cuotas: 1, primer_vencimiento: hoyFecha, estado: 'pendiente' },
+    { id: nuevoId(), persona_id: diego.id, concepto: 'Préstamo', monto_total: 50000, cuotas: 1, primer_vencimiento: sumarDias(hoyFecha, 12), estado: 'pendiente' },
+  ]);
+  await guardarVarios('movimientos', [
+    { id: nuevoId(), fecha: fecha(2), monto: 40500, tipo: 'ingreso', comercio: '', descripcion: 'Pago de Matías · Zapatillas de Brasil', categoria_id: null, cobro_id: zapatillas.id, origen: 'manual', estado: 'clasificado' },
   ]);
 }

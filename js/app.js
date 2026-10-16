@@ -15,11 +15,12 @@ import * as ajustes from './views/ajustes.js';
 import * as mas from './views/mas.js';
 import * as revision from './views/revision.js';
 import * as beneficios from './views/beneficios.js';
+import * as cobros from './views/cobros.js';
 
 // Cada vista exporta: titulo, render() → html, y opcionalmente montar(raiz, refrescar).
-const RUTAS = { inicio, movimientos, presupuesto, deudas, compromisos, analisis, ajustes, mas, revision, beneficios };
+const RUTAS = { inicio, movimientos, presupuesto, deudas, compromisos, analisis, ajustes, mas, revision, beneficios, cobros };
 // Pantallas que viven dentro de "Más" (para marcar la pestaña correcta).
-const DENTRO_DE_MAS = ['compromisos', 'analisis', 'ajustes', 'revision', 'beneficios'];
+const DENTRO_DE_MAS = ['compromisos', 'analisis', 'ajustes', 'revision', 'beneficios', 'cobros'];
 
 const vista = document.getElementById('vista');
 

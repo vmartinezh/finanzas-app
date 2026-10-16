@@ -52,6 +52,14 @@ export function diasDelMes(mes) {
   return new Date(a, m, 0).getDate();
 }
 
+// Suma meses a una fecha 'YYYY-MM-DD' manteniendo el día; si el mes es más
+// corto, cae en su último día (31 de enero + 1 mes = 28 de febrero).
+export function sumarMesesFecha(fechaISO, n) {
+  const mes = sumarMeses(fechaISO.slice(0, 7), n);
+  const dia = Math.min(Number(fechaISO.slice(8)), diasDelMes(mes));
+  return `${mes}-${String(dia).padStart(2, '0')}`;
+}
+
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 export function nombreMes(mes, conAnio = true) {
@@ -70,6 +78,9 @@ export const normalizar = texto => String(texto ?? '')
   .toLowerCase()
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .trim();
+
+// Nombres escritos a mano: sin espacios de más y con largo máximo.
+export const limpiarNombre = (texto, max = 60) => String(texto ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
 
 // Porcentajes con un decimal si lo tienen: 32,5% · 45%
 export const porcentaje = n => (n || 0).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + '%';

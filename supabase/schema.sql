@@ -65,6 +65,26 @@ create table if not exists public.compromisos (
   creado timestamptz not null default now()
 );
 
+-- "Me deben": personas a las que les prestaste o pagaste algo, y lo que te deben.
+create table if not exists public.personas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  nombre text not null,
+  creado timestamptz not null default now()
+);
+
+create table if not exists public.cobros (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  persona_id uuid not null,              -- clave foránea con dueño, más abajo
+  concepto text not null,
+  monto_total bigint not null default 0 check (monto_total >= 0),
+  cuotas smallint not null default 1 check (cuotas between 1 and 120),
+  primer_vencimiento date,               -- las demás cuotas vencen mes a mes desde aquí
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'perdonado')),
+  creado timestamptz not null default now()
+);
+
 create table if not exists public.movimientos (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
@@ -73,10 +93,11 @@ create table if not exists public.movimientos (
   tipo text not null default 'gasto' check (tipo in ('gasto', 'ingreso')),
   descripcion text,
   comercio text,
-  categoria_id uuid,                     -- estas cuatro: claves foráneas con dueño, más abajo
+  categoria_id uuid,                     -- estas cinco: claves foráneas con dueño, más abajo
   evento_id uuid,
   compromiso_id uuid,
   deuda_id uuid,
+  cobro_id uuid,                         -- pago de algo que te debían ("Me deben")
   origen text not null default 'manual', -- 'manual' | 'correo'
   estado text not null default 'clasificado' check (estado in ('pendiente', 'clasificado')),
   id_externo text,                       -- id del correo del banco, para no duplicar (fase 2)
@@ -96,6 +117,7 @@ create table if not exists public.reglas (
 
 -- Instalaciones anteriores: columnas agregadas después de crear las tablas.
 alter table public.perfil add column if not exists tarjetas text[] not null default '{}';
+alter table public.movimientos add column if not exists cobro_id uuid;
 
 create index if not exists movimientos_usuario_fecha on public.movimientos (user_id, fecha desc);
 
@@ -103,7 +125,7 @@ create index if not exists movimientos_usuario_fecha on public.movimientos (user
 do $$
 declare t text;
 begin
-  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'] loop
+  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "solo lo propio" on public.%I', t);
     execute format(
@@ -113,7 +135,7 @@ begin
 end $$;
 
 -- Claves foráneas con dueño: una fila solo puede apuntar a categorías, eventos,
--- compromisos o deudas con su mismo user_id. RLS no alcanza, porque Postgres
+-- compromisos, deudas, personas o cobros con su mismo user_id. RLS no alcanza, porque Postgres
 -- revisa las claves foráneas sin mirar las políticas: con una clave simple,
 -- alguien podría guardar en su fila el id de un registro ajeno.
 -- Va después de RLS para que, si algo falla aquí, las políticas ya estén puestas.
@@ -128,7 +150,7 @@ begin
     raise exception 'Las claves foráneas con dueño necesitan Postgres 15 o más nuevo (esta base tiene %).', current_setting('server_version');
   end if;
 
-  foreach t in array array['categorias', 'eventos', 'compromisos', 'deudas'] loop
+  foreach t in array array['categorias', 'eventos', 'compromisos', 'deudas', 'personas', 'cobros'] loop
     if not exists (select 1 from pg_constraint
                    where conrelid = format('public.%I', t)::regclass and conname = t || '_id_dueno') then
       execute format('alter table public.%I add constraint %I unique (id, user_id)', t, t || '_id_dueno');
@@ -141,7 +163,10 @@ begin
       ('movimientos', 'evento_id',     'eventos',     'set null (evento_id)'),
       ('movimientos', 'compromiso_id', 'compromisos', 'set null (compromiso_id)'),
       ('movimientos', 'deuda_id',      'deudas',      'set null (deuda_id)'),
-      ('reglas',      'categoria_id',  'categorias',  'cascade')
+      ('reglas',      'categoria_id',  'categorias',  'cascade'),
+      -- Una persona con cuentas no se puede borrar: la app pide borrar sus cuentas primero.
+      ('cobros',      'persona_id',    'personas',    'restrict'),
+      ('movimientos', 'cobro_id',      'cobros',      'set null (cobro_id)')
     ) as v(tabla, columna, padre, al_borrar)
   loop
     nombre := r.tabla || '_' || r.columna || '_dueno';
@@ -174,6 +199,8 @@ create index if not exists movimientos_compromiso on public.movimientos (user_id
 create index if not exists movimientos_deuda on public.movimientos (user_id, deuda_id);
 create index if not exists compromisos_categoria on public.compromisos (user_id, categoria_id);
 create index if not exists reglas_categoria on public.reglas (user_id, categoria_id);
+create index if not exists movimientos_cobro on public.movimientos (user_id, cobro_id);
+create index if not exists cobros_persona on public.cobros (user_id, persona_id);
 
 -- Restaurar un respaldo: reemplaza todos los datos de la persona por los del
 -- archivo en una sola transacción, así que si algo falla no se borra nada.
@@ -199,6 +226,8 @@ begin
 
   delete from public.reglas where user_id = yo;
   delete from public.movimientos where user_id = yo;
+  delete from public.cobros where user_id = yo;
+  delete from public.personas where user_id = yo;
   delete from public.compromisos where user_id = yo;
   delete from public.deudas where user_id = yo;
   delete from public.eventos where user_id = yo;
@@ -220,8 +249,16 @@ begin
   select id, yo, nombre, monto, dia_pago, categoria_id, activo, hasta_mes, pagados
   from jsonb_populate_recordset(null::public.compromisos, coalesce(respaldo->'compromisos', '[]'));
 
-  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, origen, estado, id_externo)
-  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, origen, estado, id_externo
+  insert into public.personas (id, user_id, nombre)
+  select id, yo, nombre
+  from jsonb_populate_recordset(null::public.personas, coalesce(respaldo->'personas', '[]'));
+
+  insert into public.cobros (id, user_id, persona_id, concepto, monto_total, cuotas, primer_vencimiento, estado)
+  select id, yo, persona_id, concepto, monto_total, cuotas, primer_vencimiento, estado
+  from jsonb_populate_recordset(null::public.cobros, coalesce(respaldo->'cobros', '[]'));
+
+  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, origen, estado, id_externo)
+  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, origen, estado, id_externo
   from jsonb_populate_recordset(null::public.movimientos, coalesce(respaldo->'movimientos', '[]'));
 
   insert into public.reglas (id, user_id, patron, categoria_id)

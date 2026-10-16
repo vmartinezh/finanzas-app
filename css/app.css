@@ -335,7 +335,9 @@ main:focus { outline: none; }
 }
 .campo textarea { min-height: 70px; resize: vertical; }
 .campo-check { flex-direction: row; align-items: center; gap: 10px; font-weight: 500; }
-.campo-check input { width: 20px; height: 20px; }
+.campo-check input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--acento); }
+.campo-check span { display: flex; flex-direction: column; gap: 2px; }
+.campo-check small { font-weight: 400; }
 #form-perfil { display: flex; flex-direction: column; gap: 14px; }
 #form-perfil .boton { align-self: flex-start; }
 
@@ -491,3 +493,30 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ── Me deben ───────────────────────────────────── */
+.hero .botones { margin-top: 12px; }
+.monto.atrasado { color: var(--critico); }
+.persona-cobro > summary { list-style: none; }
+.persona-cobro > summary::-webkit-details-marker { display: none; }
+.chevron { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--texto-3); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease-out; }
+.persona-cobro[open] > summary .chevron { transform: rotate(90deg); }
+.cobros-persona { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cobro { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 14px; background: var(--superficie-2); }
+.cobro .fila-texto small .etiqueta { margin-left: 4px; }
+.boton-texto {
+  min-height: 44px; padding: 0 2px; background: none; border: none;
+  color: var(--acento); font: inherit; font-size: .85rem; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.plegable > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.plegable > summary::-webkit-details-marker { display: none; }
+.plegable > summary h2 { margin: 0; }
+.plegable[open] > summary { margin-bottom: 8px; }
+.plegable[open] > summary .chevron { transform: rotate(90deg); }
+.vista-previa {
+  margin: 0; padding: 10px 12px; border-radius: 10px;
+  background: var(--acento-suave); color: var(--texto); font-size: .9rem;
+}
+.vista-previa:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }

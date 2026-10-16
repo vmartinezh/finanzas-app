@@ -37,6 +37,24 @@ También: total mensual para deudas (las cuotas que terminan pasan a la
 siguiente), deudas en pausa y con fecha límite, uso del cupo con alerta al 85%,
 revisión de fin de mes, e ingresos extra que no inflan lo que puedes gastar.
 
+### Me deben
+Lo que otras personas te deben: préstamos, cosas que vendiste o pagaste por
+otros. Cada persona se guarda aparte (`personas`) y cada deuda con ella es un
+cobro (`cobros`) de un pago o en cuotas mensuales desde la primera que falta.
+Los pagos recibidos son movimientos de ingreso con `cobro_id`: a diferencia
+de los bonos, sí suben lo que puedes gastar, porque es tu plata que vuelve.
+"Dividir un gasto" reparte el total en partes enteras y crea un cobro por
+persona. Inicio muestra lo que vence hoy o está atrasado.
+
+Pendiente:
+1. Notificaciones push el día que vence un cobro (solo modo nube: Edge
+   Function + `pg_cron` + suscripciones; texto discreto: "Tienes un pago
+   por recibir hoy").
+2. Sincronizar con la cuenta de la otra persona, para que lo vea como deuda.
+   Comparte datos entre cuentas: necesita su propio diseño de seguridad
+   (ambas partes aceptan el vínculo; nunca confiar en un id escrito por el
+   cliente).
+
 ### Descuentos de las tarjetas
 Cada persona marca qué tarjetas tiene y la app le muestra los descuentos del
 día y de la semana. No se conecta al banco: el catálogo vive en
