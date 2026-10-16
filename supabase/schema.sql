@@ -174,3 +174,71 @@ create index if not exists movimientos_compromiso on public.movimientos (user_id
 create index if not exists movimientos_deuda on public.movimientos (user_id, deuda_id);
 create index if not exists compromisos_categoria on public.compromisos (user_id, categoria_id);
 create index if not exists reglas_categoria on public.reglas (user_id, categoria_id);
+
+-- Restaurar un respaldo: reemplaza todos los datos de la persona por los del
+-- archivo en una sola transacción, así que si algo falla no se borra nada.
+-- "security invoker" corre con los permisos de quien la llama: RLS sigue
+-- mandando y el user_id siempre es el de la sesión, venga lo que venga en el
+-- archivo. La app manda las filas ya limpias y con ids nuevos (js/validar.js).
+create or replace function public.restaurar_respaldo(respaldo jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  yo uuid := (select auth.uid());
+begin
+  if yo is null then
+    raise exception 'Hay que iniciar sesión para restaurar un respaldo';
+  end if;
+  -- Un respaldo siempre trae categorías: así una llamada vacía no puede dejar la cuenta en blanco.
+  if jsonb_typeof(respaldo->'categorias') is distinct from 'array' or jsonb_array_length(respaldo->'categorias') = 0 then
+    raise exception 'El respaldo no trae categorías';
+  end if;
+
+  delete from public.reglas where user_id = yo;
+  delete from public.movimientos where user_id = yo;
+  delete from public.compromisos where user_id = yo;
+  delete from public.deudas where user_id = yo;
+  delete from public.eventos where user_id = yo;
+  delete from public.categorias where user_id = yo;
+
+  insert into public.categorias (id, user_id, nombre, icono, tipo, tope_mensual, palabras, orden)
+  select id, yo, nombre, icono, tipo, tope_mensual, palabras, orden
+  from jsonb_populate_recordset(null::public.categorias, coalesce(respaldo->'categorias', '[]'));
+
+  insert into public.eventos (id, user_id, nombre, palabras, activo)
+  select id, yo, nombre, palabras, activo
+  from jsonb_populate_recordset(null::public.eventos, coalesce(respaldo->'eventos', '[]'));
+
+  insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas)
+  select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas
+  from jsonb_populate_recordset(null::public.deudas, coalesce(respaldo->'deudas', '[]'));
+
+  insert into public.compromisos (id, user_id, nombre, monto, dia_pago, categoria_id, activo, hasta_mes, pagados)
+  select id, yo, nombre, monto, dia_pago, categoria_id, activo, hasta_mes, pagados
+  from jsonb_populate_recordset(null::public.compromisos, coalesce(respaldo->'compromisos', '[]'));
+
+  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, origen, estado, id_externo)
+  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, origen, estado, id_externo
+  from jsonb_populate_recordset(null::public.movimientos, coalesce(respaldo->'movimientos', '[]'));
+
+  insert into public.reglas (id, user_id, patron, categoria_id)
+  select id, yo, patron, categoria_id
+  from jsonb_populate_recordset(null::public.reglas, coalesce(respaldo->'reglas', '[]'));
+
+  insert into public.perfil (user_id, ingreso_mensual, meta_ahorro, presupuesto_deudas, revisado_mes, tarjetas)
+  select yo, coalesce(p.ingreso_mensual, 0), coalesce(p.meta_ahorro, 0), coalesce(p.presupuesto_deudas, 0), p.revisado_mes, coalesce(p.tarjetas, '{}')
+  from jsonb_populate_record(null::public.perfil, coalesce(respaldo->'perfil', '{}')) as p
+  on conflict (user_id) do update set
+    ingreso_mensual = excluded.ingreso_mensual,
+    meta_ahorro = excluded.meta_ahorro,
+    presupuesto_deudas = excluded.presupuesto_deudas,
+    revisado_mes = excluded.revisado_mes,
+    tarjetas = excluded.tarjetas;
+end $$;
+
+-- Solo con sesión iniciada: Postgres deja ejecutar funciones a todos por defecto.
+revoke execute on function public.restaurar_respaldo(jsonb) from public, anon;
+grant execute on function public.restaurar_respaldo(jsonb) to authenticated;

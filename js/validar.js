@@ -10,6 +10,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
 const FECHA = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 
+// Una fecha con forma válida que además existe en el calendario (no un 31 de febrero).
+const esFecha = v => typeof v === 'string' && FECHA.test(v) && new Date(v + 'T00:00:00Z').toISOString().startsWith(v);
 const esUuid = v => typeof v === 'string' && UUID.test(v);
 const id = v => (esUuid(v) ? v.toLowerCase() : null);
 const texto = (v, max = 200) => (v == null || v === '' ? null : String(v).slice(0, max));
@@ -32,6 +34,9 @@ const logico = v => v !== false;
 // Ids del catálogo de tarjetas (js/beneficios.js): 'santander', 'lider-bci'.
 const ID_TARJETA = /^[a-z0-9-]{1,40}$/;
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
+
+// En orden de dependencia: las primeras son referenciadas por las siguientes.
+export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
 
 const FORMAS = {
   categorias: f => ({
@@ -69,7 +74,7 @@ const FORMAS = {
     pagados: Array.isArray(f.pagados) ? [...new Set(f.pagados.map(mes).filter(Boolean))] : [],
   }),
   movimientos: f => ({
-    fecha: typeof f.fecha === 'string' && FECHA.test(f.fecha) ? f.fecha : null,
+    fecha: esFecha(f.fecha) ? f.fecha : null,
     monto: entero(f.monto),
     tipo: opcion(f.tipo, ['gasto', 'ingreso']),
     descripcion: texto(f.descripcion, 200),
@@ -119,20 +124,77 @@ const REFERENCIAS = {
 // Tablas cuya referencia es obligatoria: sin ella, la fila no se guarda.
 const SIN_REFERENCIA_SE_DESCARTA = new Set(['reglas']);
 
-export function soltarHuerfanas(tablas) {
+// Devuelve las tablas sin enlaces rotos y cuántos enlaces se soltaron.
+function soltar(tablas) {
   const destinos = new Set(Object.values(REFERENCIAS).flatMap(Object.values));
   const existen = Object.fromEntries([...destinos].map(t => [t, new Set((tablas[t] ?? []).map(f => f.id))]));
   const resultado = { ...tablas };
+  let sueltos = 0;
   for (const [tabla, campos] of Object.entries(REFERENCIAS)) {
     const filas = [];
     for (const f of tablas[tabla] ?? []) {
       const rotos = Object.entries(campos).filter(([campo, destino]) => f[campo] && !existen[destino].has(f[campo]));
-      if (!rotos.length) filas.push(f);
-      else if (!SIN_REFERENCIA_SE_DESCARTA.has(tabla)) filas.push({ ...f, ...Object.fromEntries(rotos.map(([campo]) => [campo, null])) });
+      if (!rotos.length) {
+        filas.push(f);
+      } else if (!SIN_REFERENCIA_SE_DESCARTA.has(tabla)) {
+        sueltos += rotos.length;
+        filas.push({ ...f, ...Object.fromEntries(rotos.map(([campo]) => [campo, null])) });
+      }
     }
     resultado[tabla] = filas;
   }
-  return resultado;
+  return { tablas: resultado, sueltos };
+}
+
+// Lo que no puede repetirse dentro de una tabla, además del id: el patrón de
+// una regla y el correo del banco del que salió un movimiento.
+const UNICOS = { reglas: f => f.patron, movimientos: f => f.id_externo };
+
+function sinRepetidos(tabla, filas) {
+  const vistos = new Set();
+  const vistosUnico = new Set();
+  return filas.filter(f => {
+    const unico = UNICOS[tabla]?.(f);
+    if (vistos.has(f.id) || (unico && vistosUnico.has(unico))) return false;
+    vistos.add(f.id);
+    if (unico) vistosUnico.add(unico);
+    return true;
+  });
+}
+
+// Deja un respaldo listo para reemplazar los datos actuales: filas validadas,
+// sin repetidos, sin enlaces rotos y con ids nuevos. Los ids nuevos evitan
+// chocar con los de otra cuenta cuando el respaldo es de otra persona.
+// Devuelve también cuántos enlaces se soltaron y cuántas filas no se pudieron
+// usar (inválidas, repetidas o sin su categoría), para avisarle a la persona.
+export function prepararRespaldo(copia, crearId) {
+  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
+  const nombres = TABLAS;
+  const validas = Object.fromEntries(nombres.map(t => [t, normalizarTabla(t, copia[t])]));
+  if (!validas.categorias.length) throw new Error('El respaldo no trae categorías válidas');
+  // Primero se sueltan los enlaces rotos y después se sacan los repetidos: así
+  // una regla repetida sin su categoría no le gana a su gemela válida.
+  const soltadas = soltar(validas);
+  const enteras = Object.fromEntries(nombres.map(t => [t, sinRepetidos(t, soltadas.tablas[t])]));
+  const sueltos = soltadas.sueltos;
+  const recibidas = nombres.reduce((n, t) => n + (Array.isArray(copia[t]) ? copia[t].length : 0), 0);
+  const descartadas = recibidas - nombres.reduce((n, t) => n + enteras[t].length, 0);
+
+  const idNuevo = Object.fromEntries(nombres.map(t => [t, new Map(enteras[t].map(f => [f.id, crearId()]))]));
+  const tablas = Object.fromEntries(nombres.map(t => [t, enteras[t].map(({ user_id, creado, ...f }) => {
+    const fila = { ...f, id: idNuevo[t].get(f.id) };
+    for (const [campo, destino] of Object.entries(REFERENCIAS[t] ?? {})) {
+      if (fila[campo]) fila[campo] = idNuevo[destino].get(fila[campo]);
+    }
+    return fila;
+  })]));
+
+  const { pago_extra_deudas, user_id, ...perfil } = normalizarPerfil(copia.perfil);
+  // Respaldos de la primera versión guardaban solo el abono extra; se convierte al total.
+  if (copia.perfil?.presupuesto_deudas == null && pago_extra_deudas) {
+    perfil.presupuesto_deudas = tablas.deudas.reduce((s, d) => s + d.cuota_mensual, 0) + pago_extra_deudas;
+  }
+  return { tablas, perfil, sueltos, descartadas };
 }
 
 export function normalizarPerfil(p) {

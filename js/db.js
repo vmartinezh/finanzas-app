@@ -3,10 +3,9 @@
 //   - modo local: localStorage del navegador
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { normalizarTabla, normalizarPerfil, soltarHuerfanas } from './validar.js';
+import { normalizarTabla, normalizarPerfil, prepararRespaldo, TABLAS } from './validar.js';
 
-// En orden de dependencia: las primeras son referenciadas por las siguientes.
-export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'movimientos', 'reglas'];
+export { TABLAS };
 
 export const datos = {
   categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [],
@@ -209,27 +208,24 @@ export function exportar() {
 }
 
 // Restaura un respaldo REEMPLAZANDO los datos actuales (si no, las categorías
-// que se crean al abrir la app por primera vez quedarían duplicadas).
+// que se crean al abrir la app por primera vez quedarían duplicadas). Devuelve
+// cuántos enlaces se soltaron y cuántas filas del archivo no se pudieron usar.
 export async function importar(copia) {
-  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
-  // Un respaldo puede venir de otra persona: se valida fila por fila y se
-  // descarta lo que no tenga la forma esperada.
-  // Antes de borrar nada: si una fila apunta a algo que el respaldo no trae,
-  // la base la rechazaría a mitad de camino y quedaría la restauración a medias.
-  const limpio = soltarHuerfanas(Object.fromEntries(TABLAS.map(t => [t, normalizarTabla(t, copia[t])])));
-  if (!limpio.categorias.length) throw new Error('El respaldo no trae categorías válidas');
-
-  // Se borra de atrás hacia adelante y se inserta en orden de dependencia.
-  for (const t of [...TABLAS].reverse()) {
-    const conservar = new Set(limpio[t].map(f => f.id));
-    for (const f of datos[t].filter(f => !conservar.has(f.id))) await borrar(t, f.id);
+  // Un respaldo puede venir de otra persona: se valida fila por fila, se
+  // descarta lo que no tenga la forma esperada y cada fila recibe un id nuevo.
+  const { tablas, perfil, sueltos, descartadas } = prepararRespaldo(copia, nuevoId);
+  if (modo === 'nube') {
+    // En una sola transacción: si algo falla, no se borra nada (ver schema.sql).
+    const { error } = await supabase.rpc('restaurar_respaldo', { respaldo: { ...tablas, perfil } });
+    // PGRST202: la base todavía no tiene la función (falta correr supabase/schema.sql).
+    if (error?.code === 'PGRST202') throw new Error('Falta actualizar la base de datos para restaurar respaldos. No se borró nada.');
+    if (error) throw error;
   }
-  for (const t of TABLAS) await guardarVarios(t, limpio[t]);
-
-  const { pago_extra_deudas, user_id, ...perfil } = normalizarPerfil(copia.perfil);
-  // Respaldos de la primera versión guardaban solo el abono extra; se convierte al total.
-  if (copia.perfil?.presupuesto_deudas == null && pago_extra_deudas) {
-    perfil.presupuesto_deudas = limpio.deudas.reduce((s, d) => s + d.cuota_mensual, 0) + pago_extra_deudas;
+  for (const t of TABLAS) datos[t] = tablas[t];
+  Object.assign(datos.perfil, perfil);
+  if (modo === 'local') {
+    for (const t of TABLAS) escribirLocal(t, datos[t]);
+    escribirLocal('perfil', datos.perfil);
   }
-  await guardarPerfil(perfil);
+  return { sueltos, descartadas };
 }

@@ -137,7 +137,13 @@ export function montar(raiz, refrescar) {
     try {
       const copia = JSON.parse(await archivo.text());
       if (!(await confirmar('Esto REEMPLAZA todos tus datos actuales por los del respaldo. ¿Seguir?'))) return;
-      await ejecutar(() => importar(copia), 'Respaldo restaurado', refrescar);
+      await ejecutar(async () => {
+        const { sueltos, descartadas } = await importar(copia);
+        const notas = [];
+        if (sueltos) notas.push(`${sueltos === 1 ? '1 dato quedó' : `${sueltos} datos quedaron`} sin su categoría, evento o deuda porque el archivo no la traía`);
+        if (descartadas) notas.push(`${descartadas === 1 ? '1 fila venía repetida o incompleta y no se usó' : `${descartadas} filas venían repetidas o incompletas y no se usaron`}`);
+        avisar(notas.length ? `Respaldo restaurado. ${notas.join('. ')}.` : 'Respaldo restaurado');
+      }, null, refrescar);
     } catch (e) {
       avisar('No se pudo leer el archivo: ' + e.message, 'error');
     }
