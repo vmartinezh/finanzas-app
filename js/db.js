@@ -146,8 +146,22 @@ function traducirError(error) {
 }
 
 export async function cerrarSesion() {
+  // Los avisos de este celular son de esta cuenta: no le pueden llegar a quien entre después.
+  try { await (await import('./avisos.js')).desactivarAvisos(); } catch (e) { console.warn('No se pudieron desactivar los avisos', e); }
   await supabase.auth.signOut();
   location.reload();
+}
+
+// Avisos al celular (solo modo nube): el celular queda anotado para que la nube
+// le avise el día que toca cobrar. No es parte de `datos` ni de los respaldos.
+export async function guardarSuscripcion({ endpoint, keys }) {
+  const { error } = await supabase.rpc('anotar_suscripcion', { p_endpoint: endpoint, p_p256dh: keys.p256dh, p_auth: keys.auth });
+  if (error) throw error;
+}
+
+export async function borrarSuscripcion(endpoint) {
+  const { error } = await supabase.from('suscripciones_push').delete().eq('endpoint', endpoint);
+  if (error) throw error;
 }
 
 // Inserta o actualiza una fila (según si su id ya existe).

@@ -20,7 +20,7 @@
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, dividirGasto } from '../js/calculos.js';
-    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc } from '../js/util.js';
+    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
 
@@ -267,6 +267,14 @@
         try { prepararRespaldo(malo, contador()); } catch { errores++; }
       }
       igual(errores, 3);
+    });
+
+    // Avisos al celular
+    prueba('La clave de los avisos pasa de base64url a bytes (con y sin relleno)', () => {
+      igual([...base64urlABytes('_-8A')], [255, 239, 0]);
+      igual([...base64urlABytes('AQID')], [1, 2, 3]);
+      igual([...base64urlABytes('-_8')], [251, 255]);
+      igual(base64urlABytes('BD9umO5SRhv0xSnQ1G1v7jAt3UyR9kf6pMf57youeRGoW-Hgyc5f4tFCETTAFFviNVPUwms4vTqp3ko_yyP4XfE').length, 65);
     });
 
     // Me deben

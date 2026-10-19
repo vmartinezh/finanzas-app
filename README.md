@@ -72,6 +72,21 @@ La app tiene "¿Olvidaste tu contraseña?", pero el correo que trae Supabase sol
 
 Con dominio propio conviene cambiar a un remitente de ese dominio (por ejemplo con Resend), para que los correos no lleguen a spam.
 
+### 4. Avisos al celular (opcional)
+
+En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso solo dice "Tienes un pago por recibir hoy", sin nombres ni montos. Funciona solo en modo nube; en iPhone, con la app agregada a la pantalla de inicio.
+
+1. Genera las claves VAPID, por ejemplo con `npx web-push generate-vapid-keys`. La pública va en `VAPID_PUBLIC_KEY` de `js/config.js`; **la privada nunca va al repo**.
+2. En Supabase, *Database → Extensions*, activa `pg_cron` y `pg_net`.
+3. En *Edge Functions → Deploy a new function → Via Editor*, crea `avisar-cobros` con el contenido de [`supabase/functions/avisar-cobros/index.ts`](supabase/functions/avisar-cobros/index.ts) (reemplaza todo el código de ejemplo que trae el editor; si responde "Hello", quedó el ejemplo) y desactiva *Verify JWT* (la función revisa su propia clave).
+4. En *Edge Functions → Secrets* agrega `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:` + tu correo) y `AVISOS_SECRETO` (una clave larga al azar, de 32 caracteres o más).
+5. En *SQL Editor*, guarda en Vault la dirección del proyecto y la misma clave:
+   ```sql
+   select vault.create_secret('https://<tu-proyecto>.supabase.co', 'url_proyecto');
+   select vault.create_secret('<la misma AVISOS_SECRETO>', 'avisos_secreto');
+   ```
+6. Vuelve a correr `supabase/schema.sql`: con las extensiones activas, programa el aviso diario (13:00 UTC, en la mañana en Chile).
+
 ## Probar en tu computador
 
 No necesita instalar nada para compilar: es HTML, CSS y JavaScript puro. Solo hay que servir la carpeta con cualquier servidor estático, por ejemplo:
@@ -90,12 +105,14 @@ index.html            la app (una sola página)
 css/app.css           estilos, modo claro y oscuro
 js/app.js             arranque y navegación
 js/db.js              datos: modo local (localStorage) o nube (Supabase)
+js/avisos.js          avisos al celular (notificaciones push, solo en la nube)
 js/calculos.js        disponible del mes, presupuesto, plan de deudas
 js/clasificador.js    adivina la categoría de una compra y aprende
 js/graficos.js        gráficos SVG livianos, sin librerías
 js/beneficios.js      catálogo de descuentos por día de cada tarjeta (se revisa cada semana)
 js/views/             cada pantalla
 supabase/schema.sql   tablas y seguridad para la nube
+supabase/functions/   función que manda los avisos al celular
 tests/index.html      pruebas
 docs/DISENO.md        diseño y fases siguientes
 ```

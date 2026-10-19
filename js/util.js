@@ -82,5 +82,11 @@ export const normalizar = texto => String(texto ?? '')
 // Nombres escritos a mano: sin espacios de más y con largo máximo.
 export const limpiarNombre = (texto, max = 60) => String(texto ?? '').trim().replace(/\s+/g, ' ').slice(0, max);
 
+// La clave pública de los avisos viene en base64url; el navegador la pide en bytes.
+export function base64urlABytes(texto) {
+  const base64 = String(texto).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(base64 + '='.repeat((4 - base64.length % 4) % 4)), c => c.charCodeAt(0));
+}
+
 // Porcentajes con un decimal si lo tienen: 32,5% · 45%
 export const porcentaje = n => (n || 0).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + '%';

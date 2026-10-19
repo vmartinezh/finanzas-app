@@ -2,6 +2,7 @@ import { datos, guardar, borrar, nuevoId, modo } from '../db.js';
 import { resumenMeDeben, estadoCobro, cuotasDeCobro, pagosDeCobro, dividirGasto } from '../calculos.js';
 import { abrirFormulario, ejecutar, avisar, confirmar } from '../ui.js';
 import { clp, esc, hoyISO, mesActual, fechaCorta, normalizar, limpiarNombre } from '../util.js';
+import { estadoAvisos, activarAvisos, desactivarAvisos } from '../avisos.js';
 
 export const titulo = 'Me deben';
 
@@ -92,6 +93,8 @@ export function render() {
       </div>
     </section>
 
+    <section class="tarjeta" id="avisos" hidden></section>
+
     <section class="tarjeta">
       ${vacio
         ? `<div class="vacio">Anota lo que prestas o pagas por otros, como el asado o unas zapatillas en cuotas.<br>Te aviso cuándo toca cobrar.</div>`
@@ -106,6 +109,43 @@ export function render() {
       <ul class="lista">${r.saldados.map(filaSaldado).join('')}</ul>
     </details>` : ''}
   `;
+}
+
+// ---- Avisos al celular ----
+
+const TEXTO_AVISOS = {
+  inactivos: ['¿Te aviso el día que toca cobrar?', 'Te llega en la mañana y solo dice "Tienes un pago por recibir hoy", sin nombres ni montos.', '<button class="boton pequeño" data-avisos="activar">Activar</button>'],
+  activos: ['Te aviso en este celular', 'El día que toca cobrar, en la mañana.', '<button class="boton pequeño secundario" data-avisos="desactivar">Desactivar</button>'],
+  bloqueados: ['Los avisos están bloqueados', 'Para recibirlos, permite las notificaciones de Simplifica en los ajustes del navegador o del celular.', ''],
+  instalar: ['¿Quieres avisos en tu iPhone?', 'Primero agrega Simplifica a tu pantalla de inicio: toca Compartir y luego "Agregar a inicio".', ''],
+};
+
+async function pintarAvisos(raiz) {
+  const caja = raiz.querySelector('#avisos');
+  const estado = await estadoAvisos().catch(() => 'no');
+  if (!caja?.isConnected || !TEXTO_AVISOS[estado]) return;
+  const [titulo, detalle, boton] = TEXTO_AVISOS[estado];
+  caja.innerHTML = `<div class="fila-linea">
+    <span class="fila-texto"><b>${titulo}</b><small>${detalle}</small></span>
+    ${boton}
+  </div>`;
+  caja.hidden = false;
+  caja.querySelector('[data-avisos]')?.addEventListener('click', async e => {
+    const boton = e.currentTarget;
+    boton.disabled = true;
+    try {
+      if (boton.dataset.avisos === 'activar') {
+        avisar(await activarAvisos() ? 'Listo: te aviso el día que toque cobrar.' : 'Sin permiso no te puedo avisar. Puedes activarlo cuando quieras.');
+      } else {
+        await desactivarAvisos();
+        avisar('Avisos desactivados en este celular.');
+      }
+    } catch (error) {
+      console.error(error);
+      avisar('No se pudieron cambiar los avisos. Revisa tu conexión e intenta de nuevo.', 'error');
+    }
+    pintarAvisos(raiz);
+  });
 }
 
 // ---- Formularios ----
@@ -327,6 +367,7 @@ async function renombrar(persona, refrescar) {
 }
 
 export function montar(raiz, refrescar) {
+  pintarAvisos(raiz);
   const cobro = id => datos.cobros.find(c => c.id === id);
   raiz.querySelector('#nuevo-cobro').addEventListener('click', () => anotarCobro(null, refrescar));
   raiz.querySelector('#dividir').addEventListener('click', () => dividir(refrescar));

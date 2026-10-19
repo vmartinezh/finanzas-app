@@ -115,6 +115,32 @@ create table if not exists public.reglas (
   unique (user_id, patron)
 );
 
+-- Avisos al celular: un celular o navegador donde la persona activó los avisos.
+-- No es parte de sus datos (no va en los respaldos): es la dirección a la que
+-- el servicio de notificaciones de Google, Apple o Mozilla entrega el aviso.
+create table if not exists public.suscripciones_push (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  endpoint text not null check (endpoint like 'https://%' and length(endpoint) <= 1000),
+  p256dh text not null check (length(p256dh) <= 200),
+  auth text not null check (length(auth) <= 100),
+  creado timestamptz not null default now(),
+  unique (endpoint)
+);
+
+-- Un celular es de una sola cuenta: si otra persona inicia sesión en él, los
+-- avisos pasan a ella (anotar_suscripcion). Antes era único por (user_id, endpoint)
+-- y el mismo celular podía recibir los avisos de dos cuentas.
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'suscripciones_push_endpoint_key') then
+    delete from public.suscripciones_push a using public.suscripciones_push b
+    where a.endpoint = b.endpoint and (a.creado, a.id) < (b.creado, b.id);
+    alter table public.suscripciones_push drop constraint if exists suscripciones_push_user_id_endpoint_key;
+    alter table public.suscripciones_push add constraint suscripciones_push_endpoint_key unique (endpoint);
+  end if;
+end $$;
+
 -- Instalaciones anteriores: columnas agregadas después de crear las tablas.
 alter table public.perfil add column if not exists tarjetas text[] not null default '{}';
 alter table public.movimientos add column if not exists cobro_id uuid;
@@ -125,7 +151,7 @@ create index if not exists movimientos_usuario_fecha on public.movimientos (user
 do $$
 declare t text;
 begin
-  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'] loop
+  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "solo lo propio" on public.%I', t);
     execute format(
@@ -279,3 +305,76 @@ end $$;
 -- Solo con sesión iniciada: Postgres deja ejecutar funciones a todos por defecto.
 revoke execute on function public.restaurar_respaldo(jsonb) from public, anon;
 grant execute on function public.restaurar_respaldo(jsonb) to authenticated;
+
+-- Avisos al celular: los celulares de quienes hoy tienen una cuota por recibir
+-- que todavía no les pagan. Las cuotas se calculan igual que en la app
+-- (cuotasDeCobro en js/calculos.js): partes enteras, las primeras con el peso
+-- que sobra, y una por mes desde la primera; lo pagado cubre las cuotas en orden.
+-- Solo la llama la función avisar-cobros (supabase/functions), con la clave de servicio.
+create or replace function public.suscripciones_para_avisar(hoy date default (now() at time zone 'America/Santiago')::date)
+returns table (id uuid, endpoint text, p256dh text, auth text)
+language sql stable security invoker set search_path = ''
+as $$
+  with pagado as (
+    select m.cobro_id, sum(m.monto) as total
+    from public.movimientos m
+    where m.tipo = 'ingreso' and m.cobro_id is not null
+    group by m.cobro_id
+  ), cuotas as (
+    select c.id, c.user_id,
+      (c.primer_vencimiento + make_interval(months => k - 1))::date as vence,
+      sum(c.monto_total / c.cuotas + case when k <= c.monto_total % c.cuotas then 1 else 0 end)
+        over (partition by c.id order by k) as hasta_aqui
+    from public.cobros c, generate_series(1, c.cuotas) k
+    where c.estado = 'pendiente' and c.primer_vencimiento is not null and c.primer_vencimiento <= hoy
+  )
+  select s.id, s.endpoint, s.p256dh, s.auth
+  from public.suscripciones_push s
+  where s.user_id in (
+    select q.user_id from cuotas q left join pagado p on p.cobro_id = q.id
+    where q.vence = hoy and coalesce(p.total, 0) < q.hasta_aqui
+  );
+$$;
+
+-- Anota este celular para la persona con sesión iniciada, aunque antes fuera de
+-- otra cuenta. Necesita security definer porque RLS no deja tocar la fila ajena.
+create or replace function public.anotar_suscripcion(p_endpoint text, p_p256dh text, p_auth text)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'Se necesita una sesión iniciada';
+  end if;
+  insert into public.suscripciones_push (user_id, endpoint, p256dh, auth)
+  values (auth.uid(), p_endpoint, p_p256dh, p_auth)
+  on conflict (endpoint) do update
+    set user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth, creado = now();
+end $$;
+
+revoke execute on function public.anotar_suscripcion(text, text, text) from public, anon;
+grant execute on function public.anotar_suscripcion(text, text, text) to authenticated;
+
+revoke execute on function public.suscripciones_para_avisar(date) from public, anon, authenticated;
+grant execute on function public.suscripciones_para_avisar(date) to service_role;
+
+-- Todos los días a las 13:00 UTC (10:00 en Chile en verano, 9:00 en invierno)
+-- se llama a la función avisar-cobros. Solo si están activas las extensiones
+-- pg_cron y pg_net (Database → Extensions). La dirección del proyecto y la
+-- clave compartida con la función se guardan en Vault, fuera de este archivo:
+--   select vault.create_secret('https://<tu-proyecto>.supabase.co', 'url_proyecto');
+--   select vault.create_secret('<clave larga al azar>', 'avisos_secreto');
+do $$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron')
+     and exists (select 1 from pg_extension where extname = 'pg_net') then
+    perform cron.schedule('avisar-cobros', '0 13 * * *', $cron$
+      select net.http_post(
+        url := (select decrypted_secret from vault.decrypted_secrets where name = 'url_proyecto') || '/functions/v1/avisar-cobros',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'x-avisos-secreto', (select decrypted_secret from vault.decrypted_secrets where name = 'avisos_secreto')),
+        body := '{}'::jsonb)
+    $cron$);
+  end if;
+end $$;

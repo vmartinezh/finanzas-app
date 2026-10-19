@@ -3,6 +3,7 @@ import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
 import { avisar } from './ui.js';
 import { esc } from './util.js';
+import { sincronizarAvisos } from './avisos.js';
 import { editarMovimiento } from './views/movimientos.js';
 
 import * as inicio from './views/inicio.js';
@@ -207,6 +208,7 @@ async function arrancar() {
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('Sin modo offline', e));
   }
+  sincronizarAvisos();
 }
 
 arrancar();
