@@ -74,7 +74,7 @@ Con dominio propio conviene cambiar a un remitente de ese dominio (por ejemplo c
 
 ### 4. Avisos al celular (opcional)
 
-En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso solo dice "Tienes un pago por recibir hoy", sin nombres ni montos. Funciona solo en modo nube; en iPhone, con la app agregada a la pantalla de inicio.
+En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso solo dice "Hoy te toca cobrar algo 👀", sin nombres ni montos. Funciona solo en modo nube; en iPhone, con la app agregada a la pantalla de inicio.
 
 1. Genera las claves VAPID, por ejemplo con `npx web-push generate-vapid-keys`. La pública va en `VAPID_PUBLIC_KEY` de `js/config.js`; **la privada nunca va al repo**.
 2. En Supabase, *Database → Extensions*, activa `pg_cron` y `pg_net`.

@@ -1,5 +1,5 @@
 // Avisos al celular (notificaciones push), solo en modo nube: el día que toca
-// cobrar algo de "Me deben", la nube manda "Tienes un pago por recibir hoy"
+// cobrar algo de "Me deben", la nube manda "Hoy te toca cobrar algo 👀"
 // (supabase/functions/avisar-cobros). En modo local, el aviso es la tarjeta de Inicio.
 import { modo, guardarSuscripcion, borrarSuscripcion } from './db.js';
 import { VAPID_PUBLIC_KEY } from './config.js';
