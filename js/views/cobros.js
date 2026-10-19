@@ -30,10 +30,13 @@ function bloqueCobro({ c, e }) {
   const detalle = [
     e.cuotas > 1 && e.proxima ? `Cuota ${e.proxima.numero} de ${e.cuotas}: ${clp(e.proxima.monto)}${aMedias ? ' (lo que falta)' : ''}` : '',
     e.proxima?.vence ? `${e.situacion === 'atrasado' ? 'venció el' : 'vence el'} ${fechaCorta(e.proxima.vence)}` : 'sin fecha',
-  ].filter(Boolean).join(' · ');
+  ].filter(Boolean);
+  // La fecha va junto a su etiqueta y sin cortes, para que "venció el 9 oct · Atrasado" no quede partido.
+  const fecha = detalle.pop();
+  const partes = [...detalle.map(esc), `<span class="sin-corte">${esc(fecha)}${ETIQUETA[e.situacion] ? ` ${ETIQUETA[e.situacion]}` : ''}</span>`];
   return `<li class="cobro">
     <div class="fila-linea">
-      <span class="fila-texto"><b>${esc(c.concepto)}</b><small>${esc(detalle)} ${ETIQUETA[e.situacion] ?? ''}</small></span>
+      <span class="fila-texto"><b>${esc(c.concepto)}</b><small>${partes.join(' · ')}</small></span>
       <span class="monto">${clp(e.pendiente)}</span>
     </div>
     ${e.pagado ? `<small class="ayuda">Ya te pagó ${clp(e.pagado)} de ${clp(c.monto_total)}</small>` : ''}
