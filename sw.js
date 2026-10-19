@@ -35,8 +35,8 @@ self.addEventListener('fetch', evento => {
 self.addEventListener('push', evento => {
   let aviso = {};
   try { aviso = evento.data?.json() ?? {}; } catch { /* aviso sin datos: se usa el texto de siempre */ }
-  evento.waitUntil(self.registration.showNotification(aviso.titulo || 'Simplifika', {
-    body: aviso.cuerpo || 'Hoy te toca cobrar algo 👀',
+  evento.waitUntil(self.registration.showNotification(aviso.titulo || 'Hoy te toca cobrar algo 👀', {
+    body: aviso.cuerpo ?? '',
     icon: 'icons/icon-192.png',
     badge: 'icons/icon-192.png',
     tag: 'cobros',

@@ -11,7 +11,7 @@ import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
 const SECRETO = Deno.env.get('AVISOS_SECRETO') ?? '';
-const AVISO = JSON.stringify({ titulo: 'Simplifika', cuerpo: 'Hoy te toca cobrar algo 👀', url: './#/cobros' });
+const AVISO = JSON.stringify({ titulo: 'Hoy te toca cobrar algo 👀', url: './#/cobros' });
 
 // Solo se envía a los servicios de notificaciones de los navegadores: una
 // dirección cualquiera haría que esta función llame a donde alguien quiera.
