@@ -142,7 +142,7 @@ const arteDe = (id, t) => {
 // La tarjeta dibujada. nombreBanco: como aparece en el catálogo ("CMR Falabella").
 export function tarjetaHTML(id, nombreBanco, { chica = false } = {}) {
   const { banco } = separarTarjeta(id);
-  const t = tipoDe(id) ?? { nombre: '', forma: 'horizontal', fondo: GENERICAS[banco] ?? 'linear-gradient(135deg, #46583f, #232d20)', tinta: '#fff' };
+  const t = tipoDe(id) ?? { nombre: '', forma: 'horizontal', fondo: GENERICAS[banco] ?? 'linear-gradient(135deg, #3e9b4f, #183020)', tinta: '#fff' };
   const arte = t.arte ? `<svg class="t-arte" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${arteDe(id, t)}</svg>` : '';
   const conBanda = Boolean(t.banda);
   // En la tarjeta, el tipo sin la red que ya está escrita aparte: "Visa Infinite" → "Infinite".

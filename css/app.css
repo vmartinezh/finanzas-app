@@ -1,4 +1,4 @@
-/* Simplifika · verde salvia (#A8B9A0) */
+/* Simplifika · verde hoja (#3E9B4F, el del logo) */
 :root {
   color-scheme: light;
   --fondo: #f0f3ee;
@@ -9,23 +9,26 @@
   --texto-2: #4e5b49;
   --texto-3: #6e7a69;
   /* La salvia es clara: el texto encima siempre va oscuro. */
-  --salvia: #a8b9a0;
-  --salvia-suave: #dfe7da;
-  --salvia-texto: #1f281c;
-  --salvia-texto-2: #33402e;
+  --salvia: #a7dca6;
+  --salvia-suave: #dcf0d9;
+  --salvia-texto: #13241a;
+  --salvia-texto-2: #2c4630;
   --salvia-velo: rgb(255 255 255 / .35);
   --logo-borde: transparent;
   --moneda: #e9b23a;
   --moneda-anillo: #b07e14;
   /* Frena al llegar: para lo que entra o se mueve con intención. */
   --frenar: cubic-bezier(.16, 1, .3, 1);
-  --acento: #46583f;
+  --acento: #26753a;
   --acento-texto: #ffffff;
-  --acento-suave: #dfe7da;
-  --nav-fondo: #232d20;
-  --nav-icono: #a8b9a0;
-  --nav-activo: #f2f5ef;
-  --serie-1: #5e7556;
+  --acento-suave: #e2f2df;
+  --nav-fondo: #183020;
+  --nav-icono: #9ad69c;
+  --nav-activo: #ffffff;
+  /* El botón de agregar: el verde más vivo, con texto oscuro (7:1). */
+  --agregar: #5cc26b;
+  --agregar-texto: #13241a;
+  --serie-1: #3e9b4f;
   --serie-2: #4e7bb0;
   --referencia: #8c9488;
   --grilla: #e3e8df;
@@ -51,18 +54,18 @@
     --texto: #eef2ea;
     --texto-2: #c2cbbd;
     --texto-3: #95a08f;
-    --salvia: #2e3b2a;
-    --salvia-suave: #263022;
+    --salvia: #1f4a2a;
+    --salvia-suave: #1c3a23;
     --salvia-texto: #eef2ea;
-    --salvia-texto-2: #c8d4c1;
+    --salvia-texto-2: #c8dcc5;
     --salvia-velo: rgb(255 255 255 / .07);
-    --acento: #a8b9a0;
-    --acento-texto: #1f281c;
-    --acento-suave: #2a3427;
+    --acento: #8ed99b;
+    --acento-texto: #13241a;
+    --acento-suave: #1e3a25;
     --nav-fondo: #0b0e0a;
-    --nav-icono: #8fa287;
+    --nav-icono: #7cc98a;
     --nav-activo: #eef2ea;
-    --serie-1: #93ac89;
+    --serie-1: #7cc98a;
     --serie-2: #6e9bd0;
     --referencia: #858e81;
     --grilla: #2a3127;
@@ -82,18 +85,18 @@
   --texto: #eef2ea;
   --texto-2: #c2cbbd;
   --texto-3: #95a08f;
-  --salvia: #2e3b2a;
-  --salvia-suave: #263022;
+  --salvia: #1f4a2a;
+  --salvia-suave: #1c3a23;
   --salvia-texto: #eef2ea;
-  --salvia-texto-2: #c8d4c1;
+  --salvia-texto-2: #c8dcc5;
   --salvia-velo: rgb(255 255 255 / .07);
-  --acento: #a8b9a0;
-  --acento-texto: #1f281c;
-  --acento-suave: #2a3427;
+  --acento: #8ed99b;
+  --acento-texto: #13241a;
+  --acento-suave: #1e3a25;
   --nav-fondo: #0b0e0a;
-  --nav-icono: #8fa287;
+  --nav-icono: #7cc98a;
   --nav-activo: #eef2ea;
-  --serie-1: #93ac89;
+  --serie-1: #7cc98a;
   --serie-2: #6e9bd0;
   --referencia: #858e81;
   --grilla: #2a3127;
@@ -148,7 +151,7 @@ button { font: inherit; color: inherit; }
   .barra-superior h1 { font-size: 1.15rem; }
 }
 .logo { flex: none; display: block; line-height: 0; }
-/* En oscuro el cuadro musgo se pierde sobre el salvia oscuro: un borde claro lo separa. */
+/* En oscuro el cuadro verde se pierde sobre el salvia oscuro: un borde claro lo separa. */
 .logo-marca { border-radius: 7px; box-shadow: 0 0 0 1px var(--logo-borde); }
 .boton-mas {
   flex: none; width: 44px; height: 44px; border-radius: 50%;
@@ -204,7 +207,7 @@ main:focus { outline: none; }
   bottom: calc(24px + var(--nav-alto) + env(safe-area-inset-bottom));
   height: 52px; padding: 0 20px 0 16px; border-radius: 18px; border: none;
   display: flex; align-items: center; gap: 6px; cursor: pointer;
-  background: #a8b9a0; color: #1f281c; font: inherit; font-weight: 800; font-size: 1rem;
+  background: var(--agregar); color: var(--agregar-texto); font: inherit; font-weight: 800; font-size: 1rem;
   box-shadow: 0 10px 24px rgb(0 0 0 / .2);
   view-transition-name: boton-agregar;
 }
@@ -754,11 +757,11 @@ dialog:not([open])::backdrop { opacity: 0; }
 /* ── Pantalla de carga ────────────────────────────
    El compañero escribe: el globo aparece con tres puntos "escribiendo…", los
    puntos se vuelven la k y la moneda cae a su lugar; el globo da un saltito al
-   recibirla (~2 s). Fondo musgo, como el ícono de la app. Los colores son los del logo. */
+   recibirla (~2 s). Fondo verde hoja, como el ícono de la app. Los colores son los del logo. */
 .carga {
   position: fixed; inset: 0; z-index: 50;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
-  background: #46583f;
+  background: #3e9b4f;
   transition: opacity .3s ease-out;
   /* Si el JavaScript no llegó a correr (js/carga.js le pone .animada o .quieta),
      nadie la va a quitar: se rinde sola y queda el "Cargando…" de debajo. */
@@ -775,7 +778,7 @@ dialog:not([open])::backdrop { opacity: 0; }
 .logo-carga .moneda-carga circle { fill: var(--moneda); }
 .logo-carga .moneda-carga .anillo { fill: none; stroke: var(--moneda-anillo); stroke-width: 6; }
 .logo-carga .moneda-carga .brillo { fill: none; stroke: #fff1c4; stroke-width: 7; stroke-linecap: round; }
-.marca-carga { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; color: #dfe7da; }
+.marca-carga { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; color: #ffffff; }
 
 /* Mientras js/carga.js decide (un instante), no se ve nada; si no corre, el logo sale igual. */
 .carga:not(.animada):not(.quieta) :is(.logo-carga, .marca-carga) { opacity: 0; animation: fundir-llegada .2s 1s forwards; }

@@ -1,13 +1,17 @@
 ---
 name: Simplifika
-description: Tus cuentas, más simples. Un número que guía el día, en verde salvia.
+description: Tus cuentas, más simples. Un número que guía el día, en verde hoja.
 colors:
-  salvia: "#a8b9a0"
-  salvia-suave: "#dfe7da"
-  salvia-texto: "#1f281c"
-  salvia-texto-2: "#33402e"
-  musgo: "#46583f"
-  noche-de-huerto: "#232d20"
+  salvia: "#a7dca6"
+  salvia-suave: "#dcf0d9"
+  salvia-texto: "#13241a"
+  salvia-texto-2: "#2c4630"
+  hoja: "#3e9b4f"
+  acento: "#26753a"
+  acento-suave: "#e2f2df"
+  agregar: "#5cc26b"
+  agregar-texto: "#13241a"
+  noche-de-huerto: "#183020"
   fondo: "#f0f3ee"
   superficie: "#ffffff"
   superficie-2: "#eaefe6"
@@ -20,7 +24,7 @@ colors:
   alerta-barra: "#e9b23a"
   critico: "#b83232"
   critico-barra: "#d03b3b"
-  serie-1: "#5e7556"
+  serie-1: "#3e9b4f"
   serie-2: "#4e7bb0"
   moneda: "#e9b23a"
   moneda-anillo: "#b07e14"
@@ -82,7 +86,7 @@ spacing:
   xl: "24px"
 components:
   button-primary:
-    backgroundColor: "{colors.musgo}"
+    backgroundColor: "{colors.acento}"
     textColor: "{colors.superficie}"
     rounded: "{rounded.control}"
     padding: "0 18px"
@@ -94,14 +98,14 @@ components:
     padding: "0 18px"
     height: "44px"
   button-small:
-    backgroundColor: "{colors.salvia-suave}"
-    textColor: "{colors.musgo}"
+    backgroundColor: "{colors.acento-suave}"
+    textColor: "{colors.acento}"
     rounded: "{rounded.control}"
     padding: "0 12px"
     height: "34px"
   button-add:
-    backgroundColor: "{colors.salvia}"
-    textColor: "{colors.salvia-texto}"
+    backgroundColor: "{colors.agregar}"
+    textColor: "{colors.agregar-texto}"
     rounded: "{rounded.dialogo}"
     size: "52px"
   chip:
@@ -147,7 +151,7 @@ components:
 
 **Creative North Star: "La libreta de calma"**
 
-Simplifika se ve como un cuaderno ordenado en tonos de hoja seca: fondo verde muy pálido, tarjetas blancas de esquinas generosas y un solo número grande que respira. La persona llega preocupada por la plata y con el teléfono en una mano. La pantalla le baja el volumen: un número, una frase que dice qué hacer y, si quiere, el detalle plegado debajo.
+Simplifika se ve como un cuaderno ordenado en tonos de hoja fresca: fondo verde muy pálido, tarjetas blancas de esquinas generosas y un solo número grande que respira. La persona llega preocupada por la plata y con el teléfono en una mano. La pantalla le baja el volumen: un número, una frase que dice qué hacer y, si quiere, el detalle plegado debajo.
 
 La densidad es baja y vertical. Una columna de máximo 560px, bloques separados por 14px, y la navegación flotando abajo, al alcance del pulgar. La única pieza ruidosa es el número del día sobre su bloque salvia. Todo lo demás es neutro y tranquilo, y el color de estado aparece solo donde hay algo que decidir.
 
@@ -155,18 +159,20 @@ El sistema rechaza el aspecto de banco o fintech: nada de azul corporativo, grá
 
 **Key Characteristics:**
 - Un número protagonista por pantalla, en Plus Jakarta Sans extrabold con cifras tabulares.
-- Verde salvia como identidad; color de estado solo con significado.
+- Verde hoja como identidad, vivo y amigable; color de estado solo con significado.
 - Superficies planas y suaves, sombra casi imperceptible y modo oscuro completo.
 - Todo se usa con el pulgar: barra inferior flotante, botón de agregar al centro y diálogos que suben desde abajo en el teléfono.
 
 ## Colors
 
-Una paleta de hoja seca: verdes grisáceos de poca saturación sobre un fondo casi blanco, con el color de estado reservado para lo que hay que decidir.
+Una paleta de hoja fresca: verdes vivos y amigables (no el verde de WhatsApp) sobre un fondo casi blanco, con el color de estado reservado para lo que hay que decidir. Reemplazó el 2026-10-23 a los verdes grisáceos de antes (salvia #a8b9a0 y musgo #46583f), que se veían apagados.
 
 ### Primary
-- **Salvia** (`salvia`): la identidad. Es el bloque del número del día en Inicio (con la barra superior fundida en él), el botón de agregar, los íconos de la barra inferior y el `theme-color` del navegador.
-- **Musgo** (`musgo`): el acento de acción en modo claro. Botón primario, enlaces, `summary` de los desgloses y el anillo de foco. En modo oscuro el acento se invierte y pasa a ser la salvia clara.
-- **Noche de huerto** (`noche-de-huerto`): el fondo de la barra inferior flotante. Es la única superficie oscura del modo claro.
+- **Hoja** (`hoja`, #3e9b4f): el verde del logo, de la pantalla de carga y del ícono de la app.
+- **Salvia** (`salvia`, el nombre del token se mantuvo): el verde hoja claro del bloque del número del día en Inicio (con la barra superior fundida en él), los íconos de la barra inferior y el `theme-color` del navegador. El texto encima siempre va oscuro.
+- **Agregar** (`agregar`): el verde más vivo, solo para el botón "+ Gasto", con texto oscuro (7:1).
+- **Acento** (`acento`, #26753a): la hoja oscurecida para que el texto blanco encima y los enlaces sobre papel pasen 4.5:1. Botón primario, enlaces, `summary` de los desgloses y el anillo de foco. En modo oscuro se invierte a un verde menta claro (#8ed99b) con texto oscuro.
+- **Noche de huerto** (`noche-de-huerto`): verde muy oscuro, el fondo de la barra inferior flotante. Es la única superficie oscura del modo claro.
 
 ### Neutral
 - **Fondo de hoja** (`fondo`): el fondo de la página, un blanco verdoso que hace flotar las tarjetas.
@@ -187,7 +193,7 @@ Una paleta de hoja seca: verdes grisáceos de poca saturación sobre un fondo ca
 
 **La regla del azul de datos.** El único azul (`serie-2`) existe para distinguir la segunda serie de un gráfico y las etiquetas de eventos. Nunca es color de marca, de botón ni de encabezado.
 
-**La regla del modo oscuro completo.** Cada token tiene su par oscuro: tres niveles de fondo (#121512, #1b201a y #252b23), la salvia baja a #2e3b2a y el acento sube a #a8b9a0. Cualquier color nuevo se define en los dos modos o no se agrega.
+**La regla del modo oscuro completo.** Cada token tiene su par oscuro: tres niveles de fondo (#121512, #1b201a y #252b23), la salvia baja a un verde bosque (#1f4a2a) y el acento sube a #8ed99b. Cualquier color nuevo se define en los dos modos o no se agrega.
 
 ## Typography
 
@@ -224,7 +230,7 @@ Los diálogos se centran en pantallas anchas (máximo 520px). Bajo 480px suben d
 - **Al presionar:** los botones se hunden a 0,96 (el "+" a 0,9).
 - **El ojo:** la pantalla se desenfoca al cerrar y se enfoca al abrir.
 - **Logros:** solo terminar una deuda o que te paguen todo. La moneda cae y se dibuja un check en el aviso. Lo de todos los días no se celebra.
-- **Pantalla de carga ("el compañero escribe"):** fondo musgo como el ícono; el globo aparece con tres puntos que escriben, se juntan en la k, la k se traza y cae la moneda (~2 s, solo la primera vez del día). Las demás veces el logo sale quieto y se funde apenas hay datos. Si la app nunca la quita, se rinde sola a los 8 s.
+- **Pantalla de carga ("el compañero escribe"):** fondo verde hoja como el ícono; el globo aparece con tres puntos que escriben, se juntan en la k, la k se traza y cae la moneda (~2 s, solo la primera vez del día). Las demás veces el logo sale quieto y se funde apenas hay datos. Si la app nunca la quita, se rinde sola a los 8 s.
 - **Reducir movimiento:** sin desplazamientos, conteos ni hundimientos; los cambios se notan con fundidos. La pantalla de carga sale quieta.
 
 ## Elevation & Depth
@@ -251,9 +257,9 @@ Los íconos son trazos de 1.9px con puntas redondeadas sobre una grilla de 24px,
 ### Buttons
 Suaves y redondeados, nunca agresivos.
 - **Forma:** 10px de radio y 44px de alto mínimo para el pulgar (34px en el pequeño).
-- **Primario:** musgo con texto blanco, peso 600. Uno por vista o por diálogo.
+- **Primario:** acento con texto blanco, peso 600. Uno por vista o por diálogo.
 - **Secundario:** papel gastado con borde de línea de cuaderno.
-- **Pequeño:** salvia suave con texto musgo. Acciones dentro de tarjetas, como "Pagar" o "Ver".
+- **Pequeño:** acento suave con texto acento. Acciones dentro de tarjetas, como "Pagar" o "Ver".
 - **Peligro:** sin relleno, con texto y borde crítico. Solo para borrar.
 - **Deshabilitado:** opacidad al 50%.
 - **Foco:** anillo de 2px del color de acento, separado 2px.
@@ -278,8 +284,8 @@ Suaves y redondeados, nunca agresivos.
 ### Navigation
 - **Barra inferior flotante:** noche de huerto con 24px de radio y cuatro pestañas, por frecuencia de uso: Inicio, Gastos, Presupuesto y Plan. Solo sirve para moverse entre secciones: ninguna acción va dentro (consejo de jiron.design, elegido por el usuario).
 - **Ítems:** ícono de 22px sobre una etiqueta de 0.72rem/600, en salvia; toda la celda (54px de alto) se puede tocar. El activo no depende solo del color: pasa a `nav-activo`, con la etiqueta en 800, el ícono a 2.5px de trazo y un velo blanco al 10% con 16px de radio.
-- **Agregar ("+ Gasto"):** la acción principal va fuera de la barra: un botón salvia de 52px de alto con ícono y texto, flotando sobre la barra a la derecha, al alcance del pulgar.
-- **Barra superior:** el logo de 32px (`icons/icon.svg`: la k en un globo de chat, con la moneda, sobre musgo), título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
+- **Agregar ("+ Gasto"):** la acción principal va fuera de la barra: un botón verde vivo (`agregar`) de 52px de alto con ícono y texto, flotando sobre la barra a la derecha, al alcance del pulgar.
+- **Barra superior:** el logo de 32px (`icons/icon.svg`: la k en un globo de chat, con la moneda, sobre verde hoja), título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
 - **Montos ocultos (el ojo):** toda cifra de plata pasa a `$•••••`, del mismo largo y sin signo, con los puntos achicados para ocupar lo que un monto real (más chicos aún en el número del día). Se ven igual las proporciones (barras, gráficos, %) y los topes de los descuentos, que son del banco. Es la versión para compartir pantallazos: tiene que verse completa.
 
 ### Hero salvia (signature)
