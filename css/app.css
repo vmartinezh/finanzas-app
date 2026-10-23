@@ -286,7 +286,7 @@ main:focus { outline: none; }
   font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right;
 }
 .progreso { height: 8px; width: 100%; border-radius: 4px; background: var(--superficie-2); overflow: hidden; }
-.progreso div { height: 100%; border-radius: 4px; background: var(--bien); }
+.progreso div { height: 100%; min-width: 8px; border-radius: 4px; background: var(--bien); }
 .progreso[data-estado="alerta"] div { background: var(--alerta-barra); }
 .progreso[data-estado="excedido"] div { background: var(--critico-barra); }
 .estado-texto { font-weight: 600; font-size: .8rem; }
@@ -433,7 +433,7 @@ dialog .espacio { flex: 1; }
 .barras-h-valor { grid-area: valor; font-variant-numeric: tabular-nums; font-weight: 600; }
 .barras-h-valor small { font-weight: 400; margin-left: 4px; }
 .barras-h-pista { grid-area: pista; height: 8px; }
-.barras-h-barra { display: block; height: 100%; min-width: 4px; background: var(--serie-1); border-radius: 0 4px 4px 0; }
+.barras-h-barra { display: block; height: 100%; min-width: 8px; background: var(--serie-1); border-radius: 0 4px 4px 0; }
 
 .acceso { margin-top: 10vh; }
 .acceso form { display: flex; flex-direction: column; gap: 12px; }

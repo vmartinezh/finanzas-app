@@ -53,7 +53,8 @@ export function render() {
     <section class="tarjeta hero">
       <p class="hero-etiqueta">Debes en total</p>
       <p class="hero-numero">${clp(totalVigente + totalPausa)}</p>
-      <p class="hero-detalle">${clp(totalVigente)} pagándose${totalPausa ? ` · ${clp(totalPausa)} en pausa` : ''}</p>
+      <p class="hero-detalle">${totalVigente + totalPausa === 0 ? (datos.deudas.length ? 'Hoy no debes nada' : 'No tienes deudas anotadas')
+        : `${clp(totalVigente)} pagándose${totalPausa ? ` · ${clp(totalPausa)} en pausa` : ''}`}</p>
     </section>
 
     ${vigentes.length ? `

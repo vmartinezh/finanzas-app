@@ -164,7 +164,10 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
     if (previa) form.addEventListener('input', actualizarPrevia);
     dlg.addEventListener('close', alCerrar);
     dlg.showModal();
-    form.querySelector('input:not([type=checkbox]), select, textarea')?.focus();
+    // El foco va al primer campo obligatorio que falta llenar (en un gasto nuevo, el
+    // monto; en una deuda nueva, el nombre). Si no falta ninguno, al primer campo.
+    const campos = [...form.querySelectorAll('input:not([type=checkbox]), select, textarea')];
+    (campos.find(el => el.required && !el.value) || campos[0])?.focus();
   });
 }
 
@@ -224,9 +227,9 @@ export function avisar(texto, tipo = 'ok') {
 // Barra de progreso con estado (ok / alerta / excedido). El estado va también
 // en texto: el color nunca es la única señal.
 export function barraProgreso(gastado, tope, estado) {
-  const pct = tope ? Math.min(100, (gastado / tope) * 100) : 0;
+  const pct = tope ? Math.max(0, Math.min(100, (gastado / tope) * 100)) : 0;
   return `<div class="progreso" data-estado="${estado}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}">
-    <div style="width:${pct}%"></div>
+    ${pct > 0 ? `<div style="width:${pct}%"></div>` : ''}
   </div>`;
 }
 

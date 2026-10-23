@@ -52,8 +52,8 @@ export function render() {
       ${filas.length ? `<ul class="barras-h">${filas.map(f => `
         <li>
           <span class="barras-h-nombre">${esc(f.nombre)}</span>
-          <span class="barras-h-pista"><span class="barras-h-barra" style="width:${(f.total / max) * 100}%"></span></span>
-          <span class="barras-h-valor">${clp(f.total)} <small>${Math.round(f.total / totalMes * 100)}%</small></span>
+          <span class="barras-h-pista">${f.total > 0 ? `<span class="barras-h-barra" style="width:${(f.total / max) * 100}%"></span>` : ''}</span>
+          <span class="barras-h-valor">${clp(f.total)} <small>${totalMes > 0 ? Math.round(f.total / totalMes * 100) : 0}%</small></span>
         </li>`).join('')}</ul>`
       : '<div class="vacio">No hay gastos este mes.</div>'}
     </section>
