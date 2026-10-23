@@ -1,7 +1,7 @@
 import { datos, guardar, borrar, guardarPerfil } from '../db.js';
 import { planDeudas, deudasVigentes, deudasEnPausa, destinoDeudas, usoCupo } from '../calculos.js';
-import { abrirFormulario, ejecutar, barraProgreso } from '../ui.js';
-import { clp, esc, nombreMes, porcentaje, mesActual, sumarMeses } from '../util.js';
+import { abrirFormulario, ejecutar, barraProgreso, inputMonto } from '../ui.js';
+import { clp, esc, nombreMes, porcentaje, mesActual, sumarMeses, numero, leerMonto } from '../util.js';
 
 export const titulo = 'Tu plan';
 
@@ -61,7 +61,7 @@ export function render() {
       <h2>Tu plan para salir</h2>
       <form id="form-presupuesto" class="fila-form">
         <label class="campo"><span>Total al mes para deudas ($)</span>
-          <input name="total" type="number" inputmode="numeric" min="0" step="1000" value="${aDeudas || ''}" placeholder="${cuotas}">
+          ${inputMonto({ nombre: 'total', valor: aDeudas || '', placeholder: cuotas ? numero(cuotas) : '' })}
         </label>
         <button class="boton secundario">Recalcular</button>
       </form>
@@ -158,7 +158,7 @@ export function montar(raiz, refrescar) {
   }));
   raiz.querySelector('#form-presupuesto')?.addEventListener('submit', e => {
     e.preventDefault();
-    const total = Math.max(0, Math.round(Number(e.target.total.value) || 0));
+    const total = Math.max(0, leerMonto(e.target.total.value));
     ejecutar(() => guardarPerfil({ presupuesto_deudas: total }), 'Plan recalculado', refrescar);
   });
 }

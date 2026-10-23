@@ -4,7 +4,10 @@ import { esc, clp, clpCorto, montosOcultos } from './util.js';
 import { anunciarMontosOcultos } from './ui.js';
 
 const ALTO = 220;
-const MARGEN = { arriba: 16, derecha: 12, abajo: 28, izquierda: 56 };
+// A la izquierda van los montos del eje; con el ojo cerrado no hay, y el
+// gráfico usa ese espacio en vez de dejar una franja vacía. Se calcula una vez
+// por gráfico, para que la grilla y los tooltips usen el mismo margen.
+const margenes = () => ({ arriba: 16, derecha: 12, abajo: 28, izquierda: montosOcultos() ? 12 : 56 });
 
 function escalaBonita(max) {
   if (max <= 0) return [0, 1];
@@ -14,7 +17,7 @@ function escalaBonita(max) {
   return [0, bonito * 4];
 }
 
-function ejeY(ancho, max, alto = ALTO) {
+function ejeY(MARGEN, ancho, max, alto = ALTO) {
   const lineas = [];
   for (let i = 0; i <= 4; i++) {
     const v = (max / 4) * i;
@@ -28,6 +31,7 @@ function ejeY(ancho, max, alto = ALTO) {
 
 // Línea del gasto acumulado del mes vs. la línea recta "ritmo ideal".
 export function graficoRitmo({ acumulado, presupuesto, totalDias, ancho = 360 }) {
+  const MARGEN = margenes();
   const [, maxY] = escalaBonita(Math.max(presupuesto, ...acumulado, 1));
   const x = d => MARGEN.izquierda + (ancho - MARGEN.izquierda - MARGEN.derecha) * ((d - 1) / Math.max(totalDias - 1, 1));
   const y = v => MARGEN.arriba + (ALTO - MARGEN.arriba - MARGEN.abajo) * (1 - v / maxY);
@@ -50,7 +54,7 @@ export function graficoRitmo({ acumulado, presupuesto, totalDias, ancho = 360 })
         <span><i class="marca referencia"></i>Ritmo ideal según presupuesto</span>
       </div>
       <svg viewBox="0 0 ${ancho} ${ALTO}" role="img" aria-label="Gasto acumulado del mes comparado con el ritmo ideal">
-        ${ejeY(ancho, maxY)}
+        ${ejeY(MARGEN, ancho, maxY)}
         ${etiquetasX}
         ${presupuesto > 0 ? `<line class="linea-referencia" x1="${x(1)}" y1="${y(presupuesto / totalDias)}" x2="${x(totalDias)}" y2="${y(presupuesto)}"/>` : ''}
         ${ultimo > 1 ? `<polyline class="linea serie-1" points="${puntos}"/>` : ''}
@@ -65,6 +69,7 @@ export function graficoRitmo({ acumulado, presupuesto, totalDias, ancho = 360 })
 
 // Barras apiladas por mes: gasto normal + gasto de eventos (matrimonio, viajes...).
 export function graficoMeses({ meses, ancho = 360 }) {
+  const MARGEN = margenes();
   const [, maxY] = escalaBonita(Math.max(...meses.map(m => m.normal + m.eventos), 1));
   const anchoUtil = ancho - MARGEN.izquierda - MARGEN.derecha;
   const banda = anchoUtil / meses.length;
@@ -99,7 +104,7 @@ export function graficoMeses({ meses, ancho = 360 }) {
         <span><i class="marca serie-2"></i>Eventos</span>
       </div>
       <svg viewBox="0 0 ${ancho} ${ALTO}" role="img" aria-label="Gasto por mes, separando eventos">
-        ${ejeY(ancho, maxY)}
+        ${ejeY(MARGEN, ancho, maxY)}
         ${barras}
         <rect class="zona-hover" x="${MARGEN.izquierda}" y="0" width="${anchoUtil}" height="${ALTO}"/>
       </svg>

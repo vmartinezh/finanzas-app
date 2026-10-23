@@ -5,6 +5,7 @@
 // Cada campo queda con el tipo que la app espera: los ids son UUID, los montos
 // son números, los textos son texto y los estados son valores conocidos. Así
 // un valor manipulado nunca llega a la página como HTML ni rompe los cálculos.
+import { NOMBRE_APP } from './util.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -183,7 +184,7 @@ function sinRepetidos(tabla, filas) {
 // Devuelve también cuántos enlaces se soltaron y cuántas filas no se pudieron
 // usar (inválidas, repetidas o sin su categoría), para avisarle a la persona.
 export function prepararRespaldo(copia, crearId) {
-  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifika');
+  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error(`El archivo no es un respaldo de ${NOMBRE_APP}`);
   const nombres = TABLAS;
   const validas = Object.fromEntries(nombres.map(t => [t, normalizarTabla(t, copia[t])]));
   if (!validas.categorias.length) throw new Error('El respaldo no trae categorías válidas');

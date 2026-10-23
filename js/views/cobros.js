@@ -1,7 +1,7 @@
 import { datos, guardar, borrar, nuevoId, modo } from '../db.js';
 import { resumenMeDeben, estadoCobro, cuotasDeCobro, pagosDeCobro, dividirGasto } from '../calculos.js';
 import { abrirFormulario, ejecutar, avisar, confirmar } from '../ui.js';
-import { clp, clpVisible, esc, hoyISO, mesActual, fechaCorta, normalizar, limpiarNombre } from '../util.js';
+import { clp, clpVisible, esc, hoyISO, mesActual, fechaCorta, normalizar, limpiarNombre, NOMBRE_APP } from '../util.js';
 import { estadoAvisos, activarAvisos, desactivarAvisos } from '../avisos.js';
 
 export const titulo = 'Me deben';
@@ -119,8 +119,8 @@ export function render() {
 const TEXTO_AVISOS = {
   inactivos: ['¿Te aviso el día que toca cobrar?', 'Te llega en la mañana y solo dice "Hoy te toca cobrar algo 👀", sin nombres ni montos.', '<button class="boton pequeño" data-avisos="activar">Activar</button>'],
   activos: ['Te aviso en este celular', 'El día que toca cobrar, en la mañana.', '<button class="boton pequeño secundario" data-avisos="desactivar">Desactivar</button>'],
-  bloqueados: ['Los avisos están bloqueados', 'Para recibirlos, permite las notificaciones de Simplifika en los ajustes del navegador o del celular.', ''],
-  instalar: ['¿Quieres avisos en tu iPhone?', 'Primero agrega Simplifika a tu pantalla de inicio: toca Compartir y luego "Agregar a inicio".', ''],
+  bloqueados: ['Los avisos están bloqueados', `Para recibirlos, permite las notificaciones de ${NOMBRE_APP} en los ajustes del navegador o del celular.`, ''],
+  instalar: ['¿Quieres avisos en tu iPhone?', `Primero agrega ${NOMBRE_APP} a tu pantalla de inicio: toca Compartir y luego "Agregar a inicio".`, ''],
 };
 
 async function pintarAvisos(raiz) {

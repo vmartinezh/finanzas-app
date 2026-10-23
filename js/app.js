@@ -1,8 +1,8 @@
 import { iniciar, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
-import { avisar, anunciarMontosOcultos, sinMovimiento } from './ui.js';
-import { esc, montosOcultos, ocultarMontos } from './util.js';
+import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto } from './ui.js';
+import { esc, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
 import { editarMovimiento } from './views/movimientos.js';
@@ -48,7 +48,7 @@ export function refrescar() {
   const nombre = rutaActual();
   const v = RUTAS[nombre];
   document.getElementById('titulo').textContent = v.titulo;
-  document.title = nombre === 'inicio' ? 'Simplifika' : `${v.titulo} · Simplifika`;
+  document.title = nombre === 'inicio' ? NOMBRE_APP : `${v.titulo} · ${NOMBRE_APP}`;
   document.body.dataset.ruta = nombre;
   const pestaña = DENTRO_DE_MAS.includes(nombre) ? 'mas' : nombre;
   for (const a of document.querySelectorAll('.nav-inferior a, .boton-mas')) {
@@ -68,10 +68,10 @@ export function refrescar() {
 
 function pantallaAcceso(nueva = false) {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifika';
+  document.getElementById('titulo').textContent = NOMBRE_APP;
   vista.innerHTML = `
     <section class="tarjeta acceso">
-      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Simplifika'}</h2>
+      <h2>${nueva ? 'Crea tu cuenta' : `Entra a ${NOMBRE_APP}`}</h2>
       <p class="ayuda">${nueva
         ? 'Tus datos quedan en tu cuenta y nadie más puede verlos.'
         : 'Tus cuentas, más simples. Tus días, más tranquilos.'}</p>
@@ -119,7 +119,7 @@ function pantallaAcceso(nueva = false) {
 
 function pantallaRecuperar(email = '', aviso = '') {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifika';
+  document.getElementById('titulo').textContent = NOMBRE_APP;
   vista.innerHTML = `
     <section class="tarjeta acceso">
       <h2>Recupera tu contraseña</h2>
@@ -155,7 +155,7 @@ function pantallaRecuperar(email = '', aviso = '') {
 // Se llega aquí desde el enlace del correo, que ya abrió la sesión.
 function pantallaNuevaContraseña() {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifika';
+  document.getElementById('titulo').textContent = NOMBRE_APP;
   vista.innerHTML = `
     <section class="tarjeta acceso">
       <h2>Crea tu contraseña nueva</h2>
@@ -255,6 +255,7 @@ async function arrancar() {
 }
 
 iniciarCarga();
+activarCamposMonto();
 // La pantalla de carga se va cuando la app ya dibujó algo (datos, acceso o error).
 arrancar()
   .catch(e => {

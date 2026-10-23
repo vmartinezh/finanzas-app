@@ -20,7 +20,7 @@
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, dividirGasto } from '../js/calculos.js';
-    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos } from '../js/util.js';
+    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
 
@@ -170,6 +170,12 @@
       igual(leerMonto('abc'), 0);
     });
     prueba('Sumar meses cruza el año', () => igual(sumarMeses('2026-11', 3), '2027-02'));
+    prueba('Los montos se escriben con punto de miles', () => {
+      igual(['40500', '$1.500.000', '12 990', '007', '0', '', 'abc', '-500'].map(formatearMontoEscrito),
+        ['40.500', '1.500.000', '12.990', '7', '0', '', '', '500']);
+      igual(leerMonto(formatearMontoEscrito('2500000')), 2500000, 'ida y vuelta:');
+      igual(['$12.990,50', '1.500,00', '-3.000,4'].map(formatearMontoEscrito), ['12.991', '1.500', '3.000'], 'con centavos pegados:');
+    });
     prueba('Con el ojo cerrado, los montos no muestran cifras ni signo', () => {
       try {
         ocultarMontos(true, false);

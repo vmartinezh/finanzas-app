@@ -2,13 +2,13 @@ import { datos, guardar } from '../db.js';
 import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision, cobrosDeHoy } from '../calculos.js';
 import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO, contarHasta, sinMovimiento } from '../ui.js';
-import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos } from '../util.js';
+import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos, NOMBRE_APP } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
 
-export const titulo = 'Simplifika';
+export const titulo = NOMBRE_APP;
 
 export function render() {
   const mes = mesActual();

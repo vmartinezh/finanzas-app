@@ -1,7 +1,7 @@
 import { datos, guardar, borrar, guardarPerfil, modo, exportar, importar, cerrarSesion, TABLAS, PREFIJO } from '../db.js';
 import { cargarEjemplo } from '../semillas.js';
-import { abrirFormulario, ejecutar, avisar, confirmar } from '../ui.js';
-import { clp, esc, hoyISO } from '../util.js';
+import { abrirFormulario, ejecutar, avisar, confirmar, inputMonto } from '../ui.js';
+import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
 
 export const titulo = 'Ajustes';
 
@@ -13,11 +13,11 @@ export function render() {
       <h2>Mi mes</h2>
       <form id="form-perfil">
         <label class="campo"><span>Ingreso mensual líquido ($)</span>
-          <input name="ingreso_mensual" type="number" inputmode="numeric" min="0" step="1" value="${p.ingreso_mensual || ''}" placeholder="ej: 1500000">
+          ${inputMonto({ nombre: 'ingreso_mensual', valor: p.ingreso_mensual || '', placeholder: 'ej: 1.500.000' })}
           <small>Lo que te llega a la cuenta. Si son dos sueldos en la casa, súmalos.</small>
         </label>
         <label class="campo"><span>Quiero ahorrar al mes ($)</span>
-          <input name="meta_ahorro" type="number" inputmode="numeric" min="0" step="1" value="${p.meta_ahorro || ''}" placeholder="0">
+          ${inputMonto({ nombre: 'meta_ahorro', valor: p.meta_ahorro || '' })}
           <small>Se descuenta antes de calcular lo que puedes gastar. Mientras tengas deudas caras, conviene más abonarlas.</small>
         </label>
         <button class="boton primario">Guardar</button>
@@ -55,7 +55,7 @@ export function render() {
       </div>
     </section>
 
-    <p class="pie">Simplifika es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
+    <p class="pie">${NOMBRE_APP} es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
   `;
 }
 
@@ -112,8 +112,8 @@ export function montar(raiz, refrescar) {
     ev.preventDefault();
     const f = ev.target;
     ejecutar(() => guardarPerfil({
-      ingreso_mensual: Math.max(0, Math.round(Number(f.ingreso_mensual.value) || 0)),
-      meta_ahorro: Math.max(0, Math.round(Number(f.meta_ahorro.value) || 0)),
+      ingreso_mensual: Math.max(0, leerMonto(f.ingreso_mensual.value)),
+      meta_ahorro: Math.max(0, leerMonto(f.meta_ahorro.value)),
     }), 'Guardado', refrescar);
   });
 

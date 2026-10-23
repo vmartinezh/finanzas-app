@@ -1,10 +1,67 @@
-import { esc, clp, conMontosVisibles, montosOcultos, MONTO_OCULTO } from './util.js';
+import { esc, clp, numero, leerMonto, formatearMontoEscrito, MAX_DIGITOS_MONTO, conMontosVisibles, montosOcultos, MONTO_OCULTO } from './util.js';
 
 const dialogo = () => document.getElementById('dialogo');
 
 // "Reducir movimiento" del sistema: sin desplazamientos ni conteos, solo fundidos.
 const reducirMovimiento = matchMedia('(prefers-reduced-motion: reduce)');
 export const sinMovimiento = () => reducirMovimiento.matches;
+
+// Campos de monto (data-monto): el punto de miles aparece mientras escribes y el
+// cursor se queda después del mismo dígito. Un solo listener para toda la app.
+// Un campo de monto. Vacío si no hay valor; si no, con punto de miles.
+export function inputMonto({ nombre, valor, placeholder = '0', id = '', requerido = false }) {
+  const texto = valor === '' || valor === null || valor === undefined ? '' : numero(valor);
+  return `<input ${id ? `id="${id}"` : ''} name="${nombre}" type="text" inputmode="numeric" autocomplete="off" data-monto value="${esc(texto)}" placeholder="${esc(placeholder)}" ${requerido ? 'required' : ''}>`;
+}
+
+// Deja el valor formateado y el cursor después del mismo dígito en que estaba.
+function formatearCampo(el, valor, digitosAntes) {
+  el.value = valor;
+  let pos = 0;
+  for (let vistos = 0; pos < valor.length && vistos < digitosAntes; pos++) {
+    if (/\d/.test(valor[pos])) vistos++;
+  }
+  el.setSelectionRange(pos, pos);
+  el.dataset.previo = valor;
+}
+
+export function activarCamposMonto() {
+  // Borrar justo al lado de un punto borra el dígito vecino (el punto solo se
+  // volvería a poner). Se hace a mano: no todos los navegadores respetan un
+  // cambio de selección en medio del borrado.
+  document.addEventListener('beforeinput', e => {
+    const el = e.target;
+    if (!el.matches?.('[data-monto]') || el.selectionStart !== el.selectionEnd) return;
+    const pos = el.selectionStart;
+    const atras = e.inputType === 'deleteContentBackward' && el.value[pos - 1] === '.';
+    const adelante = e.inputType === 'deleteContentForward' && el.value[pos] === '.';
+    if (!atras && !adelante) return;
+    e.preventDefault();
+    const quitar = atras ? pos - 2 : pos + 1;
+    if (quitar < 0 || quitar >= el.value.length) return;
+    const sinDigito = el.value.slice(0, quitar) + el.value.slice(quitar + 1);
+    const digitosAntes = sinDigito.slice(0, atras ? quitar : pos).replace(/\D/g, '').length;
+    formatearCampo(el, formatearMontoEscrito(sinDigito), digitosAntes);
+  });
+  const alEscribir = e => {
+    const el = e.target;
+    if (!el.matches?.('[data-monto]') || e.isComposing) return;
+    const digitos = el.value.replace(/\D/g, '');
+    // Más dígitos que el tope: no se acepta la tecla (no se corta otro dígito en silencio).
+    if (digitos.length > MAX_DIGITOS_MONTO && !/,\d{1,2}\s*$/.test(el.value)) {
+      const previo = el.dataset.previo ?? '';
+      formatearCampo(el, previo, previo.slice(0, Math.max(0, (el.selectionStart ?? 1) - 1)).replace(/\D/g, '').length);
+      return;
+    }
+    // Los ceros a la izquierda se borran: no cuentan para ubicar el cursor.
+    const antes = el.value.slice(0, el.selectionStart ?? el.value.length).replace(/\D/g, '').length;
+    const ceros = Math.min(digitos.match(/^0+(?=\d)/)?.[0].length ?? 0, antes);
+    formatearCampo(el, formatearMontoEscrito(el.value), antes - ceros);
+  };
+  document.addEventListener('input', alEscribir);
+  // Teclados con composición (Android): se formatea al terminar de componer.
+  document.addEventListener('compositionend', alEscribir);
+}
 
 // El número cuenta desde el valor anterior hasta el nuevo, frenando al final:
 // así se ve que el gasto se descontó o que la plata entró.
@@ -74,7 +131,8 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
     for (const c of campos) {
       const el = form.elements[c.nombre];
       if (c.tipo === 'checkbox') valores[c.nombre] = el.checked;
-      else if (c.tipo === 'monto' || c.tipo === 'number') valores[c.nombre] = el.value === '' ? null : Number(String(el.value).replace(',', '.'));
+      else if (c.tipo === 'monto') valores[c.nombre] = el.value === '' ? null : Math.max(0, leerMonto(el.value));
+      else if (c.tipo === 'number') valores[c.nombre] = el.value === '' ? null : Number(String(el.value).replace(',', '.'));
       else valores[c.nombre] = el.value === '' ? null : el.value;
     }
     return valores;
@@ -128,7 +186,7 @@ function campoHTML(c) {
     case 'checkbox':
       return `<label class="campo campo-check"><input type="checkbox" name="${c.nombre}" ${valor ? 'checked' : ''}> <span>${esc(c.etiqueta)}${ayuda}</span></label>`;
     case 'monto':
-      control = `<input id="${id}" name="${c.nombre}" type="number" inputmode="numeric" min="0" step="1" value="${esc(valor)}" placeholder="${esc(c.placeholder || '0')}" ${req}>`;
+      control = inputMonto({ nombre: c.nombre, valor, placeholder: c.placeholder || '0', id, requerido: c.requerido });
       break;
     case 'number':
       control = `<input id="${id}" name="${c.nombre}" type="number" inputmode="decimal" step="any" ${c.min != null ? `min="${c.min}"` : ''} ${c.max != null ? `max="${c.max}"` : ''} value="${esc(valor)}" placeholder="${esc(c.placeholder || '')}" ${req}>`;

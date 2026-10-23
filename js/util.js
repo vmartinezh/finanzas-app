@@ -1,6 +1,10 @@
 const formatoCLP = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 const formatoNumero = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 });
 
+// El nombre de la app en los textos. (index.html, el manifest y los documentos lo
+// llevan escrito, porque no corren JavaScript.)
+export const NOMBRE_APP = 'Simplifika';
+
 // Botón "ojo": con los montos ocultos, toda cifra de plata sale igual, sin
 // largo ni signo que delaten cuánto es. Se recuerda en este dispositivo.
 export const MONTO_OCULTO = '$•••••';
@@ -35,6 +39,17 @@ export function clpCorto(n) {
   if (a >= 1e6) return '$' + (n / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + ' M';
   if (a >= 1e3) return '$' + numero(n / 1e3) + ' mil';
   return clp(n);
+}
+
+// Mientras se escribe un monto: solo dígitos, con punto de miles. "40500" → "40.500".
+// Si se pega con centavos ("$12.990,50", de una cartola), se redondea: no se leen
+// como más dígitos. El tope de 12 dígitos (billones) lo cuida el campo (ui.js).
+export const MAX_DIGITOS_MONTO = 12;
+export function formatearMontoEscrito(texto) {
+  texto = String(texto ?? '');
+  if (/,\d{1,2}\s*$/.test(texto)) return numero(Math.abs(leerMonto(texto)));
+  const digitos = texto.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digitos ? numero(Number(digitos)) : '';
 }
 
 // Acepta "12.990", "$12990", "12 990" → 12990
