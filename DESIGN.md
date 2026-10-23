@@ -230,7 +230,7 @@ Casi plano. La profundidad viene de la capa tonal (fondo de hoja → papel → p
 
 ## Shapes
 
-Redondeado generoso y escalonado por tamaño: mientras más grande la pieza, más curva. El bloque salvia (34px), la barra inferior (24px), las tarjetas (22px), los diálogos y el botón de agregar (18px), el velo de estado (16px), los controles y campos (10px), los descuentos (8px) y las etiquetas (6px). Chips, contadores y el chip de modo son píldoras completas. Los botones de ícono son círculos de 44px. Las barras de progreso tienen 8px de alto y extremos redondeados.
+Redondeado generoso y escalonado por tamaño: mientras más grande la pieza, más curva. El bloque salvia (34px), la barra inferior (24px), las tarjetas (22px), los diálogos y el botón de agregar (18px), el velo de estado (16px), los controles y campos (10px), los descuentos (8px) y las etiquetas (6px). Chips y contadores son píldoras completas. Los botones de ícono son círculos de 44px. Las barras de progreso tienen 8px de alto y extremos redondeados.
 
 Los íconos son trazos de 1.9px con puntas redondeadas sobre una grilla de 24px, sin relleno, salvo el logo.
 
@@ -267,7 +267,8 @@ Suaves y redondeados, nunca agresivos.
 - **Barra inferior flotante:** noche de huerto con 24px de radio y cinco columnas: Inicio, Gastos, botón de agregar, Presupuesto y Plan.
 - **Ítems:** ícono de 22px sobre una etiqueta de 0.66rem/600, en salvia. El activo pasa a `nav-activo` sobre un velo blanco al 10%, con 16px de radio.
 - **Agregar:** un cuadrado redondeado salvia de 52px (18px de radio) al centro. Es la acción principal de la app.
-- **Barra superior:** logo de 32px, título y chip de modo. El botón "Más" es un círculo de 44px a la derecha.
+- **Barra superior:** logo de 32px, título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
+- **Montos ocultos (el ojo):** toda cifra de plata pasa a `$•••••`, del mismo largo y sin signo, con los puntos achicados para ocupar lo que un monto real (más chicos aún en el número del día). Se ven igual las proporciones (barras, gráficos, %) y los topes de los descuentos, que son del banco. Es la versión para compartir pantallazos: tiene que verse completa.
 
 ### Hero salvia (signature)
 El número del día. Bloque salvia de borde a borde con la etiqueta, el número en display, una línea de detalle y un desglose plegable (`details`) con el cálculo paso a paso. Debajo va el **estado de ritmo**: una franja con velo blanco (`salvia-velo`), 16px de radio y un ícono, que dice si vas bien o te estás adelantando. Si el número es negativo no se pinta de rojo dentro del bloque: el texto lo dice.

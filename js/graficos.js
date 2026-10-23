@@ -1,6 +1,7 @@
 // Gráficos en SVG hecho a mano: sin librerías, livianos y con tooltip al pasar
 // el dedo o el mouse. Colores en css/app.css (--serie-1, --serie-2, --referencia).
-import { esc, clp, clpCorto } from './util.js';
+import { esc, clp, clpCorto, montosOcultos } from './util.js';
+import { anunciarMontosOcultos } from './ui.js';
 
 const ALTO = 220;
 const MARGEN = { arriba: 16, derecha: 12, abajo: 28, izquierda: 56 };
@@ -18,8 +19,9 @@ function ejeY(ancho, max, alto = ALTO) {
   for (let i = 0; i <= 4; i++) {
     const v = (max / 4) * i;
     const y = MARGEN.arriba + (alto - MARGEN.arriba - MARGEN.abajo) * (1 - i / 4);
+    // Con el ojo cerrado quedan solo las líneas: cinco "$•••••" en fila no dicen nada.
     lineas.push(`<line class="grilla" x1="${MARGEN.izquierda}" x2="${ancho - MARGEN.derecha}" y1="${y}" y2="${y}"/>`
-      + `<text class="eje" x="${MARGEN.izquierda - 8}" y="${y + 4}" text-anchor="end">${esc(clpCorto(v))}</text>`);
+      + (montosOcultos() ? '' : `<text class="eje" x="${MARGEN.izquierda - 8}" y="${y + 4}" text-anchor="end">${esc(clpCorto(v))}</text>`));
   }
   return lineas.join('');
 }
@@ -129,6 +131,7 @@ export function activarTooltips(raiz) {
       const xSvg = (evento.clientX - caja.left) * escala;
       const p = puntos.reduce((a, b) => Math.abs(b.x - xSvg) < Math.abs(a.x - xSvg) ? b : a);
       tip.innerHTML = `<strong>${esc(p.titulo)}</strong>` + p.filas.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+      anunciarMontosOcultos(tip);
       tip.hidden = false;
       const izquierda = Math.min(Math.max(p.x / escala - tip.offsetWidth / 2, 0), caja.width - tip.offsetWidth);
       tip.style.left = izquierda + 'px';

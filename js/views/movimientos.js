@@ -1,7 +1,7 @@
 import { datos, guardar, borrar } from '../db.js';
 import { clasificar, aprender } from '../clasificador.js';
 import { abrirFormulario, avisar, ejecutar } from '../ui.js';
-import { clp, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
+import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
 export const titulo = 'Gastos';
 
@@ -89,7 +89,7 @@ export function montarFilas(raiz, refrescar) {
 export async function darContexto(mov, refrescar) {
   const valores = await abrirFormulario({
     titulo: '¿Qué fue esta compra?',
-    intro: `<b>${esc(clp(mov.monto))}</b> en <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
+    intro: `<b>${esc(clpVisible(mov.monto))}</b> en <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
     campos: [{ nombre: 'descripcion', etiqueta: 'Cuéntame en tus palabras', tipo: 'textarea', placeholder: 'ej: uber al aeropuerto para lo del matri', requerido: true }],
     textoGuardar: 'Listo',
   });

@@ -1,6 +1,33 @@
-import { esc } from './util.js';
+import { esc, conMontosVisibles, montosOcultos, MONTO_OCULTO } from './util.js';
 
 const dialogo = () => document.getElementById('dialogo');
+
+// Con el ojo cerrado, un lector de pantalla diría "dólar punto punto…":
+// cada monto oculto pasa a leerse como "monto oculto".
+export function anunciarMontosOcultos(raiz) {
+  if (!montosOcultos()) return;
+  const recorrido = document.createTreeWalker(raiz, NodeFilter.SHOW_TEXT, {
+    acceptNode: n => n.data.includes(MONTO_OCULTO) && !n.parentElement.closest('svg, option, textarea, .monto-oculto')
+      ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+  });
+  const nodos = [];
+  while (recorrido.nextNode()) nodos.push(recorrido.currentNode);
+  for (const nodo of nodos) {
+    const partes = nodo.data.split(MONTO_OCULTO);
+    const fragmento = document.createDocumentFragment();
+    partes.forEach((texto, i) => {
+      if (i > 0) {
+        const span = document.createElement('span');
+        span.className = 'monto-oculto';
+        // Los puntos van aparte para poder achicarlos en el número grande de Inicio.
+        span.innerHTML = `<span aria-hidden="true">${MONTO_OCULTO[0]}<span class="puntos">${MONTO_OCULTO.slice(1)}</span></span><span class="sr-only">monto oculto</span>`;
+        fragmento.append(span);
+      }
+      if (texto) fragmento.append(texto);
+    });
+    nodo.replaceWith(fragmento);
+  }
+}
 
 // Abre un formulario en un diálogo y devuelve los valores, null si se cancela,
 // o 'borrar' si se apretó el botón de borrar.
@@ -22,6 +49,7 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
       <button value="cancelar" class="boton secundario" formnovalidate>Cancelar</button>
       <button value="guardar" class="boton primario">${esc(textoGuardar)}</button>
     </div>`;
+  anunciarMontosOcultos(form);
 
   const leerValores = () => {
     const valores = {};
@@ -34,7 +62,7 @@ export function abrirFormulario({ titulo, campos, textoGuardar = 'Guardar', pued
     return valores;
   };
   const previa = form.querySelector('.vista-previa');
-  const actualizarPrevia = () => { previa.textContent = vistaPrevia(leerValores()) || ''; };
+  const actualizarPrevia = () => { previa.textContent = conMontosVisibles(() => vistaPrevia(leerValores())) || ''; };
   if (previa) actualizarPrevia();
 
   return new Promise(resolve => {
@@ -104,6 +132,7 @@ let temporizador;
 export function avisar(texto, tipo = 'ok') {
   const el = document.getElementById('aviso');
   el.textContent = texto;
+  anunciarMontosOcultos(el);
   el.dataset.tipo = tipo;
   el.classList.add('visible');
   clearTimeout(temporizador);

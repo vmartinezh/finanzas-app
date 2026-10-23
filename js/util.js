@@ -1,11 +1,36 @@
 const formatoCLP = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 const formatoNumero = new Intl.NumberFormat('es-CL', { maximumFractionDigits: 0 });
 
-export const clp = n => formatoCLP.format(Math.round(n || 0));
+// Botón "ojo": con los montos ocultos, toda cifra de plata sale igual, sin
+// largo ni signo que delaten cuánto es. Se recuerda en este dispositivo.
+export const MONTO_OCULTO = '$•••••';
+const CLAVE_OCULTOS = 'simplifica-montos-ocultos';
+let ocultos = false;
+try { ocultos = localStorage.getItem(CLAVE_OCULTOS) === '1'; } catch { /* modo privado: parte visible */ }
+
+export const montosOcultos = () => ocultos;
+// recordar = false lo cambia sin guardarlo (las pruebas comparten el origen con la app).
+export function ocultarMontos(si, recordar = true) {
+  ocultos = !!si;
+  if (!recordar) return;
+  try { localStorage.setItem(CLAVE_OCULTOS, ocultos ? '1' : '0'); } catch { /* no se recuerda, pero funciona */ }
+}
+
+// Para lo que la persona está escribiendo: ocultarle su propio monto no protege nada.
+export function conMontosVisibles(fn) {
+  const antes = ocultos;
+  ocultos = false;
+  try { return fn(); } finally { ocultos = antes; }
+}
+
+export const clp = n => ocultos ? MONTO_OCULTO : formatoCLP.format(Math.round(n || 0));
+// En formularios y confirmaciones el monto se ve siempre: estás editando o decidiendo con él.
+export const clpVisible = n => conMontosVisibles(() => clp(n));
 export const numero = n => formatoNumero.format(Math.round(n || 0));
 
 // Montos abreviados para ejes de gráficos: $1,2 M, $350 mil.
 export function clpCorto(n) {
+  if (ocultos) return MONTO_OCULTO;
   const a = Math.abs(n);
   if (a >= 1e6) return '$' + (n / 1e6).toLocaleString('es-CL', { maximumFractionDigits: 1 }) + ' M';
   if (a >= 1e3) return '$' + numero(n / 1e3) + ' mil';

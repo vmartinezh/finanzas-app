@@ -109,8 +109,8 @@ body {
   line-height: 1.45;
   padding-bottom: calc(var(--nav-alto) + 40px + env(safe-area-inset-bottom));
 }
-body.sin-sesion .nav-inferior, body.sin-sesion .boton-mas,
-body.cargando .nav-inferior, body.cargando .boton-mas { display: none; }
+body.sin-sesion .nav-inferior, body.sin-sesion .boton-mas, body.sin-sesion .boton-ojo,
+body.cargando .nav-inferior, body.cargando .boton-mas, body.cargando .boton-ojo { display: none; }
 .cargando-texto { text-align: center; color: var(--texto-3); margin-top: 30vh; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
@@ -129,7 +129,15 @@ button { font: inherit; color: inherit; }
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
-.barra-superior h1 { flex: 1; min-width: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em; }
+.barra-superior h1 {
+  flex: 1; min-width: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em;
+  /* Un título largo en 320 px termina en "…" en vez de partirse en dos líneas. */
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+@media (max-width: 359px) {
+  .barra-superior { gap: 6px; }
+  .barra-superior h1 { font-size: 1.15rem; }
+}
 .logo { flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: inherit; }
 .logo-chanchito { width: 32px; height: 32px; }
 .logo-chanchito .cuerpo { fill: var(--salvia-suave); }
@@ -141,16 +149,16 @@ button { font: inherit; color: inherit; }
 }
 .boton-mas svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
 .boton-mas[aria-current="page"] { background: var(--acento-suave); }
-.chip-modo {
-  font-size: .72rem; color: var(--texto-2);
-  background: var(--superficie-2); border-radius: 999px; padding: 3px 10px;
-  white-space: nowrap;
+.boton-ojo {
+  flex: none; width: 44px; height: 44px; border-radius: 50%;
+  border: 0; background: none; display: grid; place-items: center; cursor: pointer;
 }
-.chip-modo:empty { display: none; }
+.boton-ojo svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.boton-ojo .ojo-cerrado, .boton-ojo[aria-pressed="true"] .ojo-abierto { display: none; }
+.boton-ojo[aria-pressed="true"] .ojo-cerrado { display: block; }
 
 /* En Inicio, la barra y el número del día forman un solo bloque salvia. */
 body[data-ruta="inicio"] .barra-superior { background: var(--salvia); color: var(--salvia-texto); }
-body[data-ruta="inicio"] .chip-modo { background: var(--salvia-velo); color: var(--salvia-texto-2); }
 body[data-ruta="inicio"] .boton-mas { border-color: color-mix(in srgb, var(--salvia-texto) 22%, transparent); }
 body[data-ruta="inicio"] .logo-chanchito .oreja { fill: var(--salvia-suave); }
 
@@ -268,7 +276,11 @@ main:focus { outline: none; }
   color: inherit; text-decoration: none;
 }
 .fila-presupuesto { display: flex; justify-content: space-between; gap: 12px; width: 100%; }
-.fila-presupuesto span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+/* Si "$205.300 de $280.000" no cabe, el "de …" baja debajo del monto en vez de salirse. */
+.fila-presupuesto > span:last-child {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: .3em;
+  font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; text-align: right;
+}
 .progreso { height: 8px; width: 100%; border-radius: 4px; background: var(--superficie-2); overflow: hidden; }
 .progreso div { height: 100%; border-radius: 4px; background: var(--bien); }
 .progreso[data-estado="alerta"] div { background: var(--alerta-barra); }
@@ -471,7 +483,6 @@ dialog .espacio { flex: 1; }
 /* En pantallas anchas la barra ya no es salvia: el bloque pasa a ser una tarjeta. */
 @media (min-width: 600px) {
   body[data-ruta="inicio"] .barra-superior { background: color-mix(in srgb, var(--fondo) 88%, transparent); color: var(--texto); }
-  body[data-ruta="inicio"] .chip-modo { background: var(--superficie-2); color: var(--texto-2); }
   body[data-ruta="inicio"] .boton-mas { border-color: var(--borde); }
   .hero-salvia { margin: 0; border-radius: 28px; padding: 24px; }
 }
@@ -491,6 +502,11 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
   position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
   border-radius: 50%; background: currentColor;
 }
+/* Montos ocultos: no se parten entre líneas. */
+/* Los puntos de la fuente son anchos: achicados, "$•••••" ocupa lo que un monto real. */
+.monto-oculto { white-space: nowrap; }
+.monto-oculto .puntos { font-size: .8em; letter-spacing: -.04em; }
+.hero-numero .puntos { font-size: .45em; letter-spacing: .12em; vertical-align: .35em; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
@@ -508,6 +524,8 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 .cobro .fila-texto small .etiqueta { margin-left: 4px; }
 .cobro > .ayuda { font-size: .8rem; }
 .sin-corte { white-space: nowrap; }
+/* En 320 px la fecha y su etiqueta no caben juntas en la columna: la etiqueta baja. */
+@media (max-width: 359px) { .sin-corte { white-space: normal; } }
 .boton-texto {
   min-height: 44px; padding: 0 2px; background: none; border: none;
   color: var(--acento); font: inherit; font-size: .85rem; cursor: pointer;

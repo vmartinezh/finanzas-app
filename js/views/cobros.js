@@ -1,7 +1,7 @@
 import { datos, guardar, borrar, nuevoId, modo } from '../db.js';
 import { resumenMeDeben, estadoCobro, cuotasDeCobro, pagosDeCobro, dividirGasto } from '../calculos.js';
 import { abrirFormulario, ejecutar, avisar, confirmar } from '../ui.js';
-import { clp, esc, hoyISO, mesActual, fechaCorta, normalizar, limpiarNombre } from '../util.js';
+import { clp, clpVisible, esc, hoyISO, mesActual, fechaCorta, normalizar, limpiarNombre } from '../util.js';
 import { estadoAvisos, activarAvisos, desactivarAvisos } from '../avisos.js';
 
 export const titulo = 'Me deben';
@@ -198,7 +198,7 @@ async function anotarCobro(c, refrescar) {
       // Al anotar se parte de lo que falta; al editar, el total original, porque los pagos ya registrados se descuentan solos.
       nuevo
         ? { nombre: 'monto_total', etiqueta: 'Cuánto te falta recibir ($)', tipo: 'monto', requerido: true, ayuda: 'Si te paga en cuotas, pon el total que falta: 2 cuotas de $40.000 son $80.000.' }
-        : { nombre: 'monto_total', etiqueta: 'Total que te debía ($)', tipo: 'monto', valor: c.monto_total, requerido: true, ayuda: yaPagado ? `Lo que ya te pagó (${clp(yaPagado)}) se descuenta solo.` : '' },
+        : { nombre: 'monto_total', etiqueta: 'Total que te debía ($)', tipo: 'monto', valor: c.monto_total, requerido: true, ayuda: yaPagado ? `Lo que ya te pagó (${clpVisible(yaPagado)}) se descuenta solo.` : '' },
       { nombre: 'cuotas', etiqueta: '¿En cuántas cuotas?', tipo: 'number', valor: c.cuotas, min: 1, max: 120 },
       nuevo
         ? { nombre: 'primer_vencimiento', etiqueta: '¿Cuándo te paga?', tipo: 'date', ayuda: 'Si son cuotas, la fecha de la primera que falta. Las demás, el mismo día de cada mes.' }
@@ -248,7 +248,7 @@ function anotarGasto(monto, descripcion, cobroId = null) {
 async function borrarCobro(c, refrescar) {
   const pagos = pagosDeCobro(c);
   const pregunta = pagos.length
-    ? `Los pagos que ya registraste (${clp(pagos.reduce((s, m) => s + m.monto, 0))}) se quedan en tus movimientos. ¿Borrar "${c.concepto}"?`
+    ? `Los pagos que ya registraste (${clpVisible(pagos.reduce((s, m) => s + m.monto, 0))}) se quedan en tus movimientos. ¿Borrar "${c.concepto}"?`
     : `¿Borrar "${c.concepto}"?`;
   if (!(await confirmar(pregunta))) return;
   ejecutar(async () => {
@@ -274,7 +274,7 @@ export async function registrarPago(c, refrescar) {
   const v = await abrirFormulario({
     titulo: `${quien} te pagó`,
     textoGuardar: 'Registrar pago',
-    intro: `${e.cuotas > 1 && e.proxima ? `Cuota ${e.proxima.numero} de ${e.cuotas} de ` : ''}<b>${esc(c.concepto)}</b>. ${variasAtrasadas ? `Tiene ${clp(e.vencido)} atrasados y te` : 'Te'} falta recibir ${clp(e.pendiente)} en total.`,
+    intro: `${e.cuotas > 1 && e.proxima ? `Cuota ${e.proxima.numero} de ${e.cuotas} de ` : ''}<b>${esc(c.concepto)}</b>. ${variasAtrasadas ? `Tiene ${clpVisible(e.vencido)} atrasados y te` : 'Te'} falta recibir ${clpVisible(e.pendiente)} en total.`,
     campos: [
       { nombre: 'monto', etiqueta: '¿Cuánto te pagó? ($)', tipo: 'monto', valor: variasAtrasadas ? e.vencido : e.proxima?.monto ?? e.pendiente, requerido: true },
       { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'date', valor: hoyISO(), requerido: true },
@@ -283,7 +283,7 @@ export async function registrarPago(c, refrescar) {
   if (!v) return;
   const monto = Math.round(v.monto || 0);
   if (monto <= 0) return avisar('Escribe cuánto te pagó.', 'error');
-  if (monto > e.pendiente && !(await confirmar(`Es más de lo que te falta recibir (${clp(e.pendiente)}). ¿Registrarlo igual?`))) return;
+  if (monto > e.pendiente && !(await confirmar(`Es más de lo que te falta recibir (${clpVisible(e.pendiente)}). ¿Registrarlo igual?`))) return;
 
   ejecutar(async () => {
     await guardar('movimientos', {

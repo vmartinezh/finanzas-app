@@ -1,7 +1,7 @@
 import { datos, guardarPerfil } from '../db.js';
 import { TARJETAS, RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo } from '../beneficios.js';
 import { ejecutar } from '../ui.js';
-import { clp, esc, hoyISO, sumarDias, fechaCorta } from '../util.js';
+import { clp, esc, hoyISO, sumarDias, fechaCorta, conMontosVisibles } from '../util.js';
 
 export const titulo = 'Descuentos';
 
@@ -17,7 +17,8 @@ export function filaBeneficio(b, { conTarjeta = true } = {}) {
     conTarjeta ? nombreTarjeta(b.tarjeta) : null,
     // Si es de un solo día, ya está dicho en el título ("Hoy martes").
     b.dias.length > 1 ? textoDias(b.dias) : null,
-    b.tope ? `tope ${clp(b.tope)}` : null,
+    // El tope es del banco, no de la persona: se ve aunque el ojo esté cerrado.
+    b.tope ? `tope ${conMontosVisibles(() => clp(b.tope))}` : null,
     b.hasta ? `hasta el ${fechaCorta(b.hasta)}` : null,
   ].filter(Boolean).join(' · ');
   return `<li><a class="fila" href="${esc(b.fuente)}" target="_blank" rel="noopener noreferrer">

@@ -1,8 +1,8 @@
-import { iniciar, modo, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
+import { iniciar, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
-import { avisar } from './ui.js';
-import { esc } from './util.js';
+import { avisar, anunciarMontosOcultos } from './ui.js';
+import { esc, montosOcultos, ocultarMontos } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { editarMovimiento } from './views/movimientos.js';
 
@@ -45,6 +45,7 @@ export function refrescar() {
     vista.innerHTML = v.render();
     v.montar?.(vista, refrescar);
     activarTooltips(vista);
+    anunciarMontosOcultos(vista);
   } catch (e) {
     console.error(e);
     vista.innerHTML = `<div class="tarjeta error"><h2>Algo falló</h2><p>${esc(e.message)}</p></div>`;
@@ -181,12 +182,6 @@ async function arrancar() {
   if (!usuario) return pantallaAcceso();
   if (recuperacion === 'lista') return pantallaNuevaContraseña();
 
-  const chip = document.getElementById('modo');
-  chip.textContent = modo === 'local' ? 'En este dispositivo' : 'En la nube';
-  chip.title = modo === 'local'
-    ? 'Tus datos están guardados solo en este navegador. Haz respaldos en Más → Ajustes.'
-    : 'Tus datos están guardados en tu cuenta.';
-
   await sembrarCategorias();
   // ?demo=1 carga datos ficticios, pero solo en una app vacía: un enlace
   // recibido nunca debe mezclar datos inventados con los reales de alguien.
@@ -196,6 +191,19 @@ async function arrancar() {
     else setTimeout(() => avisar('Ya tienes datos propios, así que no cargué el ejemplo.'), 300);
     history.replaceState(null, '', location.pathname + location.hash);
   }
+
+  const ojo = document.getElementById('boton-ojo');
+  const pintarOjo = () => {
+    const oculto = montosOcultos();
+    // El nombre queda fijo ("Ocultar montos") y aria-pressed dice si está activo.
+    ojo.setAttribute('aria-pressed', oculto);
+  };
+  pintarOjo();
+  ojo.addEventListener('click', () => {
+    ocultarMontos(!montosOcultos());
+    pintarOjo();
+    refrescar();
+  });
 
   document.getElementById('boton-agregar').addEventListener('click', () => editarMovimiento(null, refrescar));
   window.addEventListener('hashchange', () => {

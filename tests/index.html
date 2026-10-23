@@ -20,9 +20,12 @@
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, dividirGasto } from '../js/calculos.js';
-    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes } from '../js/util.js';
+    import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
+
+    // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
+    ocultarMontos(false, false);
 
     const resultados = [];
     const prueba = (nombre, fn) => {
@@ -167,6 +170,28 @@
       igual(leerMonto('abc'), 0);
     });
     prueba('Sumar meses cruza el año', () => igual(sumarMeses('2026-11', 3), '2027-02'));
+    prueba('Con el ojo cerrado, los montos no muestran cifras ni signo', () => {
+      try {
+        ocultarMontos(true, false);
+        igual([clp(12990), clp(-1500000), clp(0), clpCorto(2500000)], [MONTO_OCULTO, MONTO_OCULTO, MONTO_OCULTO, MONTO_OCULTO]);
+        if (/\d|-|−/.test(MONTO_OCULTO)) throw new Error('el monto oculto delata cifras o signo');
+      } finally {
+        ocultarMontos(false, false);
+      }
+      igual(clp(12990), '$12.990');
+    });
+    prueba('Lo que estás editando se ve aunque el ojo esté cerrado, y después vuelve a ocultarse', () => {
+      try {
+        ocultarMontos(true, false);
+        igual(clpVisible(40500), '$40.500');
+        igual(conMontosVisibles(() => clp(18000) + ' cada uno'), '$18.000 cada uno');
+        igual(clp(40500), MONTO_OCULTO);
+        try { conMontosVisibles(() => { throw new Error('falla adentro'); }); } catch { /* se espera */ }
+        igual(clp(40500), MONTO_OCULTO, 'tras un error:');
+      } finally {
+        ocultarMontos(false, false);
+      }
+    });
 
     // Seguridad: un respaldo manipulado no puede meter HTML ni valores raros.
     const ID = '0f8fad5b-d9cb-469f-a165-70867728950e';
