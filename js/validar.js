@@ -32,8 +32,9 @@ const decimal = v => {
 const opcion = (v, opciones) => (opciones.includes(v) ? v : opciones[0]);
 const mes = v => (typeof v === 'string' && MES.test(v) ? v : null);
 const logico = v => v !== false;
-// Ids del catálogo de tarjetas (js/beneficios.js): 'santander', 'lider-bci'.
-const ID_TARJETA = /^[a-z0-9-]{1,40}$/;
+// Ids del catálogo de tarjetas (js/beneficios.js): 'santander', 'lider-bci', y
+// con el tipo de tarjeta (js/tarjetas.js): 'cmr:elite'.
+const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?$/;
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.

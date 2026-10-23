@@ -173,7 +173,7 @@ const valor = b => Number(/(\d+)%/.exec(b.descuento)?.[1] ?? 0);
 // días; dentro de cada grupo, los más altos primero.
 export function beneficiosDelDia(tarjetas, fechaISO) {
   const dia = diaSemana(fechaISO);
-  const mias = new Set(tarjetas);
+  const mias = new Set(tarjetas.map(t => String(t).split(':')[0]));
   return BENEFICIOS
     .filter(b => mias.has(b.tarjeta) && (!b.hasta || b.hasta >= fechaISO))
     .filter(b => !b.dias.length || b.dias.includes(dia))

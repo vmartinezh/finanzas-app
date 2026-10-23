@@ -158,7 +158,7 @@ export function render() {
     ${!tarjetasElegidas && !sinConfigurar ? `
       <a class="tarjeta enlace-tarjeta" href="#/beneficios">
         <h2>¿En qué tienes descuento hoy?</h2>
-        <p class="ayuda">Marca tus tarjetas y te muestro sus descuentos de cada día, como el 40% de los jueves en Burger King con Santander.</p>
+        <p class="ayuda">Agrega tus tarjetas y te muestro sus descuentos de cada día, como el 40% de los jueves en Burger King con Santander.</p>
       </a>` : ''}
   `;
 }

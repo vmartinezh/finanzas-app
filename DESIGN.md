@@ -285,8 +285,12 @@ Suaves y redondeados, nunca agresivos.
 ### Hero salvia (signature)
 El número del día. Bloque salvia de borde a borde con la etiqueta, el número en display, una línea de detalle y un desglose plegable (`details`) con el cálculo paso a paso. Debajo va el **estado de ritmo**: una franja con velo blanco (`salvia-velo`), 16px de radio y un ícono, que dice si vas bien o te estás adelantando. Si el número es negativo no se pinta de rojo dentro del bloque: el texto lo dice.
 
-### Tarjeta de banco (por construir)
-Elegida por el usuario: el estilo de [tilt-card](https://spell.sh/docs/tilt-card). Una tarjeta que se inclina en 3D siguiendo el puntero o el dedo (unos 15°), se agranda apenas (1,05) y lleva un brillo que sigue al puntero. Se hace con CSS y JavaScript propios (sin React), en la paleta salvia y con la moneda del logo. Muestra solo el banco, el tipo y los últimos 4 dígitos, nunca el número completo ni el vencimiento. Con el ojo cerrado, el cupo y el saldo van como `$•••••`. Con "reducir movimiento" queda quieta y conserva un brillo suave. Es la única excepción a "las tres cosas que flotan": se eleva solo mientras se toca.
+### Mis tarjetas en 3D (Descuentos)
+Cada persona agrega sus tarjetas eligiendo el banco y después el tipo, viendo cada tipo ya dibujado. Se guardan como `banco:tipo` (`cmr:elite`); los descuentos siguen siendo por banco. Están en `js/tarjetas.js`.
+- **Parecidas a las reales, sin logos** (decisión del usuario): la forma (vertical u horizontal), los colores, el acabado y el arte de cada tarjeta (piedras, hojas, flor o vetas de Santander, dibujados en SVG, no las fotos). El banco y la red van en texto; Banco de Chile, con serifas. No se usa ningún logo (la "B", la llama, el "CMR" estilizado, los círculos de Mastercard). Hay tipos dibujados de CMR Falabella, Santander, Banco de Chile y BancoEstado; los demás bancos tienen una tarjeta genérica en su color.
+- **Excepción de color:** las tarjetas usan los colores de cada banco, fuera de la paleta de la app. Es lo único que no sigue la regla del color con significado.
+- **3D (estilo [tilt-card](https://spell.sh/docs/tilt-card)):** se inclina hasta 15° alejándose del puntero o del dedo, se agranda a 1,05 y lleva un brillo que lo sigue. Es la única excepción a "las tres cosas que flotan": se eleva solo mientras se toca. Con "reducir movimiento" queda quieta, con un brillo suave fijo.
+- Nunca muestra el número completo ni el vencimiento.
 
 ### Progreso de presupuesto
 Pista de 8px en papel gastado con relleno verde, ámbar al 80% y rojo al pasarse. Siempre va acompañada del texto del estado, nunca solo el color.

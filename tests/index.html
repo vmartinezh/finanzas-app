@@ -24,6 +24,7 @@
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco } from '../supabase/functions/recibir-compra/lectores.js';
+    import { TIPOS } from '../js/tarjetas.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
     ocultarMontos(false, false);
@@ -264,6 +265,7 @@
     prueba('Las tarjetas del perfil solo aceptan ids simples, sin repetir', () => {
       igual(normalizarPerfil({ tarjetas: ['santander', ATAQUE, 'santander', 7, 'lider-bci'] }).tarjetas, ['santander', 'lider-bci']);
       igual(normalizarPerfil({ tarjetas: 'santander' }).tarjetas, []);
+      igual(normalizarPerfil({ tarjetas: ['cmr:elite', 'cmr:', 'cmr:elite:x', 'cmr:ELITE'] }).tarjetas, ['cmr:elite'], 'con tipo:');
     });
 
     const RESPALDO = () => ({
@@ -462,6 +464,18 @@
       const primeroDeTodos = lista.findIndex(b => !b.dias.length);
       if (primeroDeTodos >= 0 && lista.slice(primeroDeTodos).some(b => b.dias.length)) throw new Error('mezcló el orden');
       igual(beneficiosDelDia([], '2026-10-12'), []);
+    });
+    prueba('Una tarjeta con tipo ("cmr:elite") trae los descuentos de su banco', () => {
+      igual(beneficiosDelDia(['cmr:elite'], '2026-10-13'), beneficiosDelDia(['cmr'], '2026-10-13'));
+    });
+    prueba('Cada tipo de tarjeta dibujado es de un banco del catálogo y no se repite', () => {
+      const bancos = new Set(TARJETAS.map(t => t.id));
+      for (const [banco, tipos] of Object.entries(TIPOS)) {
+        if (!bancos.has(banco)) throw new Error(`${banco} no está en el catálogo`);
+        const ids = tipos.map(t => t.id);
+        if (new Set(ids).size !== ids.length) throw new Error(`${banco} repite un tipo`);
+        if (tipos.some(t => !['vertical', 'horizontal'].includes(t.forma))) throw new Error(`${banco}: forma desconocida`);
+      }
     });
     prueba('Dentro de cada grupo, los descuentos más altos primero', () => {
       const pct = b => Number(/(\d+)%/.exec(b.descuento)?.[1] ?? 0);

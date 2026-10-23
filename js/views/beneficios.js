@@ -1,6 +1,7 @@
 import { datos, guardarPerfil } from '../db.js';
 import { TARJETAS, RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo } from '../beneficios.js';
 import { ejecutar } from '../ui.js';
+import { TIPOS, separarTarjeta, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
 import { clp, esc, hoyISO, sumarDias, fechaCorta, conMontosVisibles } from '../util.js';
 
 export const titulo = 'Descuentos';
@@ -29,6 +30,41 @@ export function filaBeneficio(b, { conTarjeta = true } = {}) {
   </a></li>`;
 }
 
+// null: mirando · true: eligiendo el banco · 'cmr': eligiendo el tipo de ese banco.
+let eligiendo = null;
+
+const bancoDelCatalogo = id => TARJETAS.find(t => t.id === separarTarjeta(id).banco);
+const nombreBanco = id => bancoDelCatalogo(id)?.nombre ?? 'Tarjeta';
+function nombreConTipo(id) {
+  const { banco, tipo } = separarTarjeta(id);
+  const elTipo = TIPOS[banco]?.find(t => t.id === tipo);
+  return elTipo ? `${nombreBanco(id)} ${elTipo.nombre}` : nombreBanco(id);
+}
+
+function elegirHTML(mias) {
+  if (eligiendo === true) {
+    return `<div class="elegir-tarjeta">
+      <p class="ayuda">¿De qué banco es?</p>
+      <div class="chips" role="group" aria-label="Banco">${TARJETAS.map(t => `
+        <button class="chip" data-banco="${t.id}" title="${esc(t.detalle)}">${esc(t.nombre)}</button>`).join('')}
+      </div>
+      <button class="boton-texto" id="cancelar-tarjeta">Cancelar</button>
+    </div>`;
+  }
+  const banco = TARJETAS.find(t => t.id === eligiendo);
+  return `<div class="elegir-tarjeta">
+    <p class="ayuda">¿Cuál ${esc(banco.nombre)} tienes?</p>
+    <ul class="elegir-tipo">${TIPOS[eligiendo].map(t => {
+      const id = `${eligiendo}:${t.id}`;
+      return `<li><button class="elegir-tipo-boton" data-agregar="${id}" ${mias.includes(id) ? 'disabled' : ''}>
+        ${tarjetaHTML(id, banco.nombre, { chica: true })}
+        <span>${esc(t.nombre)}${mias.includes(id) ? ' · ya la tienes' : ''}</span>
+      </button></li>`;
+    }).join('')}</ul>
+    <button class="boton-texto" id="cancelar-tarjeta">Cancelar</button>
+  </div>`;
+}
+
 export function render() {
   const hoy = hoyISO();
   const diaHoy = diaSemana(hoy);
@@ -43,11 +79,14 @@ export function render() {
 
   return `
     <section class="tarjeta">
-      <h2>Mis tarjetas</h2>
-      <p class="ayuda">Marca las que tienes y te muestro en qué tienes descuento cada día.</p>
-      <div class="chips" role="group" aria-label="Mis tarjetas">${TARJETAS.map(t => `
-        <button class="chip" data-tarjeta="${t.id}" aria-pressed="${mias.includes(t.id)}" title="${esc(t.detalle)}">${esc(t.nombre)}</button>`).join('')}
-      </div>
+      <div class="titulo-con-accion"><h2>Mis tarjetas</h2>${eligiendo ? '' : '<button class="boton pequeño" id="agregar-tarjeta">+ Agregar</button>'}</div>
+      ${mias.length ? `<ul class="mis-tarjetas">${mias.map(id => `
+        <li>
+          ${tarjetaHTML(id, nombreBanco(id))}
+          <span class="mis-tarjetas-pie"><b>${esc(nombreConTipo(id))}</b><button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span>
+        </li>`).join('')}</ul>`
+      : eligiendo ? '' : '<p class="ayuda">Agrega las tarjetas que tienes y te muestro en qué tienes descuento cada día.</p>'}
+      ${eligiendo ? elegirHTML(mias) : ''}
     </section>
 
     <section class="tarjeta">
@@ -55,7 +94,7 @@ export function render() {
         <button class="chip" data-dia="${i + 1}" aria-pressed="${dia === i + 1}" aria-label="${nombre}${i + 1 === diaHoy ? ' (hoy)' : ''}">${nombre.slice(0, 2)}${i + 1 === diaHoy ? '<span class="punto-hoy" aria-hidden="true"></span>' : ''}</button>`).join('')}
       </div>
       <h2>${esc(tituloDia)}</h2>
-      ${!mias.length ? '<div class="vacio">Marca tus tarjetas arriba para ver tus descuentos.</div>'
+      ${!mias.length ? '<div class="vacio">Agrega tus tarjetas arriba para ver tus descuentos.</div>'
         : !lista.length ? `<div class="vacio">Ese día no hay descuentos con tus tarjetas.</div>`
         : `
           ${delDia.length ? `<ul class="lista">${delDia.map(b => filaBeneficio(b)).join('')}</ul>` : '<p class="ayuda">Ese día no hay descuentos especiales con tus tarjetas.</p>'}
@@ -69,11 +108,28 @@ export function render() {
 }
 
 export function montar(raiz, refrescar) {
-  raiz.querySelectorAll('[data-tarjeta]').forEach(b => b.addEventListener('click', () => {
-    const id = b.dataset.tarjeta;
+  activarTarjetas3D(raiz);
+  const guardarTarjetas = tarjetas => ejecutar(() => guardarPerfil({ tarjetas }), null, refrescar);
+  raiz.querySelector('#agregar-tarjeta')?.addEventListener('click', () => { eligiendo = true; refrescar(); });
+  raiz.querySelector('#cancelar-tarjeta')?.addEventListener('click', () => { eligiendo = null; refrescar(); });
+  raiz.querySelectorAll('[data-banco]').forEach(b => b.addEventListener('click', () => {
+    const banco = b.dataset.banco;
+    // Un banco con tipos dibujados pide elegir el tipo; los demás se agregan al tiro.
+    if (TIPOS[banco]) { eligiendo = banco; refrescar(); return; }
+    eligiendo = null;
     const actuales = datos.perfil.tarjetas || [];
-    const tarjetas = actuales.includes(id) ? actuales.filter(t => t !== id) : [...actuales, id];
-    ejecutar(() => guardarPerfil({ tarjetas }), null, refrescar);
+    if (actuales.includes(banco)) refrescar();
+    else guardarTarjetas([...actuales, banco]);
+  }));
+  raiz.querySelectorAll('[data-agregar]').forEach(b => b.addEventListener('click', () => {
+    eligiendo = null;
+    const id = b.dataset.agregar;
+    const actuales = datos.perfil.tarjetas || [];
+    if (!actuales.includes(id)) guardarTarjetas([...actuales, id]);
+    else refrescar();
+  }));
+  raiz.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', () => {
+    guardarTarjetas((datos.perfil.tarjetas || []).filter(t => t !== b.dataset.quitar));
   }));
   raiz.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
     diaElegido = Number(b.dataset.dia);
