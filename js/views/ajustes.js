@@ -55,7 +55,7 @@ export function render() {
       </div>
     </section>
 
-    <p class="pie">Simplifica es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
+    <p class="pie">Simplifika es software libre · <a href="https://github.com/vmartinezh/finanzas-app" target="_blank" rel="noopener">código en GitHub</a></p>
   `;
 }
 
@@ -126,7 +126,7 @@ export function montar(raiz, refrescar) {
     const blob = new Blob([JSON.stringify(exportar(), null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `simplifica-respaldo-${hoyISO()}.json`;
+    a.download = `simplifika-respaldo-${hoyISO()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
   });

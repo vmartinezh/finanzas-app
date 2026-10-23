@@ -1,4 +1,4 @@
-# Simplifica 🌿
+# Simplifika 🌿
 
 App de finanzas personales para ordenar la plata **sin tener que anotar cada gasto**.
 Hecha en Chile y de código abierto. La app base es gratis y completa: ordenar tus cuentas nunca va a estar detrás de un pago.
@@ -67,7 +67,7 @@ La app tiene "¿Olvidaste tu contraseña?", pero el correo que trae Supabase sol
 1. Crea una cuenta gratis en [brevo.com](https://www.brevo.com) (300 correos al día).
 2. En *Senders, Domains & Dedicated IPs → Senders* agrega y verifica el correo que va a aparecer como remitente.
 3. En *SMTP & API → SMTP* genera una clave SMTP.
-4. En Supabase, *Authentication → Emails → SMTP Settings*, activa *Custom SMTP* con: host `smtp-relay.brevo.com`, puerto `587`, usuario = el *login* SMTP que muestra Brevo, contraseña = la clave SMTP, remitente = el correo verificado y nombre `Simplifica`.
+4. En Supabase, *Authentication → Emails → SMTP Settings*, activa *Custom SMTP* con: host `smtp-relay.brevo.com`, puerto `587`, usuario = el *login* SMTP que muestra Brevo, contraseña = la clave SMTP, remitente = el correo verificado y nombre `Simplifika`.
 5. En *Authentication → URL Configuration*, agrega la dirección de la app en *Redirect URLs* (además de *Site URL*): el enlace del correo solo puede volver a direcciones de esa lista.
 
 Con dominio propio conviene cambiar a un remitente de ese dominio (por ejemplo con Resend), para que los correos no lleguen a spam.

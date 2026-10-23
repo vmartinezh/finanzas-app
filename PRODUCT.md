@@ -43,9 +43,9 @@ Simplifika convierte el mes en un solo número: cuánto puedes gastar hoy. Lo ca
 
 ## Brand Commitments
 
-- **Nombre: Simplifika**, con K. El cambio está decidido (2026-10-14); el código todavía dice "Simplifica" y queda por migrar junto con el dominio. La K también se lee como "miles" (10K).
-- **Logo:** una K que se explica con el nombre. Finalistas: A (la K alcancía), B (la K que sube) y D (la K rampa, la de la animación de carga). **Sin elegir todavía.** El chanchito con moneda actual es provisorio.
-- **Animación de carga:** una moneda que cae sobre la K, baja por su curva, sube por la rampa y salta a la ranura del chanchito. Completa solo la primera vez del día y quieta con "reducir movimiento".
+- **Nombre: Simplifika**, con K (decidido el 2026-10-14, en la app desde el 2026-10-22). La K también se lee como "miles" (10K). El dominio simplifika.app está por comprar; mientras, la app sigue en su dirección de Vercel. Las claves internas (`simplifica:v1:` en el navegador, la caché `simplifica-vN`) quedan con C para no perder datos guardados.
+- **Logo:** la k minúscula dentro de un globo de chat, con una moneda dorada arriba a la derecha, sobre un cuadro musgo (`icons/icon.svg`). Dice "compañero de finanzas": alguien a quien le preguntas antes de decidir. Elegido el 2026-10-16; reemplazó al chanchito.
+- **Animación de carga:** por rediseñar con el logo nuevo (la idea anterior era para el chanchito). Completa solo la primera vez del día y quieta con "reducir movimiento".
 - **Voz:** español de Chile, tuteando, simple y calmado. Frases cortas que dicen qué hacer, sin culpa ni sermones.
 
 ## Evidence on Hand

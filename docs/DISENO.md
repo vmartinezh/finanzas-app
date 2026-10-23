@@ -1,4 +1,4 @@
-# Diseño de Simplifica
+# Diseño de Simplifika
 
 ## El problema
 

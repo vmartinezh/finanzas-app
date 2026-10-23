@@ -1,4 +1,4 @@
-/* Simplifica · verde salvia (#A8B9A0) */
+/* Simplifika · verde salvia (#A8B9A0) */
 :root {
   color-scheme: light;
   --fondo: #f0f3ee;
@@ -14,6 +14,7 @@
   --salvia-texto: #1f281c;
   --salvia-texto-2: #33402e;
   --salvia-velo: rgb(255 255 255 / .35);
+  --logo-borde: transparent;
   --acento: #46583f;
   --acento-texto: #ffffff;
   --acento-suave: #dfe7da;
@@ -38,6 +39,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --logo-borde: rgb(255 255 255 / .16);
     --fondo: #121512;
     --superficie: #1b201a;
     --superficie-2: #252b23;
@@ -68,6 +70,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --logo-borde: rgb(255 255 255 / .16);
   --fondo: #121512;
   --superficie: #1b201a;
   --superficie-2: #252b23;
@@ -138,11 +141,9 @@ button { font: inherit; color: inherit; }
   .barra-superior { gap: 6px; }
   .barra-superior h1 { font-size: 1.15rem; }
 }
-.logo { flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: inherit; }
-.logo-chanchito { width: 32px; height: 32px; }
-.logo-chanchito .cuerpo { fill: var(--salvia-suave); }
-.logo-chanchito .oreja { fill: var(--salvia); }
-.logo-chanchito .moneda { fill: #e9b23a; }
+.logo { flex: none; display: block; line-height: 0; }
+/* En oscuro el cuadro musgo se pierde sobre el salvia oscuro: un borde claro lo separa. */
+.logo-marca { border-radius: 7px; box-shadow: 0 0 0 1px var(--logo-borde); }
 .boton-mas {
   flex: none; width: 44px; height: 44px; border-radius: 50%;
   border: 1px solid var(--borde); display: grid; place-items: center; color: inherit;
@@ -160,7 +161,6 @@ button { font: inherit; color: inherit; }
 /* En Inicio, la barra y el número del día forman un solo bloque salvia. */
 body[data-ruta="inicio"] .barra-superior { background: var(--salvia); color: var(--salvia-texto); }
 body[data-ruta="inicio"] .boton-mas { border-color: color-mix(in srgb, var(--salvia-texto) 22%, transparent); }
-body[data-ruta="inicio"] .logo-chanchito .oreja { fill: var(--salvia-suave); }
 
 main {
   max-width: 560px; margin: 0 auto; padding: 4px 16px 0;
@@ -486,7 +486,7 @@ dialog .espacio { flex: 1; }
   body[data-ruta="inicio"] .boton-mas { border-color: var(--borde); }
   .hero-salvia { margin: 0; border-radius: 28px; padding: 24px; }
 }
-/* En Inicio el título es la marca, en minúsculas como el logo. */
+/* En Inicio el título es la marca: el logotipo va en minúsculas ("simplifika"). */
 body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 
 /* ── Descuentos de las tarjetas ─────────────────── */

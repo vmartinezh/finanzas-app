@@ -183,7 +183,7 @@ function sinRepetidos(tabla, filas) {
 // Devuelve también cuántos enlaces se soltaron y cuántas filas no se pudieron
 // usar (inválidas, repetidas o sin su categoría), para avisarle a la persona.
 export function prepararRespaldo(copia, crearId) {
-  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifica');
+  if (!copia || typeof copia !== 'object' || copia.version !== 1) throw new Error('El archivo no es un respaldo de Simplifika');
   const nombres = TABLAS;
   const validas = Object.fromEntries(nombres.map(t => [t, normalizarTabla(t, copia[t])]));
   if (!validas.categorias.length) throw new Error('El respaldo no trae categorías válidas');

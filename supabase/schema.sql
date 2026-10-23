@@ -1,4 +1,4 @@
--- Simplifica · esquema de base de datos para Supabase
+-- Simplifika · esquema de base de datos para Supabase
 -- Pégalo completo en Supabase → SQL Editor → Run.
 --
 -- Seguridad: todas las tablas tienen Row Level Security (RLS). Cada persona

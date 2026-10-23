@@ -1,6 +1,6 @@
 // Modo sin conexión: guarda los archivos de la app y los sirve desde la caché
 // mientras busca la versión nueva en segundo plano.
-const CACHE = 'simplifica-v5';
+const CACHE = 'simplifica-v6';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -38,7 +38,8 @@ self.addEventListener('push', evento => {
   evento.waitUntil(self.registration.showNotification(aviso.titulo || 'Hoy te toca cobrar algo 👀', {
     body: aviso.cuerpo ?? '',
     icon: 'icons/icon-192.png',
-    badge: 'icons/icon-192.png',
+    // Android dibuja el ícono chico solo con la silueta: va uno blanco con transparencia.
+    badge: 'icons/badge-96.png',
     tag: 'cobros',
     data: { url: './#/cobros' },
   }));

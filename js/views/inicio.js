@@ -8,7 +8,7 @@ import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
 
-export const titulo = 'Simplifica';
+export const titulo = 'Simplifika';
 
 export function render() {
   const mes = mesActual();

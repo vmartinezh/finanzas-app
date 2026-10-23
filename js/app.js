@@ -34,7 +34,7 @@ export function refrescar() {
   const nombre = rutaActual();
   const v = RUTAS[nombre];
   document.getElementById('titulo').textContent = v.titulo;
-  document.title = nombre === 'inicio' ? 'Simplifica' : `${v.titulo} · Simplifica`;
+  document.title = nombre === 'inicio' ? 'Simplifika' : `${v.titulo} · Simplifika`;
   document.body.dataset.ruta = nombre;
   const pestaña = DENTRO_DE_MAS.includes(nombre) ? 'mas' : nombre;
   for (const a of document.querySelectorAll('.nav-inferior a, .boton-mas')) {
@@ -54,10 +54,10 @@ export function refrescar() {
 
 function pantallaAcceso(nueva = false) {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifica';
+  document.getElementById('titulo').textContent = 'Simplifika';
   vista.innerHTML = `
     <section class="tarjeta acceso">
-      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Simplifica'}</h2>
+      <h2>${nueva ? 'Crea tu cuenta' : 'Entra a Simplifika'}</h2>
       <p class="ayuda">${nueva
         ? 'Tus datos quedan en tu cuenta y nadie más puede verlos.'
         : 'Tus cuentas, más simples. Tus días, más tranquilos.'}</p>
@@ -105,7 +105,7 @@ function pantallaAcceso(nueva = false) {
 
 function pantallaRecuperar(email = '', aviso = '') {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifica';
+  document.getElementById('titulo').textContent = 'Simplifika';
   vista.innerHTML = `
     <section class="tarjeta acceso">
       <h2>Recupera tu contraseña</h2>
@@ -141,7 +141,7 @@ function pantallaRecuperar(email = '', aviso = '') {
 // Se llega aquí desde el enlace del correo, que ya abrió la sesión.
 function pantallaNuevaContraseña() {
   document.body.classList.add('sin-sesion');
-  document.getElementById('titulo').textContent = 'Simplifica';
+  document.getElementById('titulo').textContent = 'Simplifika';
   vista.innerHTML = `
     <section class="tarjeta acceso">
       <h2>Crea tu contraseña nueva</h2>

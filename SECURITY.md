@@ -1,6 +1,6 @@
 # Seguridad
 
-Simplifica maneja información financiera personal, así que tomamos en serio cualquier problema de seguridad.
+Simplifika maneja información financiera personal, así que tomamos en serio cualquier problema de seguridad.
 
 ## Reportar una vulnerabilidad
 

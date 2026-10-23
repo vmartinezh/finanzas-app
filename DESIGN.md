@@ -267,7 +267,7 @@ Suaves y redondeados, nunca agresivos.
 - **Barra inferior flotante:** noche de huerto con 24px de radio y cinco columnas: Inicio, Gastos, botón de agregar, Presupuesto y Plan.
 - **Ítems:** ícono de 22px sobre una etiqueta de 0.66rem/600, en salvia. El activo pasa a `nav-activo` sobre un velo blanco al 10%, con 16px de radio.
 - **Agregar:** un cuadrado redondeado salvia de 52px (18px de radio) al centro. Es la acción principal de la app.
-- **Barra superior:** logo de 32px, título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
+- **Barra superior:** el logo de 32px (`icons/icon.svg`: la k en un globo de chat, con la moneda, sobre musgo), título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
 - **Montos ocultos (el ojo):** toda cifra de plata pasa a `$•••••`, del mismo largo y sin signo, con los puntos achicados para ocupar lo que un monto real (más chicos aún en el número del día). Se ven igual las proporciones (barras, gráficos, %) y los topes de los descuentos, que son del banco. Es la versión para compartir pantallazos: tiene que verse completa.
 
 ### Hero salvia (signature)
