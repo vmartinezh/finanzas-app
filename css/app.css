@@ -517,6 +517,10 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
+/* ── Gastos desde tu correo (Ajustes) ───────────── */
+.pasos { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 10px; }
+.pasos li::marker { font-weight: 700; color: var(--texto-2); }
+
 /* ── Me deben ───────────────────────────────────── */
 .hero .botones { margin-top: 12px; }
 .monto.atrasado { color: var(--critico); }

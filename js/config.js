@@ -11,3 +11,8 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 // Clave pública de los avisos al celular (VAPID). Pública por diseño: la
 // privada va solo en los secretos de Supabase. Vacía = sin avisos.
 export const VAPID_PUBLIC_KEY = 'BKS8iBctYQyXekTeVOm3Flxn2obAmHrpUIsiNai6nZ0GR_JecRZlyzEt6Fu3vAnsPb5hxqUSaDPOzlLBlsXZjqo';
+
+// Gastos desde el correo (fase 2). Enciéndelo cuando en Supabase ya corriste
+// schema.sql y publicaste la función recibir-compra (ver README): antes,
+// Ajustes no muestra la sección.
+export const GASTOS_POR_CORREO = false;

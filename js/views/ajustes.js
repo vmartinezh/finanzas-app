@@ -2,6 +2,7 @@ import { datos, guardar, borrar, guardarPerfil, modo, exportar, importar, cerrar
 import { cargarEjemplo } from '../semillas.js';
 import { abrirFormulario, ejecutar, avisar, confirmar, inputMonto } from '../ui.js';
 import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
+import { correoHTML, montarCorreo } from '../correo.js';
 
 export const titulo = 'Ajustes';
 
@@ -41,6 +42,8 @@ export function render() {
           <span class="fila-texto"><b>${esc(c.nombre)}</b><small>${c.tipo === 'ingreso' ? 'Ingreso' : c.tope_mensual ? 'Tope ' + clp(c.tope_mensual) : 'Sin tope'}</small></span>
         </button></li>`).join('')}</ul>
     </section>
+
+    ${correoHTML()}
 
     <section class="tarjeta">
       <h2>Mis datos</h2>
@@ -117,6 +120,7 @@ export function montar(raiz, refrescar) {
     }), 'Guardado', refrescar);
   });
 
+  montarCorreo(raiz);
   raiz.querySelector('#nueva-categoria').addEventListener('click', () => editarCategoria(null, refrescar));
   raiz.querySelectorAll('[data-categoria]').forEach(b => b.addEventListener('click', () => editarCategoria(datos.categorias.find(c => c.id === b.dataset.categoria), refrescar)));
   raiz.querySelector('#nuevo-evento').addEventListener('click', () => editarEvento(null, refrescar));

@@ -128,6 +128,18 @@ create table if not exists public.suscripciones_push (
   unique (endpoint)
 );
 
+-- Gastos desde el correo (fase 2): la clave con que el script de Google de la
+-- persona le entrega sus compras a la función recibir-compra. Se guarda solo su
+-- hash (SHA-256): la clave se muestra una vez en la app y no queda en ninguna
+-- parte. Con ella solo se pueden agregar gastos "por revisar", no leer nada.
+-- No es parte de sus datos (no va en los respaldos).
+create table if not exists public.claves_ingreso (
+  user_id uuid primary key default auth.uid() references auth.users on delete cascade,
+  hash text not null unique check (hash ~ '^[0-9a-f]{64}$'),
+  creada timestamptz not null default now(),
+  ultimo_uso timestamptz
+);
+
 -- Un celular es de una sola cuenta: si otra persona inicia sesión en él, los
 -- avisos pasan a ella (anotar_suscripcion). Antes era único por (user_id, endpoint)
 -- y el mismo celular podía recibir los avisos de dos cuentas.
@@ -151,7 +163,7 @@ create index if not exists movimientos_usuario_fecha on public.movimientos (user
 do $$
 declare t text;
 begin
-  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push'] loop
+  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push', 'claves_ingreso'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "solo lo propio" on public.%I', t);
     execute format(

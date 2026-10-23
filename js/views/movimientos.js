@@ -55,6 +55,8 @@ export function filaMovimiento(m) {
     m.estado === 'pendiente' ? '<span class="etiqueta pendiente">Por revisar</span>' : esc(cat?.nombre || 'Sin categoría'),
     m.comercio && m.descripcion ? esc(m.comercio) : '',
     evento ? `<span class="etiqueta evento">${esc(evento.nombre)}</span>` : '',
+    // Llegó solo, desde el aviso de compra del banco (fase 2).
+    m.origen === 'correo' ? 'del correo' : '',
   ].filter(Boolean).join(' · ');
   return `<li>
     <button class="fila" data-mov="${m.id}">

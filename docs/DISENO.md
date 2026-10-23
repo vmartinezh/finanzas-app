@@ -72,7 +72,7 @@ Revisión semanal:
 
 Si pasan más de dos semanas sin revisión, la app avisa que puede haber cambios.
 
-### Fase 2: captura automática desde el correo del banco
+### Fase 2: captura automática desde el correo del banco (en desarrollo)
 Los bancos chilenos y las casas comerciales mandan un correo por cada compra con
 tarjeta. Plan:
 
@@ -87,6 +87,13 @@ Correo del banco → Google Apps Script en el Gmail de cada persona (gratis, cad
 - `id_externo` evita duplicados si el mismo correo se procesa dos veces.
 - Se necesita un ejemplo real de correo de cada banco (con los datos tapados)
   para escribir sus lectores.
+
+Estado (2026-10-22): listos la clave de ingreso (`claves_ingreso`, solo el hash),
+la función `recibir-compra`, el script `correo/simplifika.gs`, la sección en
+Ajustes y un lector general (frases "compra por $X en COMERCIO" y fichas con
+"Comercio:"). Faltan los lectores por banco, con correos reales de muestra.
+La lectura es en el servidor: si un banco cambia su formato, se corrige
+`lectores.js` una vez y sirve para todos.
 
 Alternativa futura: el Sistema de Finanzas Abiertas de Chile (Ley Fintec), o
 agregadores como Fintoc cuando tengan una opción accesible para personas.

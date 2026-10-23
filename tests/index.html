@@ -23,6 +23,7 @@
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias } from '../js/beneficios.js';
+    import { leerCorreoDeCompra, esDeBanco } from '../supabase/functions/recibir-compra/lectores.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
     ocultarMontos(false, false);
@@ -170,6 +171,35 @@
       igual(leerMonto('abc'), 0);
     });
     prueba('Sumar meses cruza el año', () => igual(sumarMeses('2026-11', 3), '2027-02'));
+    // Correos de compra (fase 2). Todos inventados: nunca correos ni datos reales.
+    const correo = (texto, extra = {}) => ({ remitente: 'Avisos <avisos@santander.cl>', asunto: 'Compra con tu tarjeta', texto, fecha: '2026-10-21', ...extra });
+    prueba('Lee una compra escrita en una frase', () => {
+      igual(leerCorreoDeCompra(correo('Se realizó una compra por $12.990 en UBER *TRIP el 21/10/2026 con tu tarjeta terminada en 1234.')),
+        { monto: 12990, comercio: 'UBER *TRIP', tarjeta: '1234', fecha: '2026-10-21', lector: 'general' });
+    });
+    prueba('Lee una compra en formato de ficha', () => {
+      const g = leerCorreoDeCompra(correo('Monto: $ 45.500\nComercio: LIDER EXPRESS PROVIDENCIA\nFecha: 21/10/2026\nTarjeta: ****5678'));
+      igual([g.monto, g.comercio, g.tarjeta], [45500, 'LIDER EXPRESS PROVIDENCIA', '5678']);
+    });
+    prueba('Los centavos se redondean y no se leen como más dígitos', () => igual(leerCorreoDeCompra(correo('Compra por $12.990,50 en COPEC')).monto, 12991));
+    prueba('No anota compras rechazadas, devoluciones ni publicidad', () => {
+      igual(leerCorreoDeCompra(correo('Tu compra por $9.990 en NETFLIX fue rechazada')), null);
+      igual(leerCorreoDeCompra(correo('Te hicimos una devolución de $5.000 por tu compra en FALABELLA')), null);
+      igual(leerCorreoDeCompra(correo('Conoce nuestras ofertas', { asunto: 'Novedades' })), null);
+    });
+    prueba('No anota publicidad del banco ni compras en otra moneda', () => {
+      igual(leerCorreoDeCompra(correo('Tu próxima compra en cuotas sin interés desde $10.000 en FALABELLA', { asunto: 'Compra en cuotas sin interés' })), null);
+      igual(leerCorreoDeCompra(correo('Se realizó una compra por US$12.50 en AMAZON')), null);
+    });
+    prueba('Un aviso de compra con ofertas al pie igual se anota', () => {
+      igual(leerCorreoDeCompra(correo('Se realizó una compra por $8.500 en STARBUCKS.\n\nConoce nuestras ofertas y promociones.')).monto, 8500);
+    });
+    prueba('Solo lee correos de bancos y con fecha válida', () => {
+      igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { remitente: 'hola@tienda-falsa.cl' })), null);
+      igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { remitente: 'avisos@santander.cl.estafa.com' })), null);
+      igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { fecha: 'ayer' })), null);
+      igual([esDeBanco('Banco <avisos@mail.bancochile.cl>'), esDeBanco('x@notbci.cl')], [true, false]);
+    });
     prueba('Los montos se escriben con punto de miles', () => {
       igual(['40500', '$1.500.000', '12 990', '007', '0', '', 'abc', '-500'].map(formatearMontoEscrito),
         ['40.500', '1.500.000', '12.990', '7', '0', '', '', '500']);

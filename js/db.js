@@ -164,6 +164,30 @@ export async function borrarSuscripcion(endpoint) {
   if (error) throw error;
 }
 
+// Gastos desde el correo (fase 2, solo en la nube). La clave se genera aquí, se
+// muestra una vez y en la base queda solo su hash: ni la app la puede volver a leer.
+export async function estadoClaveIngreso() {
+  const { data, error } = await supabase.from('claves_ingreso').select('creada, ultimo_uso').maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function crearClaveIngreso() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const clave = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const resumen = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clave));
+  const hash = [...new Uint8Array(resumen)].map(b => b.toString(16).padStart(2, '0')).join('');
+  const { error } = await supabase.from('claves_ingreso')
+    .upsert({ user_id: usuarioId, hash, creada: new Date().toISOString(), ultimo_uso: null });
+  if (error) throw new Error(error.message);
+  return clave;
+}
+
+export async function borrarClaveIngreso() {
+  const { error } = await supabase.from('claves_ingreso').delete().eq('user_id', usuarioId);
+  if (error) throw new Error(error.message);
+}
+
 // Inserta o actualiza una fila (según si su id ya existe).
 export async function guardar(tabla, fila) {
   if (!fila.id) fila.id = nuevoId();

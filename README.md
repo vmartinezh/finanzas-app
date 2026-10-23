@@ -87,6 +87,16 @@ En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso 
    ```
 6. Vuelve a correr `supabase/schema.sql`: con las extensiones activas, programa el aviso diario (13:00 UTC, en la mañana en Chile).
 
+### 5. Gastos desde el correo (opcional, en desarrollo)
+
+Las compras con tarjeta llegan solas como "por revisar", desde los avisos de compra del banco. Un script corre en la cuenta de Google de cada persona ([`correo/simplifika.gs`](correo/simplifika.gs)) y le manda esos correos a la función `recibir-compra`, que saca monto, comercio y fecha con [`lectores.js`](supabase/functions/recibir-compra/lectores.js) y no guarda el correo. Funciona solo en modo nube.
+
+1. Vuelve a correr `supabase/schema.sql` (crea la tabla `claves_ingreso`).
+2. En *Edge Functions → Deploy a new function → Via Editor*, crea `recibir-compra` con **dos archivos**: `index.ts` y `lectores.js`, copiados de [`supabase/functions/recibir-compra/`](supabase/functions/recibir-compra/). Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.
+3. En `js/config.js`, cambia `GASTOS_POR_CORREO` a `true` (antes, la sección no aparece).
+4. Cada persona entra a *Ajustes → Gastos desde tu correo*, toca "Conectar mi correo" y sigue los tres pasos.
+5. Cuando cambie un lector (`lectores.js`), vuelve a publicar la función: el script de cada persona no cambia.
+
 ## Probar en tu computador
 
 No necesita instalar nada para compilar: es HTML, CSS y JavaScript puro. Solo hay que servir la carpeta con cualquier servidor estático, por ejemplo:
@@ -112,7 +122,8 @@ js/graficos.js        gráficos SVG livianos, sin librerías
 js/beneficios.js      catálogo de descuentos por día de cada tarjeta (se revisa cada semana)
 js/views/             cada pantalla
 supabase/schema.sql   tablas y seguridad para la nube
-supabase/functions/   función que manda los avisos al celular
+supabase/functions/   avisos al celular (avisar-cobros) y compras desde el correo (recibir-compra)
+correo/simplifika.gs  script de Google que manda los avisos de compra del banco
 tests/index.html      pruebas
 docs/DISENO.md        diseño y fases siguientes
 ```
