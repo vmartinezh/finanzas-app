@@ -145,7 +145,8 @@ async function editarDeuda(d, refrescar) {
     cupo_total: v.cupo_total ? Math.round(v.cupo_total) : null,
     dia_pago: v.dia_pago ? Math.min(31, Math.max(1, Math.round(v.dia_pago))) : null,
   };
-  ejecutar(() => guardar('deudas', fila), 'Deuda guardada', refrescar);
+  const terminada = d.saldo > 0 && fila.saldo === 0;
+  ejecutar(() => guardar('deudas', fila), terminada ? `Terminaste de pagar ${fila.nombre}.` : 'Deuda guardada', refrescar, terminada ? 'logro' : 'ok');
 }
 
 export function montar(raiz, refrescar) {

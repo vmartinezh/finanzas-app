@@ -293,9 +293,8 @@ export async function registrarPago(c, refrescar) {
       cobro_id: c.id, origen: 'manual', estado: 'clasificado',
     });
     const despues = estadoCobro(c);
-    avisar(despues.saldado
-      ? `Listo: ${quien} ya te pagó todo "${c.concepto}".`
-      : `Listo, ${quien} te pagó ${clp(monto)}.${v.fecha.startsWith(mesActual()) ? ' Ya suma a lo que puedes gastar.' : ''}`);
+    if (despues.saldado) avisar(`Listo: ${quien} ya te pagó todo "${c.concepto}".`, 'logro');
+    else avisar(`Listo, ${quien} te pagó ${clp(monto)}.${v.fecha.startsWith(mesActual()) ? ' Ya suma a lo que puedes gastar.' : ''}`);
   }, null, refrescar);
 }
 

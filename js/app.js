@@ -1,7 +1,7 @@
 import { iniciar, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
-import { avisar, anunciarMontosOcultos } from './ui.js';
+import { avisar, anunciarMontosOcultos, sinMovimiento } from './ui.js';
 import { esc, montosOcultos, ocultarMontos } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { editarMovimiento } from './views/movimientos.js';
@@ -30,7 +30,20 @@ function rutaActual() {
   return RUTAS[nombre] ? nombre : 'inicio';
 }
 
+// Al llegar a una pantalla (no al refrescarla tras guardar), las barras se llenan.
+let llegada;
+let llegando = false;
+function llegar() {
+  clearTimeout(llegada);
+  vista.classList.add('recien-llegado');
+  llegando = true;
+  refrescar();
+  llegando = false;
+  llegada = setTimeout(() => vista.classList.remove('recien-llegado'), 900);
+}
+
 export function refrescar() {
+  if (!llegando) vista.classList.remove('recien-llegado');
   const nombre = rutaActual();
   const v = RUTAS[nombre];
   document.getElementById('titulo').textContent = v.titulo;
@@ -199,19 +212,40 @@ async function arrancar() {
     ojo.setAttribute('aria-pressed', oculto);
   };
   pintarOjo();
+  // Al cerrar el ojo, la pantalla se desenfoca un instante, como al taparla con
+  // la mano, y vuelve a enfocarse ya con los montos ocultos (o a la vista).
+  let cambiandoOjo = false;
   ojo.addEventListener('click', () => {
-    ocultarMontos(!montosOcultos());
-    pintarOjo();
-    refrescar();
+    // Dos toques rápidos no deben dejar los montos a la vista sin que se note.
+    if (cambiandoOjo) return;
+    const cambiar = () => {
+      ocultarMontos(!montosOcultos());
+      pintarOjo();
+      refrescar();
+    };
+    if (sinMovimiento()) return cambiar();
+    cambiandoOjo = true;
+    vista.classList.add('velando');
+    setTimeout(() => {
+      cambiar();
+      cambiandoOjo = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => vista.classList.remove('velando')));
+    }, 140);
   });
 
   document.getElementById('boton-agregar').addEventListener('click', () => editarMovimiento(null, refrescar));
   window.addEventListener('hashchange', () => {
-    refrescar();
-    vista.focus({ preventScroll: true });
-    window.scrollTo(0, 0);
+    const navegar = () => {
+      llegar();
+      vista.focus({ preventScroll: true });
+      window.scrollTo(0, 0);
+    };
+    // Donde el navegador lo permite, la pantalla se funde con la siguiente y la
+    // pestaña activa se desliza en la barra inferior (ver ::view-transition en el CSS).
+    if (document.startViewTransition && !sinMovimiento()) document.startViewTransition(navegar);
+    else navegar();
   });
-  refrescar();
+  llegar();
 
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     navigator.serviceWorker.register('sw.js').catch(e => console.warn('Sin modo offline', e));

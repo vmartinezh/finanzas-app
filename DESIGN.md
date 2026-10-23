@@ -23,6 +23,7 @@ colors:
   serie-1: "#5e7556"
   serie-2: "#4e7bb0"
   moneda: "#e9b23a"
+  moneda-anillo: "#b07e14"
 typography:
   display:
     fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, Segoe UI, sans-serif"
@@ -179,7 +180,7 @@ Una paleta de hoja seca: verdes grisáceos de poca saturación sobre un fondo ca
 - **Alerta** (`alerta` para texto y `alerta-barra` para relleno): presupuesto al 80% o más y puntos de la revisión por mirar.
 - **Crítico** (`critico` para texto y `critico-barra` para relleno): presupuesto excedido, número del día negativo, cupo de tarjeta sobre el 85% y errores.
 - **Serie 1** (`serie-1`) y **serie 2** (`serie-2`): las dos series de los gráficos (gasto real y comparación). La serie 2 también marca las etiquetas de eventos.
-- **Moneda** (`moneda`): la moneda del logo. No se usa en la interfaz.
+- **Moneda** (`moneda`, con su anillo `moneda-anillo`): la moneda del logo. En la interfaz aparece solo cuando entra plata o hay un logro: el brillo junto al número del día y el aviso de logro.
 
 ### Named Rules
 **La regla del color con significado.** Rojo, ámbar y verde de estado aparecen solo cuando un dato cruzó un umbral (80%, 85%, excedido, negativo). Nunca como decoración ni para dar "energía" a una pantalla.
@@ -214,6 +215,16 @@ Una sola columna centrada de máximo 560px, con 16px de margen lateral y 14px en
 En Inicio, la barra superior y el bloque del número se funden en una sola superficie salvia que llega hasta los bordes y termina en esquinas de 34px. Desde 600px de ancho el bloque se separa y pasa a ser una tarjeta salvia con 28px de radio.
 
 Los diálogos se centran en pantallas anchas (máximo 520px). Bajo 480px suben desde abajo a todo el ancho, con esquinas solo arriba. Las filas de chips se desplazan en horizontal sin barra de desplazamiento y a sangre en el teléfono.
+
+## Motion
+"La plata se mueve": el movimiento cuenta lo que le pasa a tu plata y lo demás es rápido y discreto. Curva `--frenar` (`cubic-bezier(.16, 1, .3, 1)`): llega y frena.
+- **Número del día:** cuando cambia, cuenta desde el valor anterior hasta el nuevo (0,65 s). Si entró plata, la moneda brilla a su lado. Con el ojo cerrado no cuenta.
+- **Diálogos:** suben como hoja en el celular (0,34 s) y bajan más rápido al cerrar (0,18 s). En pantallas anchas aparecen al centro.
+- **Cambiar de pantalla:** el contenido se funde y la pestaña activa se desliza en la barra inferior (View Transitions, donde el navegador las tiene). Al llegar, las barras de presupuesto se llenan.
+- **Al presionar:** los botones se hunden a 0,96 (el "+" a 0,9).
+- **El ojo:** la pantalla se desenfoca al cerrar y se enfoca al abrir.
+- **Logros:** solo terminar una deuda o que te paguen todo. La moneda cae y se dibuja un check en el aviso. Lo de todos los días no se celebra.
+- **Reducir movimiento:** sin desplazamientos, conteos ni hundimientos; los cambios se notan con fundidos.
 
 ## Elevation & Depth
 

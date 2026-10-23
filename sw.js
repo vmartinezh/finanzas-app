@@ -1,6 +1,6 @@
 // Modo sin conexión: guarda los archivos de la app y los sirve desde la caché
 // mientras busca la versión nueva en segundo plano.
-const CACHE = 'simplifica-v6';
+const CACHE = 'simplifica-v7';
 
 self.addEventListener('install', () => self.skipWaiting());
 

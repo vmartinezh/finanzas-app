@@ -1,6 +1,24 @@
-import { esc, conMontosVisibles, montosOcultos, MONTO_OCULTO } from './util.js';
+import { esc, clp, conMontosVisibles, montosOcultos, MONTO_OCULTO } from './util.js';
 
 const dialogo = () => document.getElementById('dialogo');
+
+// "Reducir movimiento" del sistema: sin desplazamientos ni conteos, solo fundidos.
+const reducirMovimiento = matchMedia('(prefers-reduced-motion: reduce)');
+export const sinMovimiento = () => reducirMovimiento.matches;
+
+// El número cuenta desde el valor anterior hasta el nuevo, frenando al final:
+// así se ve que el gasto se descontó o que la plata entró.
+export function contarHasta(el, desde, hasta, duracion = 650) {
+  const inicio = performance.now();
+  const paso = ahora => {
+    if (!el.isConnected) return;
+    const t = Math.min(1, (ahora - inicio) / duracion);
+    const avance = 1 - Math.pow(2, -10 * t);
+    el.textContent = clp(desde + (hasta - desde) * (t === 1 ? 1 : avance));
+    if (t < 1) requestAnimationFrame(paso);
+  };
+  requestAnimationFrame(paso);
+}
 
 // Con el ojo cerrado, un lector de pantalla diría "dólar punto punto…":
 // cada monto oculto pasa a leerse como "monto oculto".
@@ -128,11 +146,17 @@ export function confirmar(mensaje) {
   return Promise.resolve(window.confirm(mensaje));
 }
 
+// Para los logros que se lo ganan (terminar una deuda, que te paguen todo):
+// la moneda cae y se dibuja un check. Lo de todos los días no se celebra.
+const ICONO_LOGRO = `<svg class="icono-logro" viewBox="0 0 24 24" aria-hidden="true">
+  <circle class="logro-moneda" cx="12" cy="12" r="10"/><path class="logro-check" d="M7.5 12.5l3 3 6-6.5"/></svg>`;
+
 let temporizador;
 export function avisar(texto, tipo = 'ok') {
   const el = document.getElementById('aviso');
   el.textContent = texto;
   anunciarMontosOcultos(el);
+  if (tipo === 'logro') el.insertAdjacentHTML('afterbegin', ICONO_LOGRO);
   el.dataset.tipo = tipo;
   el.classList.add('visible');
   clearTimeout(temporizador);
@@ -152,10 +176,10 @@ export const ICONO_ESTADO = { ok: '', alerta: '⚠ Cerca del tope', excedido: '�
 
 // Ejecuta una acción que guarda datos, avisa si falla (por ejemplo, sin
 // internet) y vuelve a dibujar la pantalla.
-export async function ejecutar(accion, mensajeOk, refrescar) {
+export async function ejecutar(accion, mensajeOk, refrescar, tipo = 'ok') {
   try {
     await accion();
-    if (mensajeOk) avisar(mensajeOk);
+    if (mensajeOk) avisar(mensajeOk, tipo);
   } catch (e) {
     console.error(e);
     avisar('No se pudo guardar: ' + (e.message || e), 'error');

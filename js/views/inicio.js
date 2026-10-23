@@ -1,8 +1,8 @@
 import { datos, guardar } from '../db.js';
 import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision, cobrosDeHoy } from '../calculos.js';
 import { graficoRitmo } from '../graficos.js';
-import { ejecutar, barraProgreso, ICONO_ESTADO } from '../ui.js';
-import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje } from '../util.js';
+import { ejecutar, barraProgreso, ICONO_ESTADO, contarHasta, sinMovimiento } from '../ui.js';
+import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos } from '../util.js';
 import { filaMovimiento, montarFilas } from './movimientos.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
@@ -44,7 +44,7 @@ export function render() {
   return `
     <section class="tarjeta hero hero-salvia" aria-labelledby="titulo-disponible">
       <p class="hero-etiqueta" id="titulo-disponible">${enRojo ? 'Este mes se fue más de lo planeado' : 'Hoy puedes gastar'}</p>
-      <p class="hero-numero">${clp(enRojo ? -d.restante : d.porDia)}</p>
+      <p class="hero-numero"${montosOcultos() ? '' : ` data-valor="${Math.round(enRojo ? -d.restante : d.porDia)}" data-tipo="${enRojo ? 'rojo' : 'por-dia'}"`}>${clp(enRojo ? -d.restante : d.porDia)}</p>
       <p class="hero-detalle">${enRojo
         ? 'Lo que gastes desde ahora sale del ahorro o de deuda. Mañana partimos de nuevo: anota lo justo y el próximo mes se ordena.'
         : `Te quedan <b>${clp(d.restante)}</b> para ${d.diasRestantes} ${d.diasRestantes === 1 ? 'día' : 'días'} de ${esc(nombreMes(mes, false))}.`}</p>
@@ -163,7 +163,25 @@ export function render() {
   `;
 }
 
+// El último número del día que se mostró, para contar desde ahí cuando cambia.
+// Solo se compara con uno del mismo día y del mismo tipo: en rojo el número es
+// lo que te pasaste, no lo que puedes gastar.
+let anterior = null;
+
+function animarNumero(el) {
+  const actual = el?.dataset.valor === undefined ? null
+    : { valor: Number(el.dataset.valor), tipo: el.dataset.tipo, dia: hoyISO() };
+  const comparable = actual && anterior && anterior.tipo === actual.tipo && anterior.dia === actual.dia;
+  if (comparable && actual.valor !== anterior.valor && !sinMovimiento()) {
+    contarHasta(el, anterior.valor, actual.valor);
+    // Si entró plata (puedes gastar más hoy), la moneda brilla junto al número.
+    if (actual.tipo === 'por-dia' && actual.valor > anterior.valor) el.classList.add('sube');
+  }
+  anterior = actual;
+}
+
 export function montar(raiz, refrescar) {
+  animarNumero(raiz.querySelector('.hero-numero'));
   montarFilas(raiz, refrescar);
   raiz.querySelectorAll('[data-pagar-cobro]').forEach(b => b.addEventListener('click', () => registrarPago(datos.cobros.find(c => c.id === b.dataset.pagarCobro), refrescar)));
   raiz.querySelectorAll('[data-pagar]').forEach(b => b.addEventListener('click', () => {

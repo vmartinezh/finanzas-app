@@ -163,6 +163,7 @@ export async function editarMovimiento(mov, refrescar) {
   }
   fila.estado = fila.categoria_id || fila.tipo === 'ingreso' ? 'clasificado' : 'pendiente';
 
+  let deudaTerminada = null;
   await ejecutar(async () => {
     await guardar('movimientos', fila);
     if (fila.comercio && fila.categoria_id) await aprender(fila.comercio, fila.categoria_id);
@@ -176,9 +177,12 @@ export async function editarMovimiento(mov, refrescar) {
     // Un pago nuevo de deuda baja el saldo (después lo puedes ajustar con la cartola).
     if (fila.deuda_id && (nuevo || fila.deuda_id !== m.deuda_id)) {
       const d = datos.deudas.find(x => x.id === fila.deuda_id);
-      if (d) await guardar('deudas', { ...d, saldo: Math.max(0, (d.saldo || 0) - fila.monto) });
+      const saldo = Math.max(0, (d?.saldo || 0) - fila.monto);
+      if (d) await guardar('deudas', { ...d, saldo });
+      if (d?.saldo > 0 && saldo === 0) deudaTerminada = d;
     }
   }, mensaje, refrescar);
 
+  if (deudaTerminada) return avisar(`Terminaste de pagar ${deudaTerminada.nombre}.`, 'logro');
   if (fila.estado === 'pendiente' && fila.tipo === 'gasto') avisar('Guardado. Quedó "por revisar" porque no supe la categoría.');
 }

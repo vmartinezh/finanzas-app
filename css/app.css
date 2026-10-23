@@ -15,6 +15,10 @@
   --salvia-texto-2: #33402e;
   --salvia-velo: rgb(255 255 255 / .35);
   --logo-borde: transparent;
+  --moneda: #e9b23a;
+  --moneda-anillo: #b07e14;
+  /* Frena al llegar: para lo que entra o se mueve con intención. */
+  --frenar: cubic-bezier(.16, 1, .3, 1);
   --acento: #46583f;
   --acento-texto: #ffffff;
   --acento-suave: #dfe7da;
@@ -542,3 +546,92 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 }
 .vista-previa:empty { display: none; }
 @media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
+
+/* ── Movimiento: "la plata se mueve" ──────────────
+   Lo importante es el número del día: cuenta hasta su valor nuevo (ui.js,
+   contarHasta). Lo demás es rápido y solo explica qué pasó. */
+
+/* Al presionar, los botones se hunden un poco. El "+" un poco más. */
+.boton, .boton-icono, .boton-mas, .boton-ojo, .boton-agregar, .chip, .nav-inferior a, .fila-boton {
+  transition: transform .12s var(--frenar);
+}
+:is(.boton, .boton-icono, .boton-mas, .boton-ojo, .chip, .nav-inferior a):active:not(:disabled) { transform: scale(.96); }
+.fila-boton:active { transform: scale(.985); }
+.boton-agregar:active { transform: scale(.9); }
+
+/* El número del día: si entró plata, la moneda brilla un instante a su lado. */
+.hero-numero { position: relative; }
+.hero-numero.sube::after {
+  content: ""; position: absolute; top: .12em; margin-left: .14em;
+  width: .3em; height: .3em; border-radius: 50%;
+  background: var(--moneda); box-shadow: inset 0 0 0 .045em var(--moneda-anillo);
+  animation: brillo-moneda 1.2s var(--frenar) .35s both;
+}
+@keyframes brillo-moneda {
+  0% { opacity: 0; transform: translateY(-.5em) scale(.5); }
+  30%, 70% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: scale(.8); }
+}
+
+/* Diálogos: aparecen al centro en pantallas anchas; en el celular suben como
+   una hoja. Al cerrar bajan, más rápido de lo que subieron: el diálogo ya está
+   cerrado (no bloquea la pantalla) y solo se ve salir. Donde el navegador no
+   tiene "overlay", simplemente desaparece. */
+dialog[open] { animation: aparecer .28s var(--frenar); }
+dialog[open]::backdrop { animation: fundir .28s ease-out; }
+dialog, dialog::backdrop {
+  transition: opacity .18s ease-in, transform .18s ease-in,
+    overlay .18s ease-in allow-discrete, display .18s ease-in allow-discrete;
+}
+dialog:not([open]) { opacity: 0; transform: translateY(8px) scale(.98); }
+dialog:not([open])::backdrop { opacity: 0; }
+@keyframes aparecer { from { opacity: 0; transform: translateY(12px) scale(.98); } }
+@keyframes fundir { from { opacity: 0; } }
+@media (max-width: 480px) {
+  dialog[open] { animation: subir .34s var(--frenar); }
+  dialog:not([open]) { opacity: 1; transform: translateY(100%); }
+}
+@keyframes subir { from { transform: translateY(100%); } }
+
+/* Al llegar a una pantalla, las barras de presupuesto y de cupo se llenan
+   (con un recorte, para no aplastar las puntas redondas). */
+.recien-llegado .progreso div { animation: llenar .7s var(--frenar) .05s both; }
+@keyframes llenar { from { clip-path: inset(0 100% 0 0 round 4px); } to { clip-path: inset(0 0 0 0 round 4px); } }
+
+/* El ojo: la pantalla se desenfoca al taparla y se enfoca al volver. */
+#vista { transition: filter .22s ease-out, opacity .22s ease-out; }
+#vista.velando { filter: blur(6px); opacity: .55; transition-duration: .14s; }
+
+/* Aviso de logro: la moneda cae y se dibuja el check. */
+.aviso[data-tipo="logro"] { display: flex; align-items: center; gap: 10px; }
+.icono-logro { flex: none; width: 26px; height: 26px; overflow: visible; }
+.logro-moneda { fill: var(--moneda); animation: caer-moneda .5s var(--frenar) .1s both; }
+.logro-check {
+  fill: none; stroke: #1f281c; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 14; stroke-dashoffset: 14; animation: trazar .35s ease-out .5s forwards;
+}
+@keyframes caer-moneda { from { opacity: 0; transform: translateY(-18px); } 60% { opacity: 1; } }
+@keyframes trazar { to { stroke-dashoffset: 0; } }
+
+/* Cambiar de pantalla (donde hay View Transitions): el contenido se funde y la
+   pestaña activa se desliza en la barra inferior. La barra y el encabezado no se mueven. */
+.barra-superior { view-transition-name: barra-superior; }
+.nav-inferior { view-transition-name: nav-inferior; }
+.nav-inferior a[aria-current="page"] { view-transition-name: pestana-activa; }
+::view-transition-old(root) { animation: .14s ease-in both salir-vista; }
+::view-transition-new(root) { animation: .26s var(--frenar) both entrar-vista; }
+::view-transition-group(pestana-activa) { animation-duration: .32s; animation-timing-function: var(--frenar); }
+@keyframes salir-vista { to { opacity: 0; } }
+@keyframes entrar-vista { from { opacity: 0; transform: translateY(6px); } }
+
+/* Reducir movimiento: sin desplazamientos, conteos ni hundimientos. Los cambios
+   se siguen notando con fundidos. */
+@media (prefers-reduced-motion: reduce) {
+  :is(.boton, .boton-icono, .boton-mas, .boton-ojo, .boton-agregar, .chip, .nav-inferior a, .fila-boton):active { transform: none; }
+  dialog[open] { animation: fundir .2s ease-out; }
+  dialog, dialog::backdrop { transition: none; }
+  .recien-llegado .progreso div { animation: none; }
+  .hero-numero.sube::after { display: none; }
+  .logro-moneda { animation: fundir .3s ease-out both; }
+  .logro-check { animation: fundir .3s ease-out .2s both; stroke-dashoffset: 0; }
+}
