@@ -63,9 +63,6 @@
     <a href="#/movimientos" data-ruta="movimientos">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M5 12h14M5 17h9"/></svg><span>Gastos</span>
     </a>
-    <button id="boton-agregar" class="boton-agregar" aria-label="Agregar gasto">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
     <a href="#/presupuesto" data-ruta="presupuesto">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4v8l5.5 5.5"/></svg><span>Presupuesto</span>
     </a>
@@ -73,6 +70,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19l5-6 4 3 7-9"/><path d="M15 7h5v5"/></svg><span>Plan</span>
     </a>
   </nav>
+  <!-- La acción principal va fuera de la barra: la barra es solo para moverse entre secciones. -->
+  <button id="boton-agregar" class="boton-agregar" aria-label="Agregar gasto">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span aria-hidden="true">Gasto</span>
+  </button>
 
   <dialog id="dialogo"><form method="dialog" id="dialogo-form"></form></dialog>
   <div id="aviso" class="aviso" role="status" aria-live="polite"></div>

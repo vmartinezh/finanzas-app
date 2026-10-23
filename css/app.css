@@ -114,10 +114,12 @@ body {
   font-family: var(--fuente);
   font-size: 16px;
   line-height: 1.45;
-  padding-bottom: calc(var(--nav-alto) + 40px + env(safe-area-inset-bottom));
+  /* Espacio para la barra y, sobre ella, el botón de agregar. */
+  padding-bottom: calc(var(--nav-alto) + 100px + env(safe-area-inset-bottom));
 }
-body.sin-sesion .nav-inferior, body.sin-sesion .boton-mas, body.sin-sesion .boton-ojo,
-body.cargando .nav-inferior, body.cargando .boton-mas, body.cargando .boton-ojo { display: none; }
+body.sin-sesion, body.cargando { padding-bottom: 40px; }
+body.sin-sesion .nav-inferior, body.sin-sesion .boton-mas, body.sin-sesion .boton-ojo, body.sin-sesion .boton-agregar,
+body.cargando .nav-inferior, body.cargando .boton-mas, body.cargando .boton-ojo, body.cargando .boton-agregar { display: none; }
 .cargando-texto { text-align: center; color: var(--texto-3); margin-top: 30vh; }
 
 h1, h2, h3 { margin: 0; line-height: 1.2; }
@@ -178,7 +180,7 @@ main:focus { outline: none; }
   left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
   max-width: 520px; margin: 0 auto;
   height: var(--nav-alto);
-  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center;
   padding: 0 6px;
   background: var(--nav-fondo);
   border-radius: 24px;
@@ -186,17 +188,27 @@ main:focus { outline: none; }
 }
 .nav-inferior a {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  /* Toda la celda se puede tocar, de 54px de alto. */
   min-height: 54px; margin: 0 2px; border-radius: 16px;
-  color: var(--nav-icono); text-decoration: none; font-size: .66rem; font-weight: 600;
+  color: var(--nav-icono); text-decoration: none; font-size: .72rem; font-weight: 600;
 }
 .nav-inferior svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
-.nav-inferior a[aria-current="page"] { color: var(--nav-activo); background: rgb(255 255 255 / .1); }
+/* La pestaña activa no depende solo del color: etiqueta en negrita, ícono más grueso y fondo. */
+.nav-inferior a[aria-current="page"] { color: var(--nav-activo); background: rgb(255 255 255 / .1); font-weight: 800; }
+.nav-inferior a[aria-current="page"] svg { stroke-width: 2.5; }
+/* Agregar un gasto: la acción principal, flotando sobre la barra al alcance del pulgar. */
 .boton-agregar {
-  justify-self: center; width: 52px; height: 52px; border-radius: 18px; border: none;
-  display: grid; place-items: center; cursor: pointer;
-  background: #a8b9a0; color: #1f281c;
+  position: fixed; z-index: 11;
+  /* Alineado con el borde derecho de la barra (100% no cuenta la barra de desplazamiento). */
+  right: calc(max(12px, (100% - 520px) / 2) + 4px);
+  bottom: calc(24px + var(--nav-alto) + env(safe-area-inset-bottom));
+  height: 52px; padding: 0 20px 0 16px; border-radius: 18px; border: none;
+  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  background: #a8b9a0; color: #1f281c; font: inherit; font-weight: 800; font-size: 1rem;
+  box-shadow: 0 10px 24px rgb(0 0 0 / .2);
+  view-transition-name: boton-agregar;
 }
-.boton-agregar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2.3; stroke-linecap: round; }
+.boton-agregar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
 
 /* ── Tarjetas ───────────────────────────────────── */
 .tarjeta {
@@ -380,7 +392,7 @@ dialog .espacio { flex: 1; }
 .aviso {
   /* Encima de todo, también de la pantalla de carga: un aviso temprano no se pierde. */
   position: fixed; left: 50%; z-index: 60;
-  bottom: calc(var(--nav-alto) + 28px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-alto) + 90px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   max-width: calc(100vw - 32px); width: max-content;
   padding: 10px 16px; border-radius: 12px;
@@ -597,6 +609,7 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 /* El nombre se acomoda al ancho de la tarjeta (width 0 + min-width 100%): no la estira. */
 .mis-tarjetas-pie { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; font-size: .85rem; width: 0; min-width: 100%; }
 .mis-tarjetas-pie b { font-weight: 600; line-height: 1.3; }
+.mis-tarjetas-acciones { display: flex; flex-direction: column; align-items: flex-end; }
 .mis-tarjetas-pie .boton-texto { min-height: 32px; font-size: .8rem; }
 .elegir-tarjeta { display: flex; flex-direction: column; gap: 10px; }
 .elegir-tipo {
@@ -659,7 +672,7 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 }
 :is(.boton, .boton-icono, .boton-mas, .boton-ojo, .chip, .nav-inferior a):active:not(:disabled) { transform: scale(.96); }
 .fila-boton:active { transform: scale(.985); }
-.boton-agregar:active { transform: scale(.9); }
+.boton-agregar:active { transform: scale(.95); }
 
 /* El número del día: si entró plata, la moneda brilla un instante a su lado. */
 .hero-numero { position: relative; }

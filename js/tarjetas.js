@@ -6,6 +6,7 @@
 // En el perfil cada tarjeta se guarda como 'banco' o 'banco:tipo' ('cmr:elite').
 import { esc } from './util.js';
 import { sinMovimiento } from './ui.js';
+import { separarTarjeta } from './beneficios.js';
 
 // ── Arte dibujado (SVG), para no copiar las fotos de las tarjetas ─────────────
 // Un generador simple y fijo: la misma tarjeta siempre se ve igual.
@@ -123,11 +124,6 @@ const GENERICAS = {
   'lider-bci': 'linear-gradient(135deg, #0071ce, #00468a)',
 };
 
-export const separarTarjeta = id => {
-  const [banco, tipo = null] = String(id).split(':');
-  return { banco, tipo };
-};
-
 export const tipoDe = id => {
   const { banco, tipo } = separarTarjeta(id);
   return TIPOS[banco]?.find(t => t.id === tipo) ?? null;
@@ -137,11 +133,17 @@ const CHIP = `<svg class="t-chip" viewBox="0 0 30 22" aria-hidden="true"><rect w
   <path d="M0 8h9M0 14h9M21 8h9M21 14h9M9 0v22M21 0v22M9 11h12" stroke="rgb(0 0 0 / .28)" stroke-width="1" fill="none"/></svg>`;
 const SIN_CONTACTO = `<svg class="t-sin-contacto" viewBox="0 0 16 20" aria-hidden="true"><path d="M3 4c3 3 3 9 0 12M7 2c4.5 4.5 4.5 11.5 0 16M11 0c6 6 6 14 0 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
 
+const artes = new Map();
+const arteDe = (id, t) => {
+  if (!artes.has(id)) artes.set(id, t.arte());
+  return artes.get(id);
+};
+
 // La tarjeta dibujada. nombreBanco: como aparece en el catálogo ("CMR Falabella").
 export function tarjetaHTML(id, nombreBanco, { chica = false } = {}) {
   const { banco } = separarTarjeta(id);
   const t = tipoDe(id) ?? { nombre: '', forma: 'horizontal', fondo: GENERICAS[banco] ?? 'linear-gradient(135deg, #46583f, #232d20)', tinta: '#fff' };
-  const arte = t.arte ? `<svg class="t-arte" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${t.arte()}</svg>` : '';
+  const arte = t.arte ? `<svg class="t-arte" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${arteDe(id, t)}</svg>` : '';
   const conBanda = Boolean(t.banda);
   // En la tarjeta, el tipo sin la red que ya está escrita aparte: "Visa Infinite" → "Infinite".
   const tipoEnTarjeta = t.red ? t.nombre.replace(/^(?:Visa|Mastercard)\s*/i, '').trim() : t.nombre;

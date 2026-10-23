@@ -1,7 +1,7 @@
 import { datos, guardarPerfil } from '../db.js';
-import { TARJETAS, RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo } from '../beneficios.js';
+import { TARJETAS, RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo, separarTarjeta, agregarTarjeta } from '../beneficios.js';
 import { ejecutar } from '../ui.js';
-import { TIPOS, separarTarjeta, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
+import { TIPOS, tipoDe, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
 import { clp, esc, hoyISO, sumarDias, fechaCorta, conMontosVisibles } from '../util.js';
 
 export const titulo = 'Descuentos';
@@ -31,15 +31,18 @@ export function filaBeneficio(b, { conTarjeta = true } = {}) {
 }
 
 // null: mirando · true: eligiendo el banco · 'cmr': eligiendo el tipo de ese banco.
+// Al salir de Descuentos se cierra el selector.
 let eligiendo = null;
+window.addEventListener('hashchange', () => { eligiendo = null; });
 
 const bancoDelCatalogo = id => TARJETAS.find(t => t.id === separarTarjeta(id).banco);
 const nombreBanco = id => bancoDelCatalogo(id)?.nombre ?? 'Tarjeta';
 function nombreConTipo(id) {
-  const { banco, tipo } = separarTarjeta(id);
-  const elTipo = TIPOS[banco]?.find(t => t.id === tipo);
-  return elTipo ? `${nombreBanco(id)} ${elTipo.nombre}` : nombreBanco(id);
+  const tipo = tipoDe(id);
+  return tipo ? `${nombreBanco(id)} ${tipo.nombre}` : nombreBanco(id);
 }
+// Guardada antes de que existieran los tipos: se puede completar sin quitarla.
+const faltaTipo = id => !separarTarjeta(id).tipo && Boolean(TIPOS[id]);
 
 function elegirHTML(mias) {
   if (eligiendo === true) {
@@ -83,7 +86,8 @@ export function render() {
       ${mias.length ? `<ul class="mis-tarjetas">${mias.map(id => `
         <li>
           ${tarjetaHTML(id, nombreBanco(id))}
-          <span class="mis-tarjetas-pie"><b>${esc(nombreConTipo(id))}</b><button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span>
+          <span class="mis-tarjetas-pie"><b>${esc(nombreConTipo(id))}</b><span class="mis-tarjetas-acciones">${faltaTipo(id)
+            ? `<button class="boton-texto" data-completar="${esc(id)}">Elegir tipo</button>` : ''}<button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span></span>
         </li>`).join('')}</ul>`
       : eligiendo ? '' : '<p class="ayuda">Agrega las tarjetas que tienes y te muestro en qué tienes descuento cada día.</p>'}
       ${eligiendo ? elegirHTML(mias) : ''}
@@ -118,15 +122,21 @@ export function montar(raiz, refrescar) {
     if (TIPOS[banco]) { eligiendo = banco; refrescar(); return; }
     eligiendo = null;
     const actuales = datos.perfil.tarjetas || [];
-    if (actuales.includes(banco)) refrescar();
-    else guardarTarjetas([...actuales, banco]);
+    const nuevas = agregarTarjeta(actuales, banco);
+    if (nuevas === actuales) refrescar();
+    else guardarTarjetas(nuevas);
   }));
   raiz.querySelectorAll('[data-agregar]').forEach(b => b.addEventListener('click', () => {
     eligiendo = null;
-    const id = b.dataset.agregar;
     const actuales = datos.perfil.tarjetas || [];
-    if (!actuales.includes(id)) guardarTarjetas([...actuales, id]);
-    else refrescar();
+    const nuevas = agregarTarjeta(actuales, b.dataset.agregar);
+    if (nuevas === actuales) refrescar();
+    else guardarTarjetas(nuevas);
+  }));
+  // Una tarjeta guardada solo con el banco: elegir el tipo la reemplaza en su lugar.
+  raiz.querySelectorAll('[data-completar]').forEach(b => b.addEventListener('click', () => {
+    eligiendo = b.dataset.completar;
+    refrescar();
   }));
   raiz.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', () => {
     guardarTarjetas((datos.perfil.tarjetas || []).filter(t => t !== b.dataset.quitar));

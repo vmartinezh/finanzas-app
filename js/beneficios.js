@@ -168,12 +168,27 @@ export function diaSemana(fechaISO) {
 // son porcentaje ("$100 por litro", "2x1") quedan al final.
 const valor = b => Number(/(\d+)%/.exec(b.descuento)?.[1] ?? 0);
 
+// Una tarjeta del perfil es 'banco' o 'banco:tipo' ('cmr:elite', ver js/tarjetas.js).
+export const separarTarjeta = id => {
+  const [banco, tipo = null] = String(id).split(':');
+  return { banco, tipo };
+};
+
+// Agrega una tarjeta a la lista del perfil. Si ya estaba la del mismo banco sin
+// tipo ('cmr', de antes de que existieran los tipos), la reemplaza en su lugar.
+export function agregarTarjeta(lista, id) {
+  if (lista.includes(id)) return lista;
+  const { banco } = separarTarjeta(id);
+  if (banco !== id && lista.includes(banco)) return lista.map(t => (t === banco ? id : t));
+  return [...lista, id];
+}
+
 // Los descuentos de tus tarjetas que sirven en una fecha: primero los que
 // son solo de ese día (los que hay que aprovechar), después los de todos los
 // días; dentro de cada grupo, los más altos primero.
 export function beneficiosDelDia(tarjetas, fechaISO) {
   const dia = diaSemana(fechaISO);
-  const mias = new Set(tarjetas.map(t => String(t).split(':')[0]));
+  const mias = new Set(tarjetas.map(t => separarTarjeta(t).banco));
   return BENEFICIOS
     .filter(b => mias.has(b.tarjeta) && (!b.hasta || b.hasta >= fechaISO))
     .filter(b => !b.dias.length || b.dias.includes(dia))
