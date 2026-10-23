@@ -285,6 +285,9 @@ Suaves y redondeados, nunca agresivos.
 ### Hero salvia (signature)
 El número del día. Bloque salvia de borde a borde con la etiqueta, el número en display, una línea de detalle y un desglose plegable (`details`) con el cálculo paso a paso. Debajo va el **estado de ritmo**: una franja con velo blanco (`salvia-velo`), 16px de radio y un ícono, que dice si vas bien o te estás adelantando. Si el número es negativo no se pinta de rojo dentro del bloque: el texto lo dice.
 
+### Tarjeta de banco (por construir)
+Elegida por el usuario: el estilo de [tilt-card](https://spell.sh/docs/tilt-card). Una tarjeta que se inclina en 3D siguiendo el puntero o el dedo (unos 15°), se agranda apenas (1,05) y lleva un brillo que sigue al puntero. Se hace con CSS y JavaScript propios (sin React), en la paleta salvia y con la moneda del logo. Muestra solo el banco, el tipo y los últimos 4 dígitos, nunca el número completo ni el vencimiento. Con el ojo cerrado, el cupo y el saldo van como `$•••••`. Con "reducir movimiento" queda quieta y conserva un brillo suave. Es la única excepción a "las tres cosas que flotan": se eleva solo mientras se toca.
+
 ### Progreso de presupuesto
 Pista de 8px en papel gastado con relleno verde, ámbar al 80% y rojo al pasarse. Siempre va acompañada del texto del estado, nunca solo el color.
 
