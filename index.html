@@ -23,6 +23,23 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body class="cargando">
+  <!-- Pantalla de carga: el logo (icons/icon.svg) dibujado por partes para animarlo (js/carga.js). -->
+  <div id="carga" class="carga" role="status" aria-label="Cargando Simplifika">
+    <svg class="logo-carga" viewBox="70 50 400 410" aria-hidden="true">
+      <g class="globo">
+        <rect x="96" y="104" width="320" height="272" rx="72"/>
+        <path d="M156 340 Q152 408 118 440 Q194 426 238 368 Z"/>
+        <g class="puntos"><circle cx="196" cy="240" r="22"/><circle cx="256" cy="240" r="22"/><circle cx="316" cy="240" r="22"/></g>
+        <g class="letra-k"><path pathLength="1" d="M210 157 V319"/><path pathLength="1" d="M216 279 L288 223"/><path pathLength="1" d="M240 261 L302 319"/></g>
+      </g>
+      <g class="moneda-carga">
+        <circle cx="390" cy="130" r="48"/>
+        <circle class="anillo" cx="390" cy="130" r="33"/>
+        <path class="brillo" d="M360 120 A32 32 0 0 1 380 100"/>
+      </g>
+    </svg>
+    <p class="marca-carga">simplifika</p>
+  </div>
   <header class="barra-superior">
     <a class="logo" href="#/inicio" aria-label="Ir al inicio">
       <img class="logo-marca" src="icons/icon.svg" alt="" width="32" height="32">

@@ -224,7 +224,8 @@ Los diálogos se centran en pantallas anchas (máximo 520px). Bajo 480px suben d
 - **Al presionar:** los botones se hunden a 0,96 (el "+" a 0,9).
 - **El ojo:** la pantalla se desenfoca al cerrar y se enfoca al abrir.
 - **Logros:** solo terminar una deuda o que te paguen todo. La moneda cae y se dibuja un check en el aviso. Lo de todos los días no se celebra.
-- **Reducir movimiento:** sin desplazamientos, conteos ni hundimientos; los cambios se notan con fundidos.
+- **Pantalla de carga ("el compañero escribe"):** fondo musgo como el ícono; el globo aparece con tres puntos que escriben, se juntan en la k, la k se traza y cae la moneda (~2 s, solo la primera vez del día). Las demás veces el logo sale quieto y se funde apenas hay datos. Si la app nunca la quita, se rinde sola a los 8 s.
+- **Reducir movimiento:** sin desplazamientos, conteos ni hundimientos; los cambios se notan con fundidos. La pantalla de carga sale quieta.
 
 ## Elevation & Depth
 

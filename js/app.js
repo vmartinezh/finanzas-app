@@ -4,6 +4,7 @@ import { activarTooltips } from './graficos.js';
 import { avisar, anunciarMontosOcultos, sinMovimiento } from './ui.js';
 import { esc, montosOcultos, ocultarMontos } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
+import { iniciarCarga, terminarCarga } from './carga.js';
 import { editarMovimiento } from './views/movimientos.js';
 
 import * as inicio from './views/inicio.js';
@@ -253,4 +254,12 @@ async function arrancar() {
   sincronizarAvisos();
 }
 
-arrancar();
+iniciarCarga();
+// La pantalla de carga se va cuando la app ya dibujó algo (datos, acceso o error).
+arrancar()
+  .catch(e => {
+    console.error(e);
+    document.body.classList.remove('cargando');
+    vista.innerHTML = `<div class="tarjeta error"><h2>Algo falló al abrir la app</h2><p>${esc(e.message)}</p><p>Vuelve a abrirla. Tus datos siguen guardados.</p></div>`;
+  })
+  .finally(terminarCarga);

@@ -378,7 +378,8 @@ dialog .espacio { flex: 1; }
 }
 
 .aviso {
-  position: fixed; left: 50%; z-index: 20;
+  /* Encima de todo, también de la pantalla de carga: un aviso temprano no se pierde. */
+  position: fixed; left: 50%; z-index: 60;
   bottom: calc(var(--nav-alto) + 28px + env(safe-area-inset-bottom));
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
   max-width: calc(100vw - 32px); width: max-content;
@@ -634,4 +635,63 @@ dialog:not([open])::backdrop { opacity: 0; }
   .hero-numero.sube::after { display: none; }
   .logro-moneda { animation: fundir .3s ease-out both; }
   .logro-check { animation: fundir .3s ease-out .2s both; stroke-dashoffset: 0; }
+}
+
+/* ── Pantalla de carga ────────────────────────────
+   El compañero escribe: el globo aparece con tres puntos "escribiendo…", los
+   puntos se vuelven la k y la moneda cae a su lugar; el globo da un saltito al
+   recibirla (~2 s). Fondo musgo, como el ícono de la app. Los colores son los del logo. */
+.carga {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: #46583f;
+  transition: opacity .3s ease-out;
+  /* Si el JavaScript no llegó a correr (js/carga.js le pone .animada o .quieta),
+     nadie la va a quitar: se rinde sola y queda el "Cargando…" de debajo. */
+  animation: rendirse 0s 8s forwards;
+}
+.carga.animada, .carga.quieta { animation: none; }
+.carga.saliendo { opacity: 0; pointer-events: none; }
+.carga.saliendo .logo-carga { transform: scale(1.06); transition: transform .3s var(--frenar); }
+@keyframes rendirse { to { opacity: 0; visibility: hidden; } }
+.logo-carga { width: 136px; height: auto; overflow: visible; }
+.logo-carga .globo { fill: #f2f5ef; transform-origin: 256px 270px; }
+.logo-carga .puntos { fill: #232d20; }
+.logo-carga .letra-k { fill: none; stroke: #232d20; stroke-width: 54; stroke-linecap: round; }
+.logo-carga .moneda-carga circle { fill: var(--moneda); }
+.logo-carga .moneda-carga .anillo { fill: none; stroke: var(--moneda-anillo); stroke-width: 6; }
+.logo-carga .moneda-carga .brillo { fill: none; stroke: #fff1c4; stroke-width: 7; stroke-linecap: round; }
+.marca-carga { margin: 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; color: #dfe7da; }
+
+/* Mientras js/carga.js decide (un instante), no se ve nada; si no corre, el logo sale igual. */
+.carga:not(.animada):not(.quieta) :is(.logo-carga, .marca-carga) { opacity: 0; animation: fundir-llegada .2s 1s forwards; }
+@keyframes fundir-llegada { to { opacity: 1; } }
+/* Quieta: el logo terminado, sin puntos. */
+.carga.quieta .puntos, .carga:not(.animada) .puntos { display: none; }
+
+/* Animada (primera vez del día). */
+.carga.animada .globo { animation: globo-aparece .35s var(--frenar) both, globo-salta .26s ease-out 1.85s; }
+/* Los puntos escriben y después se juntan en el trazo de la k (x = 210) antes de que se dibuje. */
+.carga.animada .puntos circle { animation: punto-aparece .2s ease-out .3s both, escribir .5s ease-in-out .45s 2, punto-se-junta .22s ease-in 1.3s forwards; }
+.carga.animada .puntos circle:nth-child(1) { --hacia-k: 14px; }
+.carga.animada .puntos circle:nth-child(2) { --hacia-k: -46px; animation-delay: .35s, .6s, 1.3s; }
+.carga.animada .puntos circle:nth-child(3) { --hacia-k: -106px; animation-delay: .4s, .75s, 1.3s; }
+.carga.animada .letra-k path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: trazar-k .25s ease-out 1.45s forwards; }
+.carga.animada .letra-k path:nth-child(2) { animation-delay: 1.58s; }
+.carga.animada .letra-k path:nth-child(3) { animation-delay: 1.64s; }
+.carga.animada .moneda-carga { animation: moneda-cae .35s cubic-bezier(.55, 0, 1, .45) 1.55s both, moneda-asienta .2s ease-out 1.9s; }
+.carga.animada .marca-carga { animation: fundir .4s ease-out 1.6s both; }
+@keyframes globo-aparece { from { opacity: 0; transform: scale(.6); } }
+@keyframes globo-salta { 40% { transform: translateY(10px) scale(1.02, .97); } }
+@keyframes punto-aparece { from { opacity: 0; transform: scale(0); } }
+@keyframes escribir { 30% { transform: translateY(-16px); } 60% { transform: none; } }
+@keyframes punto-se-junta { to { opacity: 0; transform: translateX(var(--hacia-k)) scale(.4); } }
+@keyframes trazar-k { to { stroke-dashoffset: 0; } }
+@keyframes moneda-cae { from { opacity: 0; transform: translateY(-260px); } 30% { opacity: 1; } }
+@keyframes moneda-asienta { 50% { transform: scale(1.1, .88); } }
+.logo-carga .puntos circle { transform-box: fill-box; transform-origin: center; }
+.logo-carga .moneda-carga { transform-box: fill-box; transform-origin: center bottom; }
+@media (prefers-reduced-motion: reduce) {
+  .carga.saliendo .logo-carga { transform: none; }
+  .carga:not(.animada):not(.quieta) :is(.logo-carga, .marca-carga) { opacity: 1; animation: none; }
 }
