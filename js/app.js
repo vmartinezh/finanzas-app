@@ -5,6 +5,7 @@ import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto } from
 import { esc, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
+import { activarRecarga } from './recargar.js';
 import { editarMovimiento } from './views/movimientos.js';
 
 import * as inicio from './views/inicio.js';
@@ -256,6 +257,7 @@ async function arrancar() {
 
 iniciarCarga();
 activarCamposMonto();
+activarRecarga();
 // La pantalla de carga se va cuando la app ya dibujó algo (datos, acceso o error).
 arrancar()
   .catch(e => {

@@ -818,3 +818,29 @@ dialog:not([open])::backdrop { opacity: 0; }
   .carga.saliendo .logo-carga { transform: none; }
   .carga:not(.animada):not(.quieta) :is(.logo-carga, .marca-carga) { opacity: 1; animation: none; }
 }
+
+/* Deslizar hacia abajo para actualizar (js/recargar.js), solo en la app instalada. */
+.tirar-actualizar {
+  position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%; z-index: 50;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px 8px 10px; border-radius: 999px;
+  background: var(--superficie); color: var(--texto); border: 1px solid var(--borde);
+  box-shadow: 0 6px 18px rgb(0 0 0 / .12);
+  font-size: .85rem; font-weight: 600; white-space: nowrap;
+  transform: translate(-50%, -60px); opacity: 0; pointer-events: none;
+  transition: transform .2s ease-out, opacity .2s ease-out;
+}
+.tirar-actualizar.activo { transition: none; }
+.tirar-actualizar svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4;
+  stroke-linecap: round; stroke-linejoin: round; transition: transform .2s ease-out;
+}
+.tirar-actualizar.listo { color: var(--acento); }
+.tirar-actualizar.listo svg { transform: rotate(180deg); }
+.tirar-actualizar.actualizando { transform: translate(-50%, 10px); opacity: 1; color: var(--acento); }
+.tirar-actualizar.actualizando svg { animation: girar-actualizar .8s linear infinite; }
+@keyframes girar-actualizar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .tirar-actualizar, .tirar-actualizar svg { transition: none; }
+  .tirar-actualizar.actualizando svg { animation: none; }
+}
