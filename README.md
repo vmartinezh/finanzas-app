@@ -89,7 +89,7 @@ En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso 
 
 ### 5. Gastos desde el correo (opcional, en desarrollo)
 
-Las compras con tarjeta llegan solas como "por revisar", desde los avisos de compra del banco. Un script corre en la cuenta de Google de cada persona ([`correo/simplifika.gs`](correo/simplifika.gs)) y le manda esos correos a la función `recibir-compra`, que saca monto, comercio y fecha con [`lectores.js`](supabase/functions/recibir-compra/lectores.js) y no guarda el correo. Funciona solo en modo nube.
+Las compras con tarjeta y las transferencias llegan solas como "por revisar", desde los avisos del banco. Las transferencias se leen de Santander y Mercado Pago (enviadas) y de Banco de Chile (recibidas); una que llega de alguien que te debe se propone como su pago en "Me deben". En Inicio, lo que la app ya sabe clasificar se confirma con un toque. Un script corre en la cuenta de Google de cada persona ([`correo/simplifika.gs`](correo/simplifika.gs)) y le manda esos correos a la función `recibir-compra`, que saca monto, comercio y fecha con [`lectores.js`](supabase/functions/recibir-compra/lectores.js) y no guarda el correo. Funciona solo en modo nube.
 
 1. Vuelve a correr `supabase/schema.sql` (crea la tabla `claves_ingreso`).
 2. En *Edge Functions → Deploy a new function → Via Editor*, crea `recibir-compra` con **dos archivos**: `index.ts` y `lectores.js`, copiados de [`supabase/functions/recibir-compra/`](supabase/functions/recibir-compra/). Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.

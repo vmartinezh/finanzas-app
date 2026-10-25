@@ -268,6 +268,9 @@ main:focus { outline: none; }
 .fila-texto small { font-size: .8rem; }
 .fila-boton-texto { background: none; border: none; padding: 0; text-align: left; cursor: pointer; }
 .fila.apagada { opacity: .55; }
+/* Fila de "Por revisar" con la categoría sugerida al lado, para confirmarla de un toque. */
+/* Va debajo del texto (alineado con él, después del ícono) para no apretar la fila. */
+.con-accion .confirmar { margin: -4px 0 10px 52px; }
 .icono-cat {
   flex: none; width: 38px; height: 38px; border-radius: 10px;
   display: grid; place-items: center; background: var(--superficie-2); font-size: 1.15rem;
@@ -335,7 +338,7 @@ main:focus { outline: none; }
 .boton.pequeño.secundario { background: var(--superficie-2); color: var(--texto-2); }
 .boton.ancho { width: 100%; }
 .boton:disabled { opacity: .5; }
-.botones { display: flex; flex-wrap: wrap; gap: 8px; }
+.botones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .boton-icono {
   width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--borde);
   background: var(--superficie); font-size: 1.4rem; cursor: pointer;

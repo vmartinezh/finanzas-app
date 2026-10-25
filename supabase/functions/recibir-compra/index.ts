@@ -1,9 +1,10 @@
-// Recibe un correo de compra que el script de Google de la persona encontró en su
-// Gmail (correo/simplifika.gs), saca el gasto con lectores.js y lo deja como
-// movimiento "por revisar". No guarda el correo: solo monto, comercio y fecha.
+// Recibe un aviso del banco (compra o transferencia) que el script de Google de
+// la persona encontró en su Gmail (correo/simplifika.gs), saca el movimiento
+// con lectores.js y lo deja "por revisar". No guarda el correo: solo monto,
+// comercio y fecha.
 //
 // La clave de ingreso identifica a la persona (en la base está solo su hash).
-// Con ella solo se pueden agregar gastos por revisar, no leer nada.
+// Con ella solo se pueden agregar movimientos por revisar, no leer nada.
 //
 // Publicar con "Verify JWT" desactivado (la función revisa su propia clave).
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
@@ -47,22 +48,22 @@ Deno.serve(async req => {
   if (errorClave) return responder({ error: errorClave.message }, 500);
   if (!dueno) return responder({ error: 'No autorizado' }, 401);
 
-  const gasto = leerCorreoDeCompra({ remitente, asunto, texto, fecha });
+  const movimiento = leerCorreoDeCompra({ remitente, asunto, texto, fecha });
   await supabase.from('claves_ingreso').update({ ultimo_uso: new Date().toISOString() }).eq('user_id', dueno.user_id);
-  if (!gasto) return responder({ anotado: false, motivo: 'no es una compra' });
+  if (!movimiento) return responder({ anotado: false, motivo: 'no es una compra ni una transferencia' });
 
   // El mismo correo dos veces queda una sola vez (unique user_id + id_externo).
   const { error } = await supabase.from('movimientos').upsert({
     user_id: dueno.user_id,
-    fecha: gasto.fecha,
-    monto: gasto.monto,
-    tipo: 'gasto',
-    comercio: gasto.comercio,
+    fecha: movimiento.fecha,
+    monto: movimiento.monto,
+    tipo: movimiento.tipo,
+    comercio: movimiento.comercio,
     descripcion: null,
     origen: 'correo',
     estado: 'pendiente',
     id_externo: `gmail:${id}`,
   }, { onConflict: 'user_id,id_externo', ignoreDuplicates: true });
   if (error) return responder({ error: error.message }, 500);
-  return responder({ anotado: true, lector: gasto.lector });
+  return responder({ anotado: true, lector: movimiento.lector });
 });

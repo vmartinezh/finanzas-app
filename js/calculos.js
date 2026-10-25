@@ -291,6 +291,22 @@ export function resumenMeDeben(hoy = hoyISO()) {
 export const cobrosDeHoy = (hoy = hoyISO()) =>
   resumenMeDeben(hoy).personas.flatMap(p => p.cobros).filter(x => x.e.situacion === 'atrasado' || x.e.situacion === 'hoy').sort(porUrgencia);
 
+// Para una transferencia que te llegó ("Transferencia de Catalina Pérez Soto"):
+// lo que te deben, primero lo de quien calza con ese nombre. Calza si cada
+// palabra del nombre que anotaste en "Me deben" es el comienzo de una palabra
+// del que transfirió: "Cata" y "Cata Pérez" calzan; "Diego", no. Es solo la
+// opción que aparece elegida: la persona la confirma.
+export function cobrosParaTransferencia(quien, hoy = hoyISO()) {
+  const palabras = normalizar(quien).replace(/^transferencia (a|de) /, '').split(/\s+/).filter(Boolean);
+  const calza = nombre => {
+    const suyas = normalizar(nombre).split(/\s+/).filter(Boolean);
+    return suyas.length > 0 && suyas.every(s => palabras.some(p => p.startsWith(s)));
+  };
+  return resumenMeDeben(hoy).personas.flatMap(p => p.cobros)
+    .map(x => ({ ...x, calza: calza(x.persona.nombre) }))
+    .sort((a, b) => b.calza - a.calza);
+}
+
 // Divide un gasto entre varias personas (y ti, si te incluyes) en partes
 // enteras que suman exacto. Los pesos que sobran los ponen los demás.
 export function dividirGasto(total, cuantos, meIncluyo) {

@@ -19,7 +19,7 @@
     // No toca tus datos: trabaja sobre datos en memoria.
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
-    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, dividirGasto } from '../js/calculos.js';
+    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
@@ -176,7 +176,7 @@
     const correo = (texto, extra = {}) => ({ remitente: 'Avisos <avisos@santander.cl>', asunto: 'Compra con tu tarjeta', texto, fecha: '2026-10-21', ...extra });
     prueba('Lee una compra escrita en una frase', () => {
       igual(leerCorreoDeCompra(correo('Se realizó una compra por $12.990 en UBER *TRIP el 21/10/2026 con tu tarjeta terminada en 1234.')),
-        { monto: 12990, comercio: 'UBER *TRIP', tarjeta: '1234', fecha: '2026-10-21', lector: 'general' });
+        { tipo: 'gasto', monto: 12990, comercio: 'UBER *TRIP', tarjeta: '1234', fecha: '2026-10-21', lector: 'general' });
     });
     prueba('Lee una compra en formato de ficha', () => {
       const g = leerCorreoDeCompra(correo('Monto: $ 45.500\nComercio: LIDER EXPRESS PROVIDENCIA\nFecha: 21/10/2026\nTarjeta: ****5678'));
@@ -194,6 +194,39 @@
     });
     prueba('Un aviso de compra con ofertas al pie igual se anota', () => {
       igual(leerCorreoDeCompra(correo('Se realizó una compra por $8.500 en STARBUCKS.\n\nConoce nuestras ofertas y promociones.')).monto, 8500);
+    });
+    // Transferencias: correos inventados con el formato de cada banco (los que
+    // vienen solo en HTML llegan con una palabra por línea).
+    const enLineas = texto => texto.split(' ').join('\n');
+    prueba('Lee una transferencia enviada desde Santander, y no la que es a tu propio nombre', () => {
+      const comprobante = destino => ({
+        remitente: 'Santander <mensajeria@santander.cl>', asunto: 'Comprobante Transferencia de fondos', fecha: '2026-10-18',
+        texto: `Comprobante\n Transferencia de fondos\n Estimado(a) ANA ROJAS PINO:\n Te enviamos el detalle de la transferencia realizada el 18/10/2026.\n Monto transferido\n $ 35.000\n Datos de origen\n Tipo de cuenta\n Cuenta Corriente\n Nº de cuenta\n 0-000-11-22333-0\n RUT\n 11.111.111-1\n Nombre\n ANA ROJAS PINO\n Comentario\n Datos de destino\n Nombre\n ${destino}\n RUT\n 22.222.222-2\n Banco\n Banco Estado\n Tipo de cuenta\n Cuenta Vista`,
+      });
+      igual(leerCorreoDeCompra(comprobante('Pedro Soto')),
+        { tipo: 'gasto', monto: 35000, comercio: 'Transferencia a Pedro Soto', tarjeta: null, fecha: '2026-10-18', lector: 'santander-transferencia' });
+      igual(leerCorreoDeCompra(comprobante('Ana Rojas Pino')), null, 'a su propio nombre:');
+      const otraCuenta = comprobante('Ana María Rojas Pino');
+      otraCuenta.texto = otraCuenta.texto.replace('22.222.222-2', '11.111.111-1');
+      igual(leerCorreoDeCompra(otraCuenta), null, 'mismo RUT, nombre escrito distinto:');
+    });
+    prueba('Lee una transferencia enviada desde Mercado Pago aunque venga una palabra por línea', () => {
+      const g = leerCorreoDeCompra({
+        remitente: 'Mercado Pago <info@mercadopago.cl>', asunto: '¡Enviamos tu transferencia!', fecha: '2026-10-25',
+        texto: enLineas('¡Enviamos tu transferencia! Ya enviamos tu transferencia de $ 10.000 Datos del beneficiario Nombre y apellido: Pedro Soto Entidad: Banco Estado Número de cuenta: 000011112222 Si no hiciste esta transferencia, avisanos'),
+      });
+      igual([g.tipo, g.monto, g.comercio], ['gasto', 10000, 'Transferencia a Pedro Soto']);
+    });
+    prueba('Lee una transferencia que te llegó (aviso de Banco de Chile) como ingreso', () => {
+      const g = leerCorreoDeCompra({
+        remitente: 'serviciodetransferencias@bancochile.cl', asunto: 'Aviso de transferencia de fondos', fecha: '2026-10-14',
+        texto: 'Comprobante de transferencia electrónica de fondos\n Estimado(a): Ana\n Te informamos que nuestro(a) cliente Catalina Pérez Soto ha efectuado una transferencia\n de fondos a tu cuenta con el siguiente detalle:\n Datos de cuenta\n Fecha\n 14/10/2026\n Monto\n $20.000\n Número de comprobante\n TEF000',
+      });
+      igual([g.tipo, g.monto, g.comercio, g.lector], ['ingreso', 20000, 'Transferencia de Catalina Pérez Soto', 'bancochile-transferencia-recibida']);
+    });
+    prueba('Una transferencia de un banco sin lector propio no se anota como compra', () => {
+      igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Transferencia realizada', remitente: 'avisos@bci.cl' })), null);
+      igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Comprobante de operación', remitente: 'avisos@bci.cl' })), null, 'aunque solo lo diga el cuerpo:');
     });
     prueba('Solo lee correos de bancos y con fecha válida', () => {
       igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { remitente: 'hola@tienda-falsa.cl' })), null);
@@ -413,6 +446,28 @@
           igual([r.total, r.atrasados, r.hoy], [175000, 1, 1]);
           igual(r.saldados.map(x => x.c.concepto), ['Pizza']);
           igual(cobrosDeHoy('2026-10-16').map(x => x.c.concepto), ['Zapatillas', 'Asado']);
+        });
+      } finally { Object.assign(datos, antes); }
+    });
+    prueba('Una transferencia que llega propone el cobro de quien la mandó', () => {
+      const antes = { personas: datos.personas, cobros: datos.cobros };
+      datos.personas = [{ id: 'diego', nombre: 'Diego' }, { id: 'cata', nombre: 'Cata' }, { id: 'ana', nombre: 'Ana María' }];
+      datos.cobros = [
+        { id: 'c1', persona_id: 'diego', concepto: 'Préstamo', monto_total: 60000, cuotas: 1, primer_vencimiento: '2026-10-10' },
+        { id: 'c2', persona_id: 'cata', concepto: 'Asado', monto_total: 20000, cuotas: 1, primer_vencimiento: '2026-10-30' },
+        { id: 'c3', persona_id: 'ana', concepto: 'Entradas', monto_total: 15000, cuotas: 1 },
+      ];
+      try {
+        conMovimientos([], () => {
+          const quien = t => cobrosParaTransferencia(t, '2026-10-16').filter(x => x.calza).map(x => x.c.concepto);
+          igual(quien('Transferencia de Catalina Pérez Soto'), ['Asado']);
+          igual(cobrosParaTransferencia('Transferencia de Catalina Pérez', '2026-10-16').map(x => x.c.concepto), ['Asado', 'Préstamo', 'Entradas'], 'el que calza va primero:');
+          igual(quien('Transferencia de ANA MARIA ROJAS'), ['Entradas'], 'sin tildes ni mayúsculas:');
+          igual(quien('Transferencia de Ana Rojas'), [], 'falta "María":');
+          igual(quien(''), []);
+          datos.personas.push({ id: 'tere', nombre: 'De la Fuente' });
+          datos.cobros.push({ id: 'c4', persona_id: 'tere', concepto: 'Libro', monto_total: 9000, cuotas: 1 });
+          igual(quien('Transferencia de Catalina Pérez'), ['Asado'], 'el "de" del comienzo no cuenta:');
         });
       } finally { Object.assign(datos, antes); }
     });

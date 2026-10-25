@@ -1,6 +1,7 @@
 import { datos, guardar, borrar } from '../db.js';
 import { clasificar, aprender } from '../clasificador.js';
-import { abrirFormulario, avisar, ejecutar } from '../ui.js';
+import { cobrosParaTransferencia, estadoCobro } from '../calculos.js';
+import { abrirFormulario, avisar, confirmar, ejecutar } from '../ui.js';
 import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
 export const titulo = 'Gastos';
@@ -42,12 +43,13 @@ export function render() {
     <p class="resumen-lista">${lista.length} movimientos · ${clp(totalGastos)} en gastos</p>
     ${lista.length ? [...porFecha].map(([fecha, movs]) => `
       <h3 class="separador-fecha">${esc(fechaCorta(fecha))}</h3>
-      <ul class="lista">${movs.map(filaMovimiento).join('')}</ul>`).join('')
+      <ul class="lista">${movs.map(m => filaMovimiento(m)).join('')}</ul>`).join('')
     : `<div class="vacio">No hay movimientos ${filtro === 'todos' ? 'este mes' : 'con este filtro'}.<br>Usa el botón <b>+</b> para agregar uno.</div>`}
   `;
 }
 
-export function filaMovimiento(m) {
+// accion: HTML de un botón al lado de la fila (en Inicio, "✓ Supermercado").
+export function filaMovimiento(m, accion = '') {
   const cat = datos.categorias.find(c => c.id === m.categoria_id);
   const evento = datos.eventos.find(e => e.id === m.evento_id);
   const nombre = m.descripcion || m.comercio || cat?.nombre || 'Sin descripción';
@@ -58,12 +60,12 @@ export function filaMovimiento(m) {
     // Llegó solo, desde el aviso de compra del banco (fase 2).
     m.origen === 'correo' ? 'del correo' : '',
   ].filter(Boolean).join(' · ');
-  return `<li>
+  return `<li${accion ? ' class="con-accion"' : ''}>
     <button class="fila" data-mov="${m.id}">
       <span class="icono-cat" aria-hidden="true">${esc(cat?.icono || (m.estado === 'pendiente' ? '❔' : '•'))}</span>
       <span class="fila-texto"><b>${esc(nombre)}</b><small>${detalle}</small></span>
       <span class="monto ${m.tipo}">${m.tipo === 'ingreso' ? '+' : ''}${clp(m.monto)}</span>
-    </button>
+    </button>${accion}
   </li>`;
 }
 
@@ -87,15 +89,27 @@ export function montarFilas(raiz, refrescar) {
   }));
 }
 
+// Una transferencia que hiciste ("Transferencia a …") puede ser plata que te
+// pasaste a ti mismo; esa no es un gasto. "Me la pasé yo" la borra: si el
+// mismo correo volviera a llegar, aparecería de nuevo por revisar.
+export const esTransferencia = mov => /^transferencia (a|de) /i.test(mov.comercio || '');
+
 // Para compras que llegaron solas: escribes qué fue y la app la clasifica.
 export async function darContexto(mov, refrescar) {
+  if (mov.tipo === 'ingreso') return darContextoIngreso(mov, refrescar);
+  const transferencia = esTransferencia(mov);
   const valores = await abrirFormulario({
-    titulo: '¿Qué fue esta compra?',
-    intro: `<b>${esc(clpVisible(mov.monto))}</b> en <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
-    campos: [{ nombre: 'descripcion', etiqueta: 'Cuéntame en tus palabras', tipo: 'textarea', placeholder: 'ej: uber al aeropuerto para lo del matri', requerido: true }],
+    titulo: transferencia ? '¿Para qué fue esta transferencia?' : '¿Qué fue esta compra?',
+    intro: `<b>${esc(clpVisible(mov.monto))}</b> ${transferencia ? '·' : 'en'} <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
+    campos: [
+      { nombre: 'descripcion', etiqueta: 'Cuéntame en tus palabras', tipo: 'textarea', placeholder: transferencia ? 'ej: mi parte del asado' : 'ej: uber al aeropuerto para lo del matri', requerido: !transferencia },
+      ...(transferencia ? [{ nombre: 'mias', etiqueta: 'Me la pasé yo, entre mis cuentas', tipo: 'checkbox', ayuda: 'No es un gasto: la saco de la lista.' }] : []),
+    ],
     textoGuardar: 'Listo',
   });
   if (!valores) return;
+  if (valores.mias) return ejecutar(() => borrar('movimientos', mov.id), 'Listo, no cuenta como gasto', refrescar);
+  if (!valores.descripcion) return editarMovimiento(mov, refrescar);
 
   const guess = clasificar({ comercio: mov.comercio, descripcion: valores.descripcion });
   if (!guess.categoria_id) {
@@ -108,6 +122,41 @@ export async function darContexto(mov, refrescar) {
     await guardar('movimientos', { ...mov, descripcion: valores.descripcion, categoria_id: guess.categoria_id, evento_id: guess.evento_id || mov.evento_id || null, estado: 'clasificado' });
     await aprender(mov.comercio, guess.categoria_id);
   }, `Ah, corresponde a ${cat.icono} ${cat.nombre}${evento ? ' · ' + evento.nombre : ''}`, refrescar);
+}
+
+// Plata que llegó sola: si quien la mandó te debía algo, se propone ese cobro.
+async function darContextoIngreso(mov, refrescar) {
+  const cobros = cobrosParaTransferencia(mov.comercio);
+  const sugerido = cobros.find(x => x.calza);
+  const valores = await abrirFormulario({
+    titulo: '¿De qué es esta plata?',
+    intro: `Te llegaron <b>${esc(clpVisible(mov.monto))}</b> · ${esc(mov.comercio || 'sin nombre')} · ${esc(fechaCorta(mov.fecha))}`,
+    campos: [{
+      nombre: 'es', etiqueta: 'Es…', tipo: 'select', valor: sugerido ? 'c:' + sugerido.c.id : 'otro',
+      opciones: [
+        ...cobros.map(x => ['c:' + x.c.id, `Lo que me debía ${x.persona.nombre}: ${x.c.concepto}`]),
+        ['otro', 'Otra cosa (sueldo, una venta, un regalo…)'],
+        ['mias', 'Me la pasé yo, entre mis cuentas'],
+      ],
+    }],
+    textoGuardar: 'Listo',
+  });
+  if (!valores) return;
+  if (valores.es === 'mias') return ejecutar(() => borrar('movimientos', mov.id), 'Listo, no cuenta como ingreso', refrescar);
+  const elegido = cobros.find(x => 'c:' + x.c.id === valores.es);
+  if (!elegido) return editarMovimiento(mov, refrescar);
+
+  const { c, e, persona } = elegido;
+  // Como al registrar un pago a mano: si es más de lo que falta, se pregunta.
+  if (mov.monto > e.pendiente && !(await confirmar(`Es más de lo que ${persona.nombre} te debe por "${c.concepto}" (${clpVisible(e.pendiente)}). ¿Registrarlo igual?`))) return;
+  await ejecutar(async () => {
+    await guardar('movimientos', {
+      ...mov, cobro_id: c.id, categoria_id: null, estado: 'clasificado',
+      descripcion: `Pago de ${persona.nombre} · ${c.concepto}`.slice(0, 200),
+    });
+    if (estadoCobro(c).saldado) avisar(`Listo: ${persona.nombre} ya te pagó todo "${c.concepto}".`, 'logro');
+    else avisar(`Listo, ${persona.nombre} te pagó ${clp(mov.monto)}.`);
+  }, null, refrescar);
 }
 
 export async function editarMovimiento(mov, refrescar) {

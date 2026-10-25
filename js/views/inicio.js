@@ -3,17 +3,51 @@ import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresu
 import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO, contarHasta, sinMovimiento } from '../ui.js';
 import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos, NOMBRE_APP } from '../util.js';
-import { filaMovimiento, montarFilas } from './movimientos.js';
+import { filaMovimiento, montarFilas, esTransferencia } from './movimientos.js';
+import { clasificar, aprender } from '../clasificador.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
 
 export const titulo = NOMBRE_APP;
 
+// Lo que llegó solo y la app ya sabe clasificar por el comercio se confirma con
+// un toque. Una transferencia solo se sugiere si ya la clasificaste antes a esa
+// misma persona: por palabras clave, "Transferencia a Juan Flores" sería Regalos.
+function sugerencia(m) {
+  if (m.tipo !== 'gasto' || !m.comercio) return null;
+  const s = clasificar({ comercio: m.comercio });
+  if (!s.categoria_id || (esTransferencia(m) && s.motivo !== 'como la última vez')) return null;
+  return datos.categorias.find(c => c.id === s.categoria_id) ? s : null;
+}
+
+function botonConfirmar(s) {
+  const cat = s && datos.categorias.find(c => c.id === s.categoria_id);
+  if (!cat) return '';
+  return `<button class="boton pequeño confirmar" data-confirmar="${esc(cat.id)}" data-evento="${esc(s.evento_id || '')}" aria-label="Confirmar en ${esc(cat.nombre)}">✓ ${esc(cat.icono)} ${esc(cat.nombre)}</button>`;
+}
+
+// Confirma lo que muestran los botones (no lo que se calcule después) y aprende
+// cada comercio una sola vez.
+async function confirmarSugerencias(botones) {
+  const elegidos = botones.map(b => ({
+    m: datos.movimientos.find(x => x.id === b.closest('li').querySelector('[data-mov]').dataset.mov),
+    categoria_id: b.dataset.confirmar,
+    evento_id: b.dataset.evento || null,
+  })).filter(x => x.m?.estado === 'pendiente');
+  await Promise.all(elegidos.map(({ m, categoria_id, evento_id }) =>
+    guardar('movimientos', { ...m, categoria_id, evento_id: m.evento_id || evento_id, estado: 'clasificado' })));
+  const porComercio = new Map(elegidos.map(x => [x.m.comercio, x.categoria_id]));
+  for (const [comercio, categoria_id] of porComercio) await aprender(comercio, categoria_id);
+  return elegidos.length;
+}
+
 export function render() {
   const mes = mesActual();
   const d = disponibleDelMes(mes);
   const pendientes = datos.movimientos.filter(m => m.estado === 'pendiente').sort((a, b) => b.fecha.localeCompare(a.fecha));
+  const visibles = pendientes.slice(0, 5).map(m => ({ m, s: sugerencia(m) }));
+  const sugeridas = visibles.filter(x => x.s);
   const porPagar = compromisosPendientes(mes);
   const hoy = Number(hoyISO().slice(8));
   const sinConfigurar = !datos.perfil.ingreso_mensual;
@@ -118,9 +152,12 @@ export function render() {
     ${pendientes.length ? `
       <section class="tarjeta">
         <h2>Por revisar <span class="contador">${pendientes.length}</span></h2>
-        <p class="ayuda">Compras que llegaron sin contexto. Tócalas y cuéntame qué fueron.</p>
-        <ul class="lista">${pendientes.slice(0, 5).map(filaMovimiento).join('')}</ul>
-        ${pendientes.length > 5 ? '<a class="enlace" href="#/movimientos">Ver todas</a>' : ''}
+        <p class="ayuda">${sugeridas.length ? 'Lo que llegó solo. Si la categoría está bien, tócala; si no, toca el movimiento y cuéntame qué fue.' : 'Lo que llegó solo, sin contexto. Tócalo y cuéntame qué fue.'}</p>
+        <ul class="lista">${visibles.map(({ m, s }) => filaMovimiento(m, botonConfirmar(s))).join('')}</ul>
+        <div class="botones">
+          ${sugeridas.length > 1 ? `<button class="boton secundario" data-confirmar-todas>Confirmar las ${sugeridas.length} sugeridas</button>` : ''}
+          ${pendientes.length > 5 ? '<a class="enlace" href="#/movimientos">Ver todas</a>' : ''}
+        </div>
       </section>` : ''}
 
     ${alertas.length ? `
@@ -183,6 +220,20 @@ function animarNumero(el) {
 export function montar(raiz, refrescar) {
   animarNumero(raiz.querySelector('.hero-numero'));
   montarFilas(raiz, refrescar);
+  // Los botones se apagan al primer toque: un doble toque no confirma dos veces.
+  const confirmar = (botones, mensaje) => {
+    botones.forEach(b => { b.disabled = true; });
+    ejecutar(() => confirmarSugerencias(botones), mensaje, refrescar);
+  };
+  raiz.querySelectorAll('[data-confirmar]').forEach(b => b.addEventListener('click', () => {
+    const cat = datos.categorias.find(c => c.id === b.dataset.confirmar);
+    confirmar([b], `Listo, en ${cat.icono} ${cat.nombre}`);
+  }));
+  raiz.querySelector('[data-confirmar-todas]')?.addEventListener('click', e => {
+    const botones = [...raiz.querySelectorAll('[data-confirmar]')];
+    e.currentTarget.disabled = true;
+    confirmar(botones, `Listo, ${botones.length} confirmados`);
+  });
   raiz.querySelectorAll('[data-pagar-cobro]').forEach(b => b.addEventListener('click', () => registrarPago(datos.cobros.find(c => c.id === b.dataset.pagarCobro), refrescar)));
   raiz.querySelectorAll('[data-pagar]').forEach(b => b.addEventListener('click', () => {
     const c = datos.compromisos.find(x => x.id === b.dataset.pagar);

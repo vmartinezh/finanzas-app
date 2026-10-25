@@ -92,6 +92,17 @@ Estado (2026-10-22): listos la clave de ingreso (`claves_ingreso`, solo el hash)
 la función `recibir-compra`, el script `correo/simplifika.gs`, la sección en
 Ajustes y un lector general (frases "compra por $X en COMERCIO" y fichas con
 "Comercio:"). Faltan los lectores por banco, con correos reales de muestra.
+
+Estado (2026-10-25): lectores de transferencias de Santander y Mercado Pago
+(enviadas → gasto) y Banco de Chile (recibidas → ingreso). Una transferencia a
+tu propio nombre o RUT no se anota; al revisarla también se puede marcar "Me la
+pasé yo". La plata que llega de alguien que te debe se propone como su pago en
+"Me deben". En Inicio, lo ya conocido se confirma con un toque. Faltan correos
+de compra con tarjeta: al usuario le llegan solo como notificación del celular.
+
+Hacia adelante: cada fuente (correo, Atajo de Wallet en iPhone, un agregador
+como Fintoc o Floid, y desde julio de 2027 el Sistema de Finanzas Abiertas de
+la CMF) debe llegar por la misma puerta, `recibir-compra` → "por revisar".
 La lectura es en el servidor: si un banco cambia su formato, se corrige
 `lectores.js` una vez y sirve para todos.
 

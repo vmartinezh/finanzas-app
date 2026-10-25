@@ -1,13 +1,14 @@
-// Lectores de los correos de compra de los bancos: del remitente, el asunto y el
-// texto de un correo sacan el gasto { monto, comercio, fecha, tarjeta }, o null
-// si el correo no es una compra.
+// Lectores de los avisos de los bancos: del remitente, el asunto y el texto de
+// un correo sacan el movimiento { tipo, monto, comercio, fecha, tarjeta }, o
+// null si el correo no es una compra ni una transferencia.
 //
 // Lo usa la Edge Function recibir-compra (Deno) y lo prueban tests/index.html
 // en el navegador: JavaScript puro, sin importar nada.
 //
-// Por ahora hay un lector general (monto, comercio y tarjeta con las frases más
-// comunes). Cada banco con un formato propio suma su lector en LECTORES, con
-// pruebas hechas con correos inventados en su formato, nunca con datos reales.
+// Hay un lector general de compras (monto, comercio y tarjeta con las frases más
+// comunes) y lectores por banco para las transferencias. Cada banco con un
+// formato propio suma su lector en LECTORES, con pruebas hechas con correos
+// inventados en su formato, nunca con datos reales.
 
 // Bancos y casas comerciales que mandan avisos de compra. El script de Google
 // solo busca correos de estos dominios (correo/simplifika.gs) y la función
@@ -19,8 +20,77 @@ export const DOMINIOS_BANCOS = [
   'mercadopago.cl', 'machbank.com',
 ];
 
-// Lectores por banco: { nombre, dominio: /regex del remitente/, leer(correo) → gasto | null }.
-const LECTORES = [];
+// Los correos que vienen solo en HTML llegan con una palabra por línea
+// ("Ya / enviamos / tu / transferencia"): los lectores por banco leen el
+// texto en una sola línea.
+const enUnaLinea = texto => texto.replace(/\s+/g, ' ').trim();
+
+// "$ 20.000" o "$20.000" justo después de una etiqueta ("Monto transferido").
+const montoTras = (texto, etiqueta) =>
+  montoDe(texto.match(new RegExp(String.raw`${etiqueta.source}\s*:?\s*(\$\s?[\d.,]+)`, 'i'))?.[1] ?? '');
+
+// El nombre que viene después de una etiqueta y antes de la siguiente.
+const nombreEntre = (texto, desde, hasta) =>
+  texto.match(new RegExp(String.raw`${desde.source}\s*:?\s*(.{2,80}?)\s+(?:${hasta.source})`, 'i'))?.[1].trim() ?? null;
+
+// "VICENTE PÉREZ SOTO" y "Vicente Perez Soto" son la misma persona.
+const comoNombre = n => String(n ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+// "RUT 11.111.111-1" → "11111111-1"
+const rutDe = texto => texto.match(/\brut\s*:?\s*([\d.]{7,12}-[\dkK])/i)?.[1].replace(/\./g, '').toUpperCase() ?? null;
+
+// El comercio de una transferencia es la otra persona: así la app aprende que
+// lo que le pasas a tu mamá es "Familia".
+const transferencia = (tipo, persona, monto) => monto && persona
+  ? { tipo, monto, comercio: `Transferencia ${tipo === 'gasto' ? 'a' : 'de'} ${persona}`.slice(0, 80), tarjeta: null }
+  : null;
+
+// Lectores por banco: { nombre, dominio: /regex del dominio/, leer(correo) → movimiento | null }.
+// Un lector que devuelve NO_ANOTAR reconoció el correo y decidió que no va
+// (así no lo intenta el lector general): por ejemplo, una transferencia a tu
+// propio nombre, que es plata que mueves entre tus cuentas y no un gasto.
+const NO_ANOTAR = 'no anotar';
+const LECTORES = [
+  {
+    // Comprobante de una transferencia que hiciste desde Santander.
+    nombre: 'santander-transferencia',
+    dominio: /(^|\.)santander\.cl$/,
+    leer({ asunto, texto }) {
+      if (!/transferencia de fondos/i.test(asunto)) return null;
+      const t = enUnaLinea(texto);
+      if (!/monto transferido/i.test(t)) return null;
+      const [deOrigen, deDestino = ''] = t.split(/datos de destino/i);
+      const origen = nombreEntre(deOrigen, /datos de origen.*?\bnombre/, /comentario|$/);
+      const destino = nombreEntre(t, /datos de destino.*?\bnombre/, /\brut\b|\bbanco\b/);
+      const mismoRut = rutDe(deOrigen) && rutDe(deOrigen) === rutDe(deDestino);
+      if (mismoRut || (origen && destino && comoNombre(origen) === comoNombre(destino))) return NO_ANOTAR;
+      return transferencia('gasto', destino, montoTras(t, /monto transferido/));
+    },
+  },
+  {
+    // Aviso de una transferencia que enviaste desde Mercado Pago.
+    nombre: 'mercadopago-transferencia',
+    dominio: /(^|\.)mercadopago\.cl$/,
+    leer({ asunto, texto }) {
+      const t = enUnaLinea(texto);
+      if (!/enviamos tu transferencia/i.test(`${asunto} ${t}`)) return null;
+      const destino = nombreEntre(t, /nombre y apellido/, /entidad\b|\bbanco\b|n[uú]mero de cuenta|\brut\b/);
+      return transferencia('gasto', destino, montoTras(t, /enviamos tu transferencia de/));
+    },
+  },
+  {
+    // Aviso de Banco de Chile de que alguien te transfirió a tu cuenta (de
+    // cualquier banco: lo manda el banco de quien te paga).
+    nombre: 'bancochile-transferencia-recibida',
+    dominio: /(^|\.)bancochile\.cl$/,
+    leer({ texto }) {
+      const t = enUnaLinea(texto);
+      if (!/ha efectuado una transferencia de fondos a tu cuenta/i.test(t)) return null;
+      const quien = t.match(/cliente\s+(.{2,80}?)\s+ha efectuado/i)?.[1];
+      return transferencia('ingreso', quien, montoTras(t, /\bmonto\b/));
+    },
+  },
+];
 
 // Un aviso de compra dice que la compra ocurrió; la publicidad ("tu próxima
 // compra en cuotas desde $10.000") no.
@@ -31,6 +101,9 @@ const NO_ES_GASTO = /rechazad|no (?:fue|ha sido) (?:aprobad|autorizad)|reversa|a
 const PUBLICIDAD = /sin inter[eé]s|desde \$|promoci[oó]n|oferta|aprovecha|cyber|black friday|descuento/i;
 // Por ahora solo pesos: una compra en dólares no se anota con un monto equivocado.
 const OTRA_MONEDA = /US\$|U\$S|\bUSD\b|\bEUR\b|€/i;
+// El lector general solo lee compras: la transferencia de un banco sin lector
+// propio no se anota como compra.
+const TRANSFERENCIA = /\btransferencia\b|\btransferiste\b/i;
 
 export function dominioDe(remitente) {
   const correo = String(remitente ?? '').match(/[^\s<>@]+@([^\s<>]+)/);
@@ -61,10 +134,10 @@ const tarjetaDe = texto => texto.match(/(?:terminad[ao] en|terminaci[oó]n|[*xX]
 
 function lectorGeneral({ asunto, texto }) {
   const todo = `${asunto}\n${texto}`;
-  if (!ES_COMPRA.test(todo) || NO_ES_GASTO.test(todo) || PUBLICIDAD.test(asunto) || OTRA_MONEDA.test(todo)) return null;
+  if (!ES_COMPRA.test(todo) || NO_ES_GASTO.test(todo) || PUBLICIDAD.test(asunto) || OTRA_MONEDA.test(todo) || TRANSFERENCIA.test(todo)) return null;
   const monto = montoDe(todo);
   if (!monto) return null;
-  return { monto, comercio: comercioDe(texto) ?? comercioDe(asunto), tarjeta: tarjetaDe(todo) };
+  return { tipo: 'gasto', monto, comercio: comercioDe(texto) ?? comercioDe(asunto), tarjeta: tarjetaDe(todo) };
 }
 
 // fecha: 'AAAA-MM-DD' del día en que llegó el correo (en hora de Chile).
@@ -73,6 +146,7 @@ export function leerCorreoDeCompra({ remitente = '', asunto = '', texto = '', fe
   const correo = { remitente, asunto: String(asunto).slice(0, 300), texto: String(texto).replace(/\r/g, '').slice(0, 20000) };
   const lector = LECTORES.find(l => l.dominio.test(dominioDe(remitente)));
   const delBanco = lector?.leer(correo) ?? null;
-  const gasto = delBanco ?? lectorGeneral(correo);
-  return gasto ? { ...gasto, fecha, lector: delBanco ? lector.nombre : 'general' } : null;
+  if (delBanco === NO_ANOTAR) return null;
+  const movimiento = delBanco ?? lectorGeneral(correo);
+  return movimiento ? { ...movimiento, fecha, lector: delBanco ? lector.nombre : 'general' } : null;
 }
