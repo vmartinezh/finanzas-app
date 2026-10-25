@@ -2,7 +2,7 @@
 // un script de Google que corre en su propia cuenta (correo/simplifika.gs) y le
 // manda sus avisos de compra a la función recibir-compra.
 import { modo, estadoClaveIngreso, crearClaveIngreso, borrarClaveIngreso } from './db.js';
-import { SUPABASE_URL, GASTOS_POR_CORREO } from './config.js';
+import { SUPABASE_URL, COMPRAS_SOLAS } from './config.js';
 import { DOMINIOS_BANCOS } from '../supabase/functions/recibir-compra/lectores.js';
 import { avisar, confirmar } from './ui.js';
 import { esc, fechaCorta, hoyISO } from './util.js';
@@ -42,7 +42,7 @@ function pasosHTML() {
 }
 
 export function correoHTML() {
-  if (!GASTOS_POR_CORREO) return '';
+  if (!COMPRAS_SOLAS) return '';
   return `<section class="tarjeta" id="correo-gastos">
     <h2>Gastos desde tu correo</h2>
     <p class="ayuda">Tus compras con tarjeta llegan solas como "por revisar", desde los avisos de compra de tu banco. Un pequeño script en <b>tu propia cuenta de Google</b> los lee: nadie más ve tus correos.</p>
@@ -57,7 +57,7 @@ export async function montarCorreo(raiz) {
 
   const pintar = async () => {
     let estado;
-    try { estado = await estadoClaveIngreso(); } catch (e) {
+    try { estado = await estadoClaveIngreso('correo'); } catch (e) {
       caja.innerHTML = `<p class="nota">No pude revisar la conexión: ${esc(e.message)}</p>`;
       return;
     }
@@ -84,7 +84,7 @@ export async function montarCorreo(raiz) {
       boton.disabled = true;
       try {
         const plantilla = await cargarPlantilla();
-        scriptListo = rellenar(plantilla, await crearClaveIngreso());
+        scriptListo = rellenar(plantilla, await crearClaveIngreso('correo'));
       } catch (err) {
         avisar('No se pudo crear la clave: ' + err.message, 'error');
       }
@@ -101,7 +101,7 @@ export async function montarCorreo(raiz) {
     if (boton.id === 'desconectar-correo') {
       if (!(await confirmar('Tus compras dejarán de llegar solas. Lo que ya llegó se queda. ¿Desconectar?'))) return;
       try {
-        await borrarClaveIngreso();
+        await borrarClaveIngreso('correo');
         scriptListo = null;
         avisar('Desconectado. Si quieres, borra también el activador en script.google.com.');
       } catch (err) {

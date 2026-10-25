@@ -57,8 +57,8 @@ export function filaMovimiento(m, accion = '') {
     m.estado === 'pendiente' ? '<span class="etiqueta pendiente">Por revisar</span>' : esc(cat?.nombre || 'Sin categoría'),
     m.comercio && m.descripcion ? esc(m.comercio) : '',
     evento ? `<span class="etiqueta evento">${esc(evento.nombre)}</span>` : '',
-    // Llegó solo, desde el aviso de compra del banco (fase 2).
-    m.origen === 'correo' ? 'del correo' : '',
+    // Llegó solo (fase 2): del aviso del banco o del Atajo de Wallet.
+    { correo: 'del correo', wallet: 'de Apple Pay' }[m.origen] || '',
   ].filter(Boolean).join(' · ');
   return `<li${accion ? ' class="con-accion"' : ''}>
     <button class="fila" data-mov="${m.id}">

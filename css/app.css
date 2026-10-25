@@ -636,6 +636,9 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 /* ── Gastos desde tu correo (Ajustes) ───────────── */
 .pasos { margin: 0; padding-left: 1.3em; display: flex; flex-direction: column; gap: 10px; }
 .pasos li::marker { font-weight: 700; color: var(--texto-2); }
+.pasos .boton.pequeño { margin-top: 4px; }
+.pasos-campos { margin: 6px 0 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 6px; }
+.pasos code { font-size: .9em; padding: 0 5px; border-radius: 5px; background: var(--superficie-2); }
 
 /* ── Me deben ───────────────────────────────────── */
 .hero .botones { margin-top: 12px; }

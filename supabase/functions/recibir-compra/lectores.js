@@ -150,3 +150,31 @@ export function leerCorreoDeCompra({ remitente = '', asunto = '', texto = '', fe
   const movimiento = delBanco ?? lectorGeneral(correo);
   return movimiento ? { ...movimiento, fecha, lector: delBanco ? lector.nombre : 'general' } : null;
 }
+
+// Pagos con Apple Pay: el Atajo del iPhone ("Cuando pago con Wallet") manda el
+// comercio y el monto tal como los muestra la billetera, que según la
+// configuración del teléfono puede ser "$12.990", "CLP 12.990" o "12990,00".
+// Un punto o una coma seguidos de 1 o 2 dígitos al final son decimales; si no,
+// son separadores de miles. El peso chileno no tiene centavos: decimales que no
+// son cero ("$5.99") son de otra moneda y no se anotan. Tampoco un monto
+// negativo (una devolución) ni uno con el símbolo de otra moneda.
+const OTRO_SIMBOLO = /[£¥₩₹₱]|R\$|S\/|\bBs\b/;
+export function montoEscrito(texto) {
+  const t = String(texto ?? '').trim();
+  if (!t || /^[-−(]/.test(t) || OTRA_MONEDA.test(t) || OTRO_SIMBOLO.test(t) || /[A-Z]{3}/i.test(t.replace(/CLP/i, ''))) return null;
+  const cifras = t.replace(/[^\d.,]/g, '');
+  const decimales = cifras.match(/[.,](\d{1,2})$/);
+  if (decimales && Number(decimales[1]) !== 0) return null;
+  const entero = (decimales ? cifras.slice(0, -decimales[0].length) : cifras).replace(/[.,]/g, '');
+  if (!/^\d{1,10}$/.test(entero)) return null;
+  const monto = Number(entero);
+  return monto > 0 ? monto : null;
+}
+
+// fecha: 'AAAA-MM-DD' del día del pago (en hora de Chile).
+export function leerPagoWallet({ comercio = '', monto = '', fecha = '' } = {}) {
+  const pesos = montoEscrito(monto);
+  if (!pesos || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
+  const nombre = String(comercio).replace(/\s+/g, ' ').trim().slice(0, 80);
+  return { tipo: 'gasto', monto: pesos, comercio: nombre || null, tarjeta: null, fecha, lector: 'wallet' };
+}

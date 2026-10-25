@@ -97,7 +97,7 @@ const FORMAS = {
     compromiso_id: id(f.compromiso_id),
     deuda_id: id(f.deuda_id),
     cobro_id: id(f.cobro_id),
-    origen: opcion(f.origen, ['manual', 'correo']),
+    origen: opcion(f.origen, ['manual', 'correo', 'wallet']),
     estado: opcion(f.estado, ['clasificado', 'pendiente']),
   }),
   reglas: f => ({

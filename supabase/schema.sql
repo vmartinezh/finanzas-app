@@ -98,7 +98,7 @@ create table if not exists public.movimientos (
   compromiso_id uuid,
   deuda_id uuid,
   cobro_id uuid,                         -- pago de algo que te debían ("Me deben")
-  origen text not null default 'manual', -- 'manual' | 'correo'
+  origen text not null default 'manual', -- 'manual' | 'correo' | 'wallet'
   estado text not null default 'clasificado' check (estado in ('pendiente', 'clasificado')),
   id_externo text,                       -- id del correo del banco, para no duplicar (fase 2)
   creado timestamptz not null default now(),
@@ -128,17 +128,35 @@ create table if not exists public.suscripciones_push (
   unique (endpoint)
 );
 
--- Gastos desde el correo (fase 2): la clave con que el script de Google de la
--- persona le entrega sus compras a la función recibir-compra. Se guarda solo su
--- hash (SHA-256): la clave se muestra una vez en la app y no queda en ninguna
--- parte. Con ella solo se pueden agregar gastos "por revisar", no leer nada.
--- No es parte de sus datos (no va en los respaldos).
+-- Compras que llegan solas (fase 2): la clave con que el script de Google de la
+-- persona ('correo') o el Atajo de su iPhone ('wallet') le entregan sus compras
+-- a la función recibir-compra. Una por fuente: renovar una no apaga la otra.
+-- Se guarda solo su hash (SHA-256): la clave se muestra una vez en la app y no
+-- queda en ninguna parte. Con ella solo se pueden agregar movimientos "por
+-- revisar", no leer nada. No es parte de sus datos (no va en los respaldos).
 create table if not exists public.claves_ingreso (
-  user_id uuid primary key default auth.uid() references auth.users on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  fuente text not null default 'correo' check (fuente in ('correo', 'wallet')),
   hash text not null unique check (hash ~ '^[0-9a-f]{64}$'),
   creada timestamptz not null default now(),
-  ultimo_uso timestamptz
+  ultimo_uso timestamptz,
+  primary key (user_id, fuente)
 );
+
+-- Instalaciones anteriores: la tabla tenía una sola clave por persona (la del
+-- correo). Se agrega la fuente y la llave pasa a ser (user_id, fuente).
+alter table public.claves_ingreso add column if not exists fuente text not null default 'correo';
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'claves_ingreso_fuente_check') then
+    alter table public.claves_ingreso add constraint claves_ingreso_fuente_check check (fuente in ('correo', 'wallet'));
+  end if;
+  if (select array_length(conkey, 1) from pg_constraint
+      where conrelid = 'public.claves_ingreso'::regclass and contype = 'p') = 1 then
+    alter table public.claves_ingreso drop constraint claves_ingreso_pkey;
+    alter table public.claves_ingreso add primary key (user_id, fuente);
+  end if;
+end $$;
 
 -- Un celular es de una sola cuenta: si otra persona inicia sesión en él, los
 -- avisos pasan a ella (anotar_suscripcion). Antes era único por (user_id, endpoint)

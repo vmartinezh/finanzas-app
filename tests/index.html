@@ -23,7 +23,7 @@
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
-    import { leerCorreoDeCompra, esDeBanco } from '../supabase/functions/recibir-compra/lectores.js';
+    import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { TIPOS } from '../js/tarjetas.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
@@ -228,6 +228,20 @@
       igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Transferencia realizada', remitente: 'avisos@bci.cl' })), null);
       igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Comprobante de operación', remitente: 'avisos@bci.cl' })), null, 'aunque solo lo diga el cuerpo:');
     });
+    prueba('El monto de Apple Pay se lee como lo escriba el iPhone', () => {
+      igual(['$12.990', 'CLP 12.990', '12.990 CLP', '12990,00', '12.990,0', '$ 1.500.000', '4500'].map(montoEscrito),
+        [12990, 12990, 12990, 12990, 12990, 1500000, 4500]);
+      igual(['US$ 5,99', 'EUR 3', '5,99 USD', 'R$ 50', '£5', 'S/ 20'].map(montoEscrito), [null, null, null, null, null, null], 'otra moneda:');
+      igual(['$5.99', '12990.5'].map(montoEscrito), [null, null], 'con centavos (el peso no tiene):');
+      igual(['-$3.000', '', 'abc', '0'].map(montoEscrito), [null, null, null, null], 'devolución o vacío:');
+    });
+    prueba('Un pago con Apple Pay queda como gasto con su comercio', () => {
+      igual(leerPagoWallet({ comercio: '  Starbucks   Costanera ', monto: '$4.500', fecha: '2026-10-25' }),
+        { tipo: 'gasto', monto: 4500, comercio: 'Starbucks Costanera', tarjeta: null, fecha: '2026-10-25', lector: 'wallet' });
+      igual(leerPagoWallet({ comercio: '', monto: '$4.500', fecha: '2026-10-25' }).comercio, null, 'sin comercio:');
+      igual(leerPagoWallet({ comercio: 'X', monto: 'US$ 4', fecha: '2026-10-25' }), null);
+      igual(leerPagoWallet({ comercio: 'X', monto: '$4.500', fecha: 'hoy' }), null);
+    });
     prueba('Solo lee correos de bancos y con fecha válida', () => {
       igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { remitente: 'hola@tienda-falsa.cl' })), null);
       igual(leerCorreoDeCompra(correo('Compra por $1.000 en X', { remitente: 'avisos@santander.cl.estafa.com' })), null);
@@ -277,6 +291,7 @@
     prueba('Los valores de lista solo aceptan opciones conocidas', () => {
       const m = normalizarFila('movimientos', { id: ID, fecha: '2026-10-12', monto: 100, tipo: ATAQUE, estado: ATAQUE, origen: ATAQUE });
       igual([m.tipo, m.estado, m.origen], ['gasto', 'clasificado', 'manual']);
+      igual(normalizarFila('movimientos', { id: ID, fecha: '2026-10-12', monto: 100, origen: 'wallet' }).origen, 'wallet', 'lo que llegó de Apple Pay:');
     });
     prueba('Movimientos sin fecha válida se descartan', () => {
       igual(normalizarFila('movimientos', { id: ID, fecha: ATAQUE, monto: 1 }), null);

@@ -164,27 +164,29 @@ export async function borrarSuscripcion(endpoint) {
   if (error) throw error;
 }
 
-// Gastos desde el correo (fase 2, solo en la nube). La clave se genera aquí, se
-// muestra una vez y en la base queda solo su hash: ni la app la puede volver a leer.
-export async function estadoClaveIngreso() {
-  const { data, error } = await supabase.from('claves_ingreso').select('creada, ultimo_uso').maybeSingle();
+// Compras que llegan solas (fase 2, solo en la nube). fuente: 'correo' (script
+// de Google) o 'wallet' (Atajo del iPhone), cada una con su propia clave. La
+// clave se genera aquí, se muestra una vez y en la base queda solo su hash: ni
+// la app la puede volver a leer.
+export async function estadoClaveIngreso(fuente) {
+  const { data, error } = await supabase.from('claves_ingreso').select('creada, ultimo_uso').eq('fuente', fuente).maybeSingle();
   if (error) throw new Error(error.message);
   return data;
 }
 
-export async function crearClaveIngreso() {
+export async function crearClaveIngreso(fuente) {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   const clave = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const resumen = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(clave));
   const hash = [...new Uint8Array(resumen)].map(b => b.toString(16).padStart(2, '0')).join('');
   const { error } = await supabase.from('claves_ingreso')
-    .upsert({ user_id: usuarioId, hash, creada: new Date().toISOString(), ultimo_uso: null });
+    .upsert({ user_id: usuarioId, fuente, hash, creada: new Date().toISOString(), ultimo_uso: null }, { onConflict: 'user_id,fuente' });
   if (error) throw new Error(error.message);
   return clave;
 }
 
-export async function borrarClaveIngreso() {
-  const { error } = await supabase.from('claves_ingreso').delete().eq('user_id', usuarioId);
+export async function borrarClaveIngreso(fuente) {
+  const { error } = await supabase.from('claves_ingreso').delete().eq('user_id', usuarioId).eq('fuente', fuente);
   if (error) throw new Error(error.message);
 }
 

@@ -3,6 +3,7 @@ import { cargarEjemplo } from '../semillas.js';
 import { abrirFormulario, ejecutar, avisar, confirmar, inputMonto } from '../ui.js';
 import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
 import { correoHTML, montarCorreo } from '../correo.js';
+import { walletHTML, montarWallet } from '../wallet.js';
 
 export const titulo = 'Ajustes';
 
@@ -44,6 +45,7 @@ export function render() {
     </section>
 
     ${correoHTML()}
+    ${walletHTML()}
 
     <section class="tarjeta">
       <h2>Mis datos</h2>
@@ -121,6 +123,7 @@ export function montar(raiz, refrescar) {
   });
 
   montarCorreo(raiz);
+  montarWallet(raiz);
   raiz.querySelector('#nueva-categoria').addEventListener('click', () => editarCategoria(null, refrescar));
   raiz.querySelectorAll('[data-categoria]').forEach(b => b.addEventListener('click', () => editarCategoria(datos.categorias.find(c => c.id === b.dataset.categoria), refrescar)));
   raiz.querySelector('#nuevo-evento').addEventListener('click', () => editarEvento(null, refrescar));

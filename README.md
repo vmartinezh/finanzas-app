@@ -87,15 +87,22 @@ En "Me deben", la app puede avisar al celular el día que toca cobrar. El aviso 
    ```
 6. Vuelve a correr `supabase/schema.sql`: con las extensiones activas, programa el aviso diario (13:00 UTC, en la mañana en Chile).
 
-### 5. Gastos desde el correo (opcional, en desarrollo)
+### 5. Compras que llegan solas (opcional, en desarrollo)
 
-Las compras con tarjeta y las transferencias llegan solas como "por revisar", desde los avisos del banco. Las transferencias se leen de Santander y Mercado Pago (enviadas) y de Banco de Chile (recibidas); una que llega de alguien que te debe se propone como su pago en "Me deben". En Inicio, lo que la app ya sabe clasificar se confirma con un toque. Un script corre en la cuenta de Google de cada persona ([`correo/simplifika.gs`](correo/simplifika.gs)) y le manda esos correos a la función `recibir-compra`, que saca monto, comercio y fecha con [`lectores.js`](supabase/functions/recibir-compra/lectores.js) y no guarda el correo. Funciona solo en modo nube.
+Las compras y las transferencias llegan solas como "por revisar", por dos vías que entran a la misma función `recibir-compra`. Cada persona tiene una clave por vía (en la base queda solo su hash), así que renovar una no apaga la otra. Funciona solo en modo nube.
 
-1. Vuelve a correr `supabase/schema.sql` (crea la tabla `claves_ingreso`).
-2. En *Edge Functions → Deploy a new function → Via Editor*, crea `recibir-compra` con **dos archivos**: `index.ts` y `lectores.js`, copiados de [`supabase/functions/recibir-compra/`](supabase/functions/recibir-compra/). Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.
-3. En `js/config.js`, cambia `GASTOS_POR_CORREO` a `true` (antes, la sección no aparece).
-4. Cada persona entra a *Ajustes → Gastos desde tu correo*, toca "Conectar mi correo" y sigue los tres pasos.
-5. Cuando cambie un lector (`lectores.js`), vuelve a publicar la función: el script de cada persona no cambia.
+- **Desde el correo del banco:** un script corre en la cuenta de Google de cada persona ([`correo/simplifika.gs`](correo/simplifika.gs)) y le manda los avisos del banco a la función, que saca monto, comercio y fecha con [`lectores.js`](supabase/functions/recibir-compra/lectores.js) y no guarda el correo. Se leen compras con tarjeta (lector general) y transferencias de Santander y Mercado Pago (enviadas) y de Banco de Chile (recibidas); una que llega de alguien que te debe se propone como su pago en "Me deben".
+- **Con Apple Pay (iPhone, iOS 17 o más):** una automatización de Atajos ("Transacción") manda el comercio y el monto de cada pago con Wallet. Solo pesos chilenos; si iOS corre la automatización dos veces, el pago queda una vez.
+
+En Inicio, lo que la app ya sabe clasificar se confirma con un toque.
+
+Hazlo **en este orden** (la función nueva necesita la columna `fuente`):
+
+1. Vuelve a correr `supabase/schema.sql`. Crea `claves_ingreso` o, si ya existía, le agrega la columna `fuente` y pasa la llave a `(user_id, fuente)`; la clave que ya tenías queda como la del correo.
+2. En *Edge Functions → Deploy a new function → Via Editor*, crea (o actualiza) `recibir-compra` con **dos archivos**: `index.ts` y `lectores.js`, copiados de [`supabase/functions/recibir-compra/`](supabase/functions/recibir-compra/). Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.
+3. En `js/config.js`, cambia `COMPRAS_SOLAS` a `true` (antes, las secciones no aparecen).
+4. Cada persona entra a *Ajustes*: en "Gastos desde tu correo" toca "Conectar mi correo"; en "Compras con Apple Pay" toca "Crear mi clave para el Atajo" y sigue los pasos en su iPhone.
+5. Cuando cambie un lector (`lectores.js`), vuelve a publicar la función: el script y el Atajo de cada persona no cambian.
 
 ## Probar en tu computador
 
