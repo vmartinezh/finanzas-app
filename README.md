@@ -99,7 +99,7 @@ En Inicio, lo que la app ya sabe clasificar se confirma con un toque.
 Hazlo **en este orden** (la función nueva necesita la columna `fuente`):
 
 1. Vuelve a correr `supabase/schema.sql`. Crea `claves_ingreso` o, si ya existía, le agrega la columna `fuente` y pasa la llave a `(user_id, fuente)`; la clave que ya tenías queda como la del correo.
-2. En *Edge Functions → Deploy a new function → Via Editor*, crea (o actualiza) `recibir-compra` con **dos archivos**: `index.ts` y `lectores.js`, copiados de [`supabase/functions/recibir-compra/`](supabase/functions/recibir-compra/). Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.
+2. En *Edge Functions → Deploy a new function → Via Editor*, escribe el nombre `recibir-compra` **antes** de publicar (ese nombre queda en la dirección y después no se puede cambiar). El código está en dos archivos, [`index.ts` y `lectores.js`](supabase/functions/recibir-compra/), pero el editor del panel no siempre toma el segundo ("Module not found lectores.js"): pega en un solo `index.ts` el contenido de `lectores.js` y luego el de `index.ts` sin la línea `import … from './lectores.js'`. Desactiva *Verify JWT* (la función revisa la clave de cada persona). No necesita secretos propios.
 3. En `js/config.js`, cambia `COMPRAS_SOLAS` a `true` (antes, las secciones no aparecen).
 4. Cada persona entra a *Ajustes*: en "Gastos desde tu correo" toca "Conectar mi correo"; en "Compras con Apple Pay" toca "Crear mi clave para el Atajo" y sigue los pasos en su iPhone.
 5. Cuando cambie un lector (`lectores.js`), vuelve a publicar la función: el script y el Atajo de cada persona no cambian.

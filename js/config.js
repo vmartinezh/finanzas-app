@@ -16,4 +16,4 @@ export const VAPID_PUBLIC_KEY = 'BKS8iBctYQyXekTeVOm3Flxn2obAmHrpUIsiNai6nZ0GR_J
 // de Wallet del iPhone. Enciéndelo cuando en Supabase ya corriste schema.sql y
 // publicaste la función recibir-compra (ver README): antes, Ajustes no muestra
 // esas secciones.
-export const COMPRAS_SOLAS = false;
+export const COMPRAS_SOLAS = true;
