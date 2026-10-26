@@ -9,7 +9,7 @@
 // tope: descuento máximo en pesos, si el banco lo informa.
 // hasta: último día de vigencia ('YYYY-MM-DD'); null si el banco no la publica.
 
-export const REVISADO = '2026-10-13';
+export const REVISADO = '2026-10-26';
 
 export const TARJETAS = [
   { id: 'santander', nombre: 'Santander', detalle: 'Tarjetas de crédito y débito Santander' },
