@@ -85,6 +85,10 @@ export function activarRecarga() {
     if (tiron < UMBRAL) { esconder(); return; }
     ocupado = true;
     desde = null;
+    // Sin los estilos del arrastre, la píldora vuelve a su lugar fijo mientras actualiza.
+    indicador.style.transform = '';
+    indicador.style.opacity = '';
+    indicador.classList.remove('activo');
     indicador.classList.add('actualizando');
     texto.textContent = 'Actualizando…';
     if (!(await actualizar())) {
