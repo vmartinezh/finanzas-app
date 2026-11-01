@@ -523,10 +523,11 @@
       igual(diaSemana('2026-10-15'), 4);
       igual(diaSemana('2026-10-18'), 7);
     });
-    prueba('Los jueves con Santander: 40% en Burger King', () => {
-      const jueves = beneficiosDelDia(['santander'], '2026-10-15');
-      if (!jueves.some(b => b.comercio === 'Burger King' && b.descuento === '40%')) throw new Error('no apareció Burger King');
-      if (beneficiosDelDia(['santander'], '2026-10-14').some(b => b.comercio === 'Burger King')) throw new Error('apareció un miércoles');
+    // Usa un descuento con vigencia larga para que la prueba no se rompa con cada revisión del catálogo.
+    prueba('Los jueves con Banco de Chile: 30% en Petrizzio', () => {
+      const jueves = beneficiosDelDia(['banco-de-chile'], '2026-10-15');
+      if (!jueves.some(b => b.comercio === 'Petrizzio' && b.descuento === '30%')) throw new Error('no apareció Petrizzio');
+      if (beneficiosDelDia(['banco-de-chile'], '2026-10-14').some(b => b.comercio === 'Petrizzio')) throw new Error('apareció un miércoles');
     });
     prueba('Solo muestra las tarjetas elegidas, y primero los descuentos del día', () => {
       const lista = beneficiosDelDia(['bci'], '2026-10-12');
