@@ -19,11 +19,12 @@
     // No toca tus datos: trabaja sobre datos en memoria.
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
-    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, dividirGasto } from '../js/calculos.js';
+    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
+    import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
@@ -224,6 +225,58 @@
       });
       igual([g.tipo, g.monto, g.comercio, g.lector], ['ingreso', 20000, 'Transferencia de Catalina Pérez Soto', 'bancochile-transferencia-recibida']);
     });
+    // Tus cuentas: con tu RUT y tu nombre (Ajustes) no se anota la plata que
+    // mueves entre tus propias cuentas. El RUT manda; el nombre es el respaldo
+    // para los correos que no traen el RUT del otro lado.
+    const YO = { rut: '11111111-1', nombres: ['Ana Rojas Pino'] };
+    prueba('El RUT se normaliza y se revisa su dígito verificador', () => {
+      igual(['11.111.111-1', '11111111-1', ' 22.222.222-2 ', '10.000.013-k', '10000013K', '11 111 111-1', '011.111.111-1', '999.999-K'].map(normalizarRut),
+        ['11111111-1', '11111111-1', '22222222-2', '10000013-K', '10000013-K', '11111111-1', '11111111-1', '999999-K']);
+      igual(['11.111.111-2', 'abc', '', '1-9', null, 11111111].map(normalizarRut), [null, null, null, null, null, null], 'inválidos:');
+    });
+    prueba('Dos nombres son la misma persona si son iguales, o si el más corto tiene tres palabras y todas están en el otro', () => {
+      igual(esMismoNombre('Ana Rojas Pino', 'ANA ROJAS PINO'), true);
+      igual(esMismoNombre('Ána Rójas Pino', 'ana  rojas pino'), true, 'sin tildes ni mayúsculas:');
+      igual(esMismoNombre('Ana Rojas Pino', 'Ana María Rojas Pino'), true, 'con segundo nombre:');
+      igual(esMismoNombre('Ana Rojas', 'ana rojas'), true, 'dos palabras iguales:');
+      igual(esMismoNombre('Ana Rojas', 'Ana María Rojas Fuentes'), false, 'dos palabras solo calzan idénticas:');
+      igual(esMismoNombre('Rojas', 'Rojas'), false, 'una sola palabra:');
+      igual(esMismoNombre('Pedro Rojas Pino', 'Ana Rojas Pino'), false, 'otra persona:');
+      igual(esMismoNombre('', 'Ana Rojas'), false, 'vacío:');
+    });
+    const mercadoPago = (nombre, rut = '') => ({
+      remitente: 'Mercado Pago <info@mercadopago.cl>', asunto: '¡Enviamos tu transferencia!', fecha: '2026-10-25',
+      texto: enLineas(`¡Enviamos tu transferencia! Ya enviamos tu transferencia de $ 10.000 Datos del beneficiario Nombre y apellido: ${nombre} ${rut ? `RUT: ${rut} ` : ''}Entidad: Banco Estado Número de cuenta: 000011112222`),
+    });
+    prueba('Una transferencia de Mercado Pago a tu propio nombre o RUT no se anota', () => {
+      igual(leerCorreoDeCompra({ ...mercadoPago('Ana Rojas Pino'), propios: YO }), null, 'a tu nombre:');
+      igual(leerCorreoDeCompra({ ...mercadoPago('ANA MARIA ROJAS PINO'), propios: YO }), null, 'a tu nombre con segundo nombre:');
+      igual(leerCorreoDeCompra({ ...mercadoPago('A. Rojas P.', '11.111.111-1'), propios: YO }), null, 'a tu RUT, con el nombre escrito distinto:');
+      igual(leerCorreoDeCompra({ ...mercadoPago('Ana Rojas Pino', '22.222.222-2'), propios: YO }).comercio, 'Transferencia a Ana Rojas Pino', 'el RUT manda: alguien que se llama igual que tú:');
+      igual(leerCorreoDeCompra({ ...mercadoPago('Ana Rojas'), propios: YO }).comercio, 'Transferencia a Ana Rojas', 'solo nombre y apellido, distinto del tuyo guardado:');
+      igual(leerCorreoDeCompra({ ...mercadoPago('Pedro Soto'), propios: YO }).comercio, 'Transferencia a Pedro Soto', 'a otra persona:');
+      igual(leerCorreoDeCompra(mercadoPago('Ana Rojas Pino')).comercio, 'Transferencia a Ana Rojas Pino', 'sin tus datos guardados, se anota como antes:');
+    });
+    prueba('La plata que te llega de ti misma (aviso de Banco de Chile) no se anota como ingreso', () => {
+      const aviso = quien => ({
+        remitente: 'serviciodetransferencias@bancochile.cl', asunto: 'Aviso de transferencia de fondos', fecha: '2026-10-14', propios: YO,
+        texto: `Estimado(a): Ana\n Te informamos que nuestro(a) cliente ${quien} ha efectuado una transferencia\n de fondos a tu cuenta con el siguiente detalle:\n Monto\n $20.000`,
+      });
+      igual(leerCorreoDeCompra(aviso('ANA ROJAS PINO')), null);
+      igual(leerCorreoDeCompra(aviso('Catalina Pérez Soto')).tipo, 'ingreso', 'de otra persona:');
+    });
+    prueba('Una transferencia de Santander a una cuenta con tu RUT no se anota, aunque el origen sea otro titular', () => {
+      const correo = {
+        remitente: 'Santander <mensajeria@santander.cl>', asunto: 'Comprobante Transferencia de fondos', fecha: '2026-10-18',
+        texto: 'Monto transferido\n $ 35.000\n Datos de origen\n RUT\n 22.222.222-2\n Nombre\n PEDRO SOTO\n Comentario\n Datos de destino\n Nombre\n A ROJAS\n RUT\n 11.111.111-1\n Banco\n Banco Estado',
+      };
+      igual(leerCorreoDeCompra({ ...correo, propios: YO }), null);
+      igual(leerCorreoDeCompra(correo).comercio, 'Transferencia a A ROJAS', 'sin tus datos guardados:');
+    });
+    prueba('De "Transferencia a Ana Rojas" sale el nombre para recordarlo', () => {
+      igual(['Transferencia a Ana Rojas', 'Transferencia de Pedro Soto', 'STARBUCKS', '', null].map(personaDeTransferencia),
+        ['Ana Rojas', 'Pedro Soto', null, null, null]);
+    });
     prueba('Una transferencia de un banco sin lector propio no se anota como compra', () => {
       igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Transferencia realizada', remitente: 'avisos@bci.cl' })), null);
       igual(leerCorreoDeCompra(correo('Se realizó una transferencia por $50.000 a Pedro Soto', { asunto: 'Comprobante de operación', remitente: 'avisos@bci.cl' })), null, 'aunque solo lo diga el cuerpo:');
@@ -308,7 +361,13 @@
     });
     prueba('El perfil solo conserva campos conocidos', () => {
       igual(normalizarPerfil({ ingreso_mensual: '1500000', revisado_mes: ATAQUE, raro: 1 }),
-        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [] });
+        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [] });
+    });
+    prueba('Tu RUT y tus nombres del perfil se limpian', () => {
+      const p = normalizarPerfil({ rut: '11.111.111-1', nombres_propios: ['  Ana   Rojas ', 'ANA ROJAS', ATAQUE, 'A', 'Ana', 'Rojas, Ana', 7, 'x'.repeat(81), 'Ana María Rojas Pino', 'Ana Rojas Pino'] });
+      igual([p.rut, p.nombres_propios], ['11111111-1', ['Ana Rojas', 'Ana María Rojas Pino']]);
+      igual(normalizarPerfil({ rut: '11.111.111-2', nombres_propios: 'Ana Rojas' }), { ...normalizarPerfil({}), rut: null, nombres_propios: [] }, 'RUT con dígito malo, nombres que no son lista:');
+      igual(normalizarPerfil({ nombres_propios: ['Ana Uno', 'Ana Dos', 'Ana Tres', 'Ana Cuatro', 'Ana Cinco', 'Ana Seis'] }).nombres_propios.length, 5, 'hasta 5 nombres:');
     });
     prueba('Las tarjetas del perfil solo aceptan ids del catálogo (con o sin tipo), sin repetir', () => {
       igual(normalizarPerfil({ tarjetas: ['santander', ATAQUE, 'santander', 7, 'lider-bci'] }).tarjetas, ['santander', 'lider-bci']);

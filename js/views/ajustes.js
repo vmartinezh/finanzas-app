@@ -4,6 +4,9 @@ import { abrirFormulario, ejecutar, avisar, confirmar, inputMonto } from '../ui.
 import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
 import { correoHTML, montarCorreo } from '../correo.js';
 import { walletHTML, montarWallet } from '../wallet.js';
+import { COMPRAS_SOLAS } from '../config.js';
+import { normalizarPerfil } from '../validar.js';
+import { normalizarRut } from '../../supabase/functions/recibir-compra/cuentas.js';
 
 export const titulo = 'Ajustes';
 
@@ -46,6 +49,21 @@ export function render() {
 
     ${correoHTML()}
     ${walletHTML()}
+    ${COMPRAS_SOLAS ? `<section class="tarjeta" id="tus-cuentas">
+      <h2>Tus cuentas</h2>
+      <p class="ayuda">La plata que te pasas entre tus cuentas no es gasto ni ingreso. Con tu RUT y tu nombre, esas transferencias no se anotan.</p>
+      <form id="form-cuentas">
+        <label class="campo"><span>Tu RUT (recomendado)</span>
+          <input name="rut" inputmode="text" autocomplete="off" value="${esc(p.rut || '')}" placeholder="ej: 12.345.678-5">
+          <small>Es lo más seguro para reconocer tus cuentas. Solo se usa para esto.</small>
+        </label>
+        <label class="campo"><span>Tu nombre como sale en el banco</span>
+          <textarea name="nombres" rows="2" placeholder="ej: Ana Rojas Pino">${esc((p.nombres_propios || []).join('\n'))}</textarea>
+          <small>Para los avisos que no traen el RUT. Si cada banco lo escribe distinto, pon uno por línea.</small>
+        </label>
+        <button class="boton primario">Guardar</button>
+      </form>
+    </section>` : ''}
 
     <section class="tarjeta">
       <h2>Mis datos</h2>
@@ -120,6 +138,22 @@ export function montar(raiz, refrescar) {
       ingreso_mensual: Math.max(0, leerMonto(f.ingreso_mensual.value)),
       meta_ahorro: Math.max(0, leerMonto(f.meta_ahorro.value)),
     }), 'Guardado', refrescar);
+  });
+
+  raiz.querySelector('#form-cuentas')?.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const f = ev.target;
+    const rut = f.rut.value.trim() ? normalizarRut(f.rut.value) : null;
+    if (f.rut.value.trim() && !rut) return avisar('Ese RUT no parece válido: revisa los números y el dígito verificador.', 'error');
+    const escritos = f.nombres.value.split('\n').filter(n => n.trim());
+    const { nombres_propios } = normalizarPerfil({ nombres_propios: escritos });
+    // Se dice qué quedó: un nombre con números, comas o de una sola palabra no se guarda.
+    const mensaje = !rut && !nombres_propios.length
+      ? (escritos.length ? 'No guardé esos nombres: escribe nombre y apellido, solo con letras.' : 'Guardado: no hay datos de tus cuentas.')
+      : nombres_propios.length < escritos.length
+        ? 'Guardado, pero algunos nombres no: escribe nombre y apellido, solo con letras.'
+        : 'Guardado: lo que te transfieras entre tus cuentas no se anotará.';
+    ejecutar(() => guardarPerfil({ rut, nombres_propios }), mensaje, refrescar);
   });
 
   montarCorreo(raiz);

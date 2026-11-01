@@ -34,7 +34,9 @@ type Movimiento = { tipo: string; monto: number; comercio: string | null; fecha:
 
 // Del cuerpo recibido saca el movimiento y su id externo (para no anotarlo dos
 // veces), o un error si faltan datos.
-function leer(fuente: string, cuerpo: Record<string, unknown>): { movimiento: Movimiento | null; idExterno: string | null } | { error: string } {
+type Propios = { rut: string | null; nombres: string[] } | null;
+
+function leer(fuente: string, cuerpo: Record<string, unknown>, propios: Propios): { movimiento: Movimiento | null; idExterno: string | null } | { error: string } {
   if (fuente === 'wallet') {
     // Si el monto llega como número, solo vale un entero (el peso no tiene centavos).
     const monto = typeof cuerpo.monto === 'number'
@@ -53,7 +55,7 @@ function leer(fuente: string, cuerpo: Record<string, unknown>): { movimiento: Mo
   const texto = textoCorto(cuerpo.texto, 50_000) ?? '';
   const fecha = textoCorto(cuerpo.fecha, 10);
   if (!id || !remitente || !fecha || !FECHA.test(fecha)) return { error: 'Faltan datos' };
-  return { movimiento: leerCorreoDeCompra({ remitente, asunto, texto, fecha }), idExterno: `gmail:${id}` };
+  return { movimiento: leerCorreoDeCompra({ remitente, asunto, texto, fecha, propios }), idExterno: `gmail:${id}` };
 }
 
 Deno.serve(async req => {
@@ -74,12 +76,24 @@ Deno.serve(async req => {
   if (errorClave) return responder({ error: errorClave.message }, 500);
   if (!dueno) return responder({ error: 'No autorizado' }, 401);
 
-  const leido = leer(dueno.fuente, cuerpo);
+  // Tu RUT y tus nombres (Ajustes → Tus cuentas): la plata que mueves entre
+  // tus propias cuentas no se anota. Solo los usan los correos.
+  let propios: Propios = null;
+  if (dueno.fuente === 'correo') {
+    const { data: perfil, error: errorPerfil } = await supabase
+      .from('perfil').select('rut, nombres_propios').eq('user_id', dueno.user_id).maybeSingle();
+    // Si falla (por ejemplo, la base aún no tiene esas columnas) se anota igual,
+    // como antes: es mejor una transferencia propia por revisar que perder compras.
+    if (errorPerfil) console.error('perfil:', errorPerfil.message);
+    else if (perfil) propios = { rut: perfil.rut ?? null, nombres: perfil.nombres_propios ?? [] };
+  }
+
+  const leido = leer(dueno.fuente, cuerpo, propios);
   if ('error' in leido) return responder({ error: leido.error }, 400);
   const { movimiento, idExterno } = leido;
   await supabase.from('claves_ingreso').update({ ultimo_uso: new Date().toISOString() })
     .eq('user_id', dueno.user_id).eq('fuente', dueno.fuente);
-  if (!movimiento) return responder({ anotado: false, motivo: 'no es una compra ni una transferencia en pesos' });
+  if (!movimiento) return responder({ anotado: false, motivo: 'no es una compra ni una transferencia en pesos, o es entre tus cuentas' });
 
   const fila = {
     user_id: dueno.user_id,

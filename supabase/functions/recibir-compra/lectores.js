@@ -10,6 +10,8 @@
 // formato propio suma su lector en LECTORES, con pruebas hechas con correos
 // inventados en su formato, nunca con datos reales.
 
+import { comoNombre, esPropio } from './cuentas.js';
+
 // Bancos y casas comerciales que mandan avisos de compra. El script de Google
 // solo busca correos de estos dominios (correo/simplifika.gs) y la función
 // descarta los demás. Provisorio: se afina con los correos reales de cada banco.
@@ -33,8 +35,6 @@ const montoTras = (texto, etiqueta) =>
 const nombreEntre = (texto, desde, hasta) =>
   texto.match(new RegExp(String.raw`${desde.source}\s*:?\s*(.{2,80}?)\s+(?:${hasta.source})`, 'i'))?.[1].trim() ?? null;
 
-// "VICENTE PÉREZ SOTO" y "Vicente Perez Soto" son la misma persona.
-const comoNombre = n => String(n ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
 // "RUT 11.111.111-1" → "11111111-1"
 const rutDe = texto => texto.match(/\brut\s*:?\s*([\d.]{7,12}-[\dkK])/i)?.[1].replace(/\./g, '').toUpperCase() ?? null;
@@ -55,7 +55,7 @@ const LECTORES = [
     // Comprobante de una transferencia que hiciste desde Santander.
     nombre: 'santander-transferencia',
     dominio: /(^|\.)santander\.cl$/,
-    leer({ asunto, texto }) {
+    leer({ asunto, texto }, propios) {
       if (!/transferencia de fondos/i.test(asunto)) return null;
       const t = enUnaLinea(texto);
       if (!/monto transferido/i.test(t)) return null;
@@ -64,6 +64,7 @@ const LECTORES = [
       const destino = nombreEntre(t, /datos de destino.*?\bnombre/, /\brut\b|\bbanco\b/);
       const mismoRut = rutDe(deOrigen) && rutDe(deOrigen) === rutDe(deDestino);
       if (mismoRut || (origen && destino && comoNombre(origen) === comoNombre(destino))) return NO_ANOTAR;
+      if (esPropio(propios, { rut: rutDe(deDestino), nombre: destino })) return NO_ANOTAR;
       return transferencia('gasto', destino, montoTras(t, /monto transferido/));
     },
   },
@@ -71,10 +72,12 @@ const LECTORES = [
     // Aviso de una transferencia que enviaste desde Mercado Pago.
     nombre: 'mercadopago-transferencia',
     dominio: /(^|\.)mercadopago\.cl$/,
-    leer({ asunto, texto }) {
+    leer({ asunto, texto }, propios) {
       const t = enUnaLinea(texto);
       if (!/enviamos tu transferencia/i.test(`${asunto} ${t}`)) return null;
       const destino = nombreEntre(t, /nombre y apellido/, /entidad\b|\bbanco\b|n[uú]mero de cuenta|\brut\b/);
+      const [, delBeneficiario = ''] = t.split(/nombre y apellido/i);
+      if (esPropio(propios, { rut: rutDe(delBeneficiario), nombre: destino })) return NO_ANOTAR;
       return transferencia('gasto', destino, montoTras(t, /enviamos tu transferencia de/));
     },
   },
@@ -83,10 +86,11 @@ const LECTORES = [
     // cualquier banco: lo manda el banco de quien te paga).
     nombre: 'bancochile-transferencia-recibida',
     dominio: /(^|\.)bancochile\.cl$/,
-    leer({ texto }) {
+    leer({ texto }, propios) {
       const t = enUnaLinea(texto);
       if (!/ha efectuado una transferencia de fondos a tu cuenta/i.test(t)) return null;
       const quien = t.match(/cliente\s+(.{2,80}?)\s+ha efectuado/i)?.[1];
+      if (esPropio(propios, { nombre: quien })) return NO_ANOTAR;
       return transferencia('ingreso', quien, montoTras(t, /\bmonto\b/));
     },
   },
@@ -141,11 +145,13 @@ function lectorGeneral({ asunto, texto }) {
 }
 
 // fecha: 'AAAA-MM-DD' del día en que llegó el correo (en hora de Chile).
-export function leerCorreoDeCompra({ remitente = '', asunto = '', texto = '', fecha = '' } = {}) {
+// propios: { rut, nombres } de la persona, para no anotar la plata que mueve
+// entre sus propias cuentas (opcional).
+export function leerCorreoDeCompra({ remitente = '', asunto = '', texto = '', fecha = '', propios = null } = {}) {
   if (!esDeBanco(remitente) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
   const correo = { remitente, asunto: String(asunto).slice(0, 300), texto: String(texto).replace(/\r/g, '').slice(0, 20000) };
   const lector = LECTORES.find(l => l.dominio.test(dominioDe(remitente)));
-  const delBanco = lector?.leer(correo) ?? null;
+  const delBanco = lector?.leer(correo, propios) ?? null;
   if (delBanco === NO_ANOTAR) return null;
   const movimiento = delBanco ?? lectorGeneral(correo);
   return movimiento ? { ...movimiento, fecha, lector: delBanco ? lector.nombre : 'general' } : null;

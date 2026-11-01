@@ -12,6 +12,8 @@ create table if not exists public.perfil (
   presupuesto_deudas bigint not null default 0, -- total al mes para deudas (cuotas + abono extra)
   revisado_mes text,                            -- último mes con revisión de fin de mes, 'YYYY-MM'
   tarjetas text[] not null default '{}',        -- tarjetas del catálogo de descuentos (js/beneficios.js)
+  rut text check (rut ~ '^[0-9]{6,8}-[0-9K]$'),  -- opcional: tus cuentas, para no anotar lo que te transfieres a ti
+  nombres_propios text[] not null default '{}' check (cardinality(nombres_propios) <= 5), -- tu nombre como lo escribe cada banco
   creado timestamptz not null default now()
 );
 
@@ -173,6 +175,8 @@ end $$;
 
 -- Instalaciones anteriores: columnas agregadas después de crear las tablas.
 alter table public.perfil add column if not exists tarjetas text[] not null default '{}';
+alter table public.perfil add column if not exists rut text check (rut ~ '^[0-9]{6,8}-[0-9K]$');
+alter table public.perfil add column if not exists nombres_propios text[] not null default '{}' check (cardinality(nombres_propios) <= 5);
 alter table public.movimientos add column if not exists cobro_id uuid;
 
 create index if not exists movimientos_usuario_fecha on public.movimientos (user_id, fecha desc);
@@ -321,15 +325,17 @@ begin
   select id, yo, patron, categoria_id
   from jsonb_populate_recordset(null::public.reglas, coalesce(respaldo->'reglas', '[]'));
 
-  insert into public.perfil (user_id, ingreso_mensual, meta_ahorro, presupuesto_deudas, revisado_mes, tarjetas)
-  select yo, coalesce(p.ingreso_mensual, 0), coalesce(p.meta_ahorro, 0), coalesce(p.presupuesto_deudas, 0), p.revisado_mes, coalesce(p.tarjetas, '{}')
+  insert into public.perfil (user_id, ingreso_mensual, meta_ahorro, presupuesto_deudas, revisado_mes, tarjetas, rut, nombres_propios)
+  select yo, coalesce(p.ingreso_mensual, 0), coalesce(p.meta_ahorro, 0), coalesce(p.presupuesto_deudas, 0), p.revisado_mes, coalesce(p.tarjetas, '{}'), p.rut, coalesce(p.nombres_propios, '{}')
   from jsonb_populate_record(null::public.perfil, coalesce(respaldo->'perfil', '{}')) as p
   on conflict (user_id) do update set
     ingreso_mensual = excluded.ingreso_mensual,
     meta_ahorro = excluded.meta_ahorro,
     presupuesto_deudas = excluded.presupuesto_deudas,
     revisado_mes = excluded.revisado_mes,
-    tarjetas = excluded.tarjetas;
+    tarjetas = excluded.tarjetas,
+    rut = excluded.rut,
+    nombres_propios = excluded.nombres_propios;
 end $$;
 
 -- Solo con sesión iniciada: Postgres deja ejecutar funciones a todos por defecto.

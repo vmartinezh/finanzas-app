@@ -12,7 +12,7 @@ export const datos = {
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
   // tarjetas: ids del catálogo de descuentos (js/beneficios.js) que la persona tiene.
-  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [] },
+  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [] },
 };
 
 export let modo = 'local';
@@ -232,12 +232,19 @@ export async function borrar(tabla, id) {
   }
 }
 
+// Columnas del perfil agregadas después: solo se mandan cuando se cambian, así
+// el resto del perfil se guarda aunque la base todavía no las tenga (falta
+// correr supabase/schema.sql). El upsert no toca las columnas que no se mandan.
+const PERFIL_NUEVAS = ['rut', 'nombres_propios'];
+
 export async function guardarPerfil(cambios) {
   Object.assign(datos.perfil, cambios);
   if (modo === 'local') {
     escribirLocal('perfil', datos.perfil);
   } else {
-    const { error } = await supabase.from('perfil').upsert({ ...sinUsuario(datos.perfil), user_id: usuarioId });
+    const fila = sinUsuario(datos.perfil);
+    for (const c of PERFIL_NUEVAS) if (!(c in cambios)) delete fila[c];
+    const { error } = await supabase.from('perfil').upsert({ ...fila, user_id: usuarioId });
     if (error) throw error;
   }
 }

@@ -6,6 +6,8 @@
 // son números, los textos son texto y los estados son valores conocidos. Así
 // un valor manipulado nunca llega a la página como HTML ni rompe los cálculos.
 import { NOMBRE_APP } from './util.js';
+// Las mismas reglas que usa el servidor (recibir-compra), para que calcen siempre.
+import { normalizarRut, nombreSirve, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MES = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -36,6 +38,20 @@ const logico = v => v !== false;
 // con el tipo de tarjeta (js/tarjetas.js): 'cmr:elite'.
 const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?$/;
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
+// Tus nombres como los escribe cada banco: solo letras, espacios, puntos,
+// apóstrofes y guiones, al menos dos palabras y sin repetir (lo que el servidor
+// ya trata como la misma persona cuenta una vez), hasta 5.
+const NOMBRE = /^\p{L}[\p{L} .'-]{1,79}$/u;
+function nombresPropios(v) {
+  if (!Array.isArray(v)) return [];
+  const limpios = [];
+  for (const n of v) {
+    if (typeof n !== 'string') continue;
+    const nombre = n.replace(/\s+/g, ' ').trim();
+    if (NOMBRE.test(nombre) && nombreSirve(nombre) && !limpios.some(x => esMismoNombre(x, nombre))) limpios.push(nombre);
+  }
+  return limpios.slice(0, 5);
+}
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
 export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
@@ -222,6 +238,8 @@ export function normalizarPerfil(p) {
     presupuesto_deudas: entero(p.presupuesto_deudas),
     revisado_mes: mes(p.revisado_mes),
     tarjetas: tarjetas(p.tarjetas),
+    rut: normalizarRut(p.rut),
+    nombres_propios: nombresPropios(p.nombres_propios),
   };
   // Respaldos de la primera versión guardaban solo el abono extra.
   if (p.pago_extra_deudas != null) limpio.pago_extra_deudas = entero(p.pago_extra_deudas);

@@ -307,6 +307,11 @@ export function cobrosParaTransferencia(quien, hoy = hoyISO()) {
     .sort((a, b) => b.calza - a.calza);
 }
 
+// "Transferencia a Ana Rojas" → "Ana Rojas": la otra persona de una
+// transferencia que llegó sola (así la nombra recibir-compra).
+export const personaDeTransferencia = comercio =>
+  String(comercio ?? '').match(/^transferencia (?:a|de) (.+)$/i)?.[1].trim() || null;
+
 // Divide un gasto entre varias personas (y ti, si te incluyes) en partes
 // enteras que suman exacto. Los pesos que sobran los ponen los demás.
 export function dividirGasto(total, cuantos, meIncluyo) {

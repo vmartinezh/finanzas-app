@@ -100,6 +100,13 @@ pasé yo". La plata que llega de alguien que te debe se propone como su pago en
 "Me deben". En Inicio, lo ya conocido se confirma con un toque. Faltan correos
 de compra con tarjeta: al usuario le llegan solo como notificación del celular.
 
+Estado (2026-11-01): Ajustes → "Tus cuentas" guarda tu RUT (recomendado) y tu
+nombre como lo escribe cada banco (`perfil.rut`, `perfil.nombres_propios`).
+Con eso, `recibir-compra` no anota la plata que mueves entre tus cuentas: el
+RUT manda y el nombre es el respaldo cuando el correo no trae el RUT. "Me la
+pasé yo" ofrece recordar ese nombre. El RUT no es la llave de la cuenta: es
+opcional y la cuenta sigue siendo el `user_id` de Supabase.
+
 Hacia adelante: cada fuente (correo, Atajo de Wallet en iPhone, un agregador
 como Fintoc o Floid, y desde julio de 2027 el Sistema de Finanzas Abiertas de
 la CMF) debe llegar por la misma puerta, `recibir-compra` → "por revisar".

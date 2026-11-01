@@ -1,6 +1,8 @@
-import { datos, guardar, borrar } from '../db.js';
+import { datos, guardar, borrar, guardarPerfil } from '../db.js';
 import { clasificar, aprender } from '../clasificador.js';
-import { cobrosParaTransferencia, estadoCobro } from '../calculos.js';
+import { cobrosParaTransferencia, estadoCobro, personaDeTransferencia } from '../calculos.js';
+import { normalizarPerfil } from '../validar.js';
+import { esMismoNombre } from '../../supabase/functions/recibir-compra/cuentas.js';
 import { abrirFormulario, avisar, confirmar, ejecutar } from '../ui.js';
 import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
@@ -90,9 +92,35 @@ export function montarFilas(raiz, refrescar) {
 }
 
 // Una transferencia que hiciste ("Transferencia a …") puede ser plata que te
-// pasaste a ti mismo; esa no es un gasto. "Me la pasé yo" la borra: si el
-// mismo correo volviera a llegar, aparecería de nuevo por revisar.
+// pasaste a ti mismo; esa no es un gasto. "Me la pasé yo" la borra y, si
+// quieres, recuerda ese nombre como tuyo (Ajustes → Tus cuentas): así las
+// próximas no llegan, ni aunque el mismo correo se lea de nuevo.
 export const esTransferencia = mov => /^transferencia (a|de) /i.test(mov.comercio || '');
+
+// Los nombres que tendrías al recordar el de esta transferencia, o null si no
+// se puede: una sola palabra, caracteres raros, ya está o ya hay 5.
+function conEsteNombre(mov) {
+  const persona = personaDeTransferencia(mov.comercio);
+  const actuales = datos.perfil.nombres_propios || [];
+  if (!persona || actuales.some(n => esMismoNombre(n, persona))) return null;
+  const { nombres_propios } = normalizarPerfil({ nombres_propios: [...actuales, persona] });
+  return nombres_propios.includes(persona) ? { persona, nombres_propios } : null;
+}
+
+// El campo "recordar" solo aparece si ese nombre se puede recordar.
+function campoRecordar(mov) {
+  const persona = conEsteNombre(mov)?.persona;
+  if (!persona) return [];
+  return [{ nombre: 'recordar', etiqueta: `Si es mía: recordar «${persona}» como mi nombre`, tipo: 'checkbox', valor: true, ayuda: 'Las próximas transferencias con ese nombre no se anotarán.' }];
+}
+
+async function sacarPropia(mov, recordar, listo, refrescar) {
+  const nuevo = recordar ? conEsteNombre(mov) : null;
+  await ejecutar(async () => {
+    if (nuevo) await guardarPerfil({ nombres_propios: nuevo.nombres_propios });
+    await borrar('movimientos', mov.id);
+  }, nuevo ? `${listo}. Recordé «${nuevo.persona}» como tu nombre` : listo, refrescar);
+}
 
 // Para compras que llegaron solas: escribes qué fue y la app la clasifica.
 export async function darContexto(mov, refrescar) {
@@ -103,12 +131,12 @@ export async function darContexto(mov, refrescar) {
     intro: `<b>${esc(clpVisible(mov.monto))}</b> ${transferencia ? '·' : 'en'} <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
     campos: [
       { nombre: 'descripcion', etiqueta: 'Cuéntame en tus palabras', tipo: 'textarea', placeholder: transferencia ? 'ej: mi parte del asado' : 'ej: uber al aeropuerto para lo del matri', requerido: !transferencia },
-      ...(transferencia ? [{ nombre: 'mias', etiqueta: 'Me la pasé yo, entre mis cuentas', tipo: 'checkbox', ayuda: 'No es un gasto: la saco de la lista.' }] : []),
+      ...(transferencia ? [{ nombre: 'mias', etiqueta: 'Me la pasé yo, entre mis cuentas', tipo: 'checkbox', ayuda: 'No es un gasto: la saco de la lista.' }, ...campoRecordar(mov)] : []),
     ],
     textoGuardar: 'Listo',
   });
   if (!valores) return;
-  if (valores.mias) return ejecutar(() => borrar('movimientos', mov.id), 'Listo, no cuenta como gasto', refrescar);
+  if (valores.mias) return sacarPropia(mov, valores.recordar, 'Listo, no cuenta como gasto', refrescar);
   if (!valores.descripcion) return editarMovimiento(mov, refrescar);
 
   const guess = clasificar({ comercio: mov.comercio, descripcion: valores.descripcion });
@@ -138,11 +166,11 @@ async function darContextoIngreso(mov, refrescar) {
         ['otro', 'Otra cosa (sueldo, una venta, un regalo…)'],
         ['mias', 'Me la pasé yo, entre mis cuentas'],
       ],
-    }],
+    }, ...campoRecordar(mov)],
     textoGuardar: 'Listo',
   });
   if (!valores) return;
-  if (valores.es === 'mias') return ejecutar(() => borrar('movimientos', mov.id), 'Listo, no cuenta como ingreso', refrescar);
+  if (valores.es === 'mias') return sacarPropia(mov, valores.recordar, 'Listo, no cuenta como ingreso', refrescar);
   const elegido = cobros.find(x => 'c:' + x.c.id === valores.es);
   if (!elegido) return editarMovimiento(mov, refrescar);
 
