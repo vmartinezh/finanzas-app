@@ -147,6 +147,7 @@ function lectorGeneral({ asunto, texto }) {
 // fecha: 'AAAA-MM-DD' del día en que llegó el correo (en hora de Chile).
 // propios: { rut, nombres } de la persona, para no anotar la plata que mueve
 // entre sus propias cuentas (opcional).
+/** @param {{ remitente?: string, asunto?: string, texto?: string, fecha?: string, propios?: { rut: string | null, nombres: string[] } | null }} [correo] */
 export function leerCorreoDeCompra({ remitente = '', asunto = '', texto = '', fecha = '', propios = null } = {}) {
   if (!esDeBanco(remitente) || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return null;
   const correo = { remitente, asunto: String(asunto).slice(0, 300), texto: String(texto).replace(/\r/g, '').slice(0, 20000) };
