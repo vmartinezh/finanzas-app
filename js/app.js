@@ -2,10 +2,10 @@ import { iniciar, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, c
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
 import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto } from './ui.js';
-import { esc, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
+import { esc, hoyISO, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
-import { datosDeRegistro, MENSAJE_RUT, MENSAJE_NOMBRE } from './validar.js';
+import { datosDeRegistro, NACIMIENTO_MINIMO, MENSAJE_RUT, MENSAJE_NOMBRE, MENSAJE_FECHA } from './validar.js';
 import { activarRecarga } from './recargar.js';
 import { editarMovimiento } from './views/movimientos.js';
 
@@ -19,12 +19,13 @@ import * as ajustes from './views/ajustes.js';
 import * as mas from './views/mas.js';
 import * as revision from './views/revision.js';
 import * as beneficios from './views/beneficios.js';
+import * as cumpleanos from './views/cumpleanos.js';
 import * as cobros from './views/cobros.js';
 
 // Cada vista exporta: titulo, render() → html, y opcionalmente montar(raiz, refrescar).
-const RUTAS = { inicio, movimientos, presupuesto, deudas, compromisos, analisis, ajustes, mas, revision, beneficios, cobros };
+const RUTAS = { inicio, movimientos, presupuesto, deudas, compromisos, analisis, ajustes, mas, revision, beneficios, cobros, cumpleanos };
 // Pantallas que viven dentro de "Más" (para marcar la pestaña correcta).
-const DENTRO_DE_MAS = ['compromisos', 'analisis', 'ajustes', 'revision', 'beneficios', 'cobros'];
+const DENTRO_DE_MAS = ['compromisos', 'analisis', 'ajustes', 'revision', 'beneficios', 'cobros', 'cumpleanos'];
 
 const vista = document.getElementById('vista');
 
@@ -85,6 +86,10 @@ function pantallaAcceso(nueva = false) {
         <label class="campo"><span>RUT</span>
           <input name="rut" required inputmode="text" autocomplete="off" maxlength="14" placeholder="ej: 12.345.678-5">
           <small>Con tu RUT y tu nombre, la plata que te pasas entre tus cuentas no se anota como gasto. Nadie más los ve.</small>
+        </label>
+        <label class="campo"><span>Fecha de nacimiento (opcional)</span>
+          <input type="date" name="fecha" autocomplete="bday" min="${NACIMIENTO_MINIMO}" max="${hoyISO()}">
+          <small>Para avisarte de los regalos y descuentos de tu cumpleaños.</small>
         </label>` : ''}
         <label class="campo"><span>Correo</span><input type="email" name="email" required autocomplete="email"></label>
         <label class="campo"><span>Contraseña</span>
@@ -110,10 +115,12 @@ function pantallaAcceso(nueva = false) {
     const email = e.target.email.value.trim();
     let registro = null;
     if (nueva) {
-      registro = datosDeRegistro({ rut: e.target.rut.value, nombre: e.target.nombre.value });
+      // Una fecha a medio escribir llega como '': badInput la distingue de una fecha vacía.
+      const fecha = e.target.fecha.validity.badInput ? 'incompleta' : e.target.fecha.value;
+      registro = datosDeRegistro({ rut: e.target.rut.value, nombre: e.target.nombre.value, fecha });
       if (registro.error) {
         e.target[registro.error].focus();
-        return avisar(registro.error === 'rut' ? MENSAJE_RUT : MENSAJE_NOMBRE, 'error');
+        return avisar({ rut: MENSAJE_RUT, nombre: MENSAJE_NOMBRE, fecha: MENSAJE_FECHA }[registro.error], 'error');
       }
     }
     // novalidate: el RUT y el nombre se revisan arriba con mensajes claros; el

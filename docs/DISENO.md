@@ -107,6 +107,16 @@ RUT manda y el nombre es el respaldo cuando el correo no trae el RUT. "Me la
 pasé yo" ofrece recordar ese nombre. El RUT no es la llave de la cuenta: es
 opcional y la cuenta sigue siendo el `user_id` de Supabase.
 
+Al crear la cuenta se piden el nombre completo y el RUT (con dígito
+verificador) y, opcional, la fecha de nacimiento. Viajan en el registro de
+Supabase hasta la primera entrada, pasan al perfil y el RUT y la fecha se
+borran de la cuenta. La fecha sirve solo para la ruta del cumpleañero
+(`js/cumpleanos.js`, vista `#/cumpleanos`): los regalos de tu día, tu semana y
+tu mes, un aviso en Inicio dos semanas antes y casillas para armar la ruta y
+tachar lo usado (`perfil.ruta_cumpleanos`, se reinicia cada año). Solo entran
+regalos confirmados en la página oficial de cada marca; la rutina de los lunes
+también revisa ese catálogo.
+
 Hacia adelante: cada fuente (correo, Atajo de Wallet en iPhone, un agregador
 como Fintoc o Floid, y desde julio de 2027 el Sistema de Finanzas Abiertas de
 la CMF) debe llegar por la misma puerta, `recibir-compra` → "por revisar".

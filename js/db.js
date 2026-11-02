@@ -12,7 +12,7 @@ export const datos = {
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
   // tarjetas: ids del catálogo de descuentos (js/beneficios.js) que la persona tiene.
-  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [] },
+  perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [], fecha_nacimiento: null, ruta_cumpleanos: null },
 };
 
 export let modo = 'local';
@@ -98,26 +98,37 @@ export async function iniciar() {
   const { data: perfil, error } = await supabase.from('perfil').select('*').maybeSingle();
   if (error) throw error;
   if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
-  // El RUT y el nombre que se dieron al crear la cuenta pasan a "Tus cuentas"
-  // la primera vez que se entra (al registrarse puede no haber sesión todavía,
-  // si Supabase pide confirmar el correo). Si falla, se reintenta la próxima vez.
-  // Ya en el perfil (protegido por RLS), el RUT se borra de la cuenta: ahí
-  // viajaría en cada token y no se actualizaría al cambiarlo en Ajustes. Queda
-  // el nombre (Display name del panel) y la marca de que ya se pasó.
-  const registro = perfilDesdeRegistro(datos.perfil, session.user.user_metadata);
-  if (registro) {
-    const antes = { rut: datos.perfil.rut, nombres_propios: datos.perfil.nombres_propios };
-    try {
-      await guardarPerfil(registro);
-      const { error } = await supabase.auth.updateUser({ data: { rut: null, en_perfil: true } });
-      if (error) console.warn('El RUT quedó en Tus cuentas, pero no se pudo borrar de la cuenta', error);
-    } catch (e) {
-      // Sin guardar, Ajustes no puede mostrarlo como guardado.
-      Object.assign(datos.perfil, antes);
-      console.warn('No se pudo pasar el RUT del registro a Tus cuentas; se reintenta al volver a entrar', e);
-    }
-  }
+  await pasarRegistro(session.user.user_metadata);
   return session.user;
+}
+
+// Lo que se dio al crear la cuenta (RUT, nombre y fecha de nacimiento) pasa al
+// perfil la primera vez que se entra: al registrarse puede no haber sesión
+// todavía, si Supabase pide confirmar el correo. Ya en el perfil (protegido por
+// RLS), el RUT y la fecha se borran de la cuenta, donde viajarían en cada token
+// y no se actualizarían al cambiarlos en Ajustes; queda el nombre (Display name
+// del panel) y la marca en_perfil. Tus cuentas y el cumpleaños se guardan por
+// separado: si la base todavía no tiene una de las columnas (falta correr
+// schema.sql), lo otro se guarda igual y lo que falte se reintenta al volver a entrar.
+async function pasarRegistro(registro) {
+  if (!registro || registro.en_perfil || (!registro.rut && !registro.fecha_nacimiento)) return;
+  const { rut, nombres_propios, fecha_nacimiento } = perfilDesdeRegistro(datos.perfil, registro) ?? {};
+  // Lo que ya está en el perfil (o no se pudo usar) se borra de la cuenta; lo
+  // que falló se queda para el próximo intento.
+  const borrar = { rut: null, fecha_nacimiento: null };
+  const pasar = async (cambios, campo) => {
+    try {
+      await guardarPerfil(cambios);
+    } catch (e) {
+      delete borrar[campo];
+      console.warn(`No se pudo pasar ${campo} del registro al perfil; se reintenta al volver a entrar`, e);
+    }
+  };
+  if (rut) await pasar({ rut, nombres_propios }, 'rut');
+  if (fecha_nacimiento) await pasar({ fecha_nacimiento }, 'fecha_nacimiento');
+  const listo = Object.keys(borrar).length === 2;
+  const { error } = await supabase.auth.updateUser({ data: { ...borrar, ...(listo ? { en_perfil: true } : {}) } });
+  if (error) console.warn('Los datos del registro quedaron en el perfil, pero no se pudieron borrar de la cuenta', error);
 }
 
 // Acceso con correo y contraseña. Crear la cuenta y entrar no envían correos;
@@ -127,10 +138,10 @@ export async function iniciar() {
 // la cuenta de Supabase solo hasta la primera entrada, cuando pasan a "Tus
 // cuentas" (ver iniciar): al registrarse puede no haber sesión para escribir el perfil.
 // Devuelve true si la cuenta quedó lista, o false si Supabase pide confirmar el correo.
-export async function crearCuenta(email, contraseña, { rut, nombre } = {}) {
+export async function crearCuenta(email, contraseña, { rut, nombre, fecha_nacimiento = null } = {}) {
   const { data, error } = await supabase.auth.signUp({
     email, password: contraseña,
-    options: { emailRedirectTo: location.origin + location.pathname, data: { full_name: nombre, rut } },
+    options: { emailRedirectTo: location.origin + location.pathname, data: { full_name: nombre, rut, fecha_nacimiento } },
   });
   if (error) throw traducirError(error);
   return !!data.session;
@@ -257,17 +268,25 @@ export async function borrar(tabla, id) {
 // Columnas del perfil agregadas después: solo se mandan cuando se cambian, así
 // el resto del perfil se guarda aunque la base todavía no las tenga (falta
 // correr supabase/schema.sql). El upsert no toca las columnas que no se mandan.
-const PERFIL_NUEVAS = ['rut', 'nombres_propios'];
+const PERFIL_NUEVAS = ['rut', 'nombres_propios', 'fecha_nacimiento', 'ruta_cumpleanos'];
 
+// Si la nube no lo guarda, la memoria vuelve a como estaba: la pantalla no puede
+// mostrar como guardado algo que no se guardó.
 export async function guardarPerfil(cambios) {
+  const antes = Object.fromEntries(Object.keys(cambios).map(c => [c, datos.perfil[c]]));
   Object.assign(datos.perfil, cambios);
   if (modo === 'local') {
     escribirLocal('perfil', datos.perfil);
-  } else {
+    return;
+  }
+  try {
     const fila = sinUsuario(datos.perfil);
     for (const c of PERFIL_NUEVAS) if (!(c in cambios)) delete fila[c];
     const { error } = await supabase.from('perfil').upsert({ ...fila, user_id: usuarioId });
     if (error) throw error;
+  } catch (e) {
+    Object.assign(datos.perfil, antes);
+    throw e;
   }
 }
 

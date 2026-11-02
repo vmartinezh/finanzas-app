@@ -8,6 +8,7 @@ import { clasificar, aprender } from '../clasificador.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
+import { avisoCumple } from '../cumpleanos.js';
 
 export const titulo = NOMBRE_APP;
 
@@ -40,6 +41,23 @@ async function confirmarSugerencias(botones) {
   const porComercio = new Map(elegidos.map(x => [x.m.comercio, x.categoria_id]));
   for (const [comercio, categoria_id] of porComercio) await aprender(comercio, categoria_id);
   return elegidos.length;
+}
+
+// El aviso del cumpleaños (js/cumpleanos.js): dos semanas antes, el día y,
+// después, mientras queden regalos elegidos sin usar en el mes.
+function tarjetaCumple(aviso) {
+  if (!aviso) return '';
+  const { tipo, dias, cuantos } = aviso;
+  const regalos = `${cuantos} ${cuantos === 1 ? 'regalo' : 'regalos'}`;
+  const [titulo, texto] = tipo === 'hoy'
+    ? ['¡Feliz cumpleaños! 🎂', `Hoy tienes ${regalos} esperándote. Mira tu ruta.`]
+    : tipo === 'pronto'
+      ? ['Mira lo que se viene por tu cumpleaños 🎂', `Faltan ${dias} ${dias === 1 ? 'día' : 'días'} y hay ${regalos} para ti.${aviso.antes ? ` ${aviso.antes === 1 ? 'Uno pide' : 'Algunos piden'} inscribirse antes.` : ''}`]
+      : ['Todavía es tu mes 🎂', `Te ${cuantos === 1 ? 'queda' : 'quedan'} ${regalos} de tu ruta por usar.`];
+  return `<a class="tarjeta destacada enlace-tarjeta" href="#/cumpleanos">
+    <h2>${titulo}</h2>
+    <p>${texto}</p>
+  </a>`;
 }
 
 export function render() {
@@ -104,6 +122,8 @@ export function render() {
         </dl>
       </details>
     </section>
+
+    ${tarjetaCumple(avisoCumple(datos.perfil.fecha_nacimiento, hoyISO(), datos.perfil.ruta_cumpleanos))}
 
     ${revision.pendiente ? `
       <a class="tarjeta destacada enlace-tarjeta" href="#/revision">

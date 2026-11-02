@@ -5,7 +5,7 @@ import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
 import { correoHTML, montarCorreo } from '../correo.js';
 import { walletHTML, montarWallet } from '../wallet.js';
 import { COMPRAS_SOLAS } from '../config.js';
-import { normalizarPerfil, MENSAJE_RUT } from '../validar.js';
+import { normalizarPerfil, nacimiento, NACIMIENTO_MINIMO, MENSAJE_RUT, MENSAJE_FECHA } from '../validar.js';
 import { normalizarRut } from '../../supabase/functions/recibir-compra/cuentas.js';
 
 export const titulo = 'Ajustes';
@@ -64,6 +64,17 @@ export function render() {
         <button class="boton primario">Guardar</button>
       </form>
     </section>` : ''}
+
+    <section class="tarjeta" id="tu-cumpleanos">
+      <h2>Tu cumpleaños</h2>
+      <p class="ayuda">Para avisarte de los regalos y descuentos de tu cumpleaños, y armar tu <a href="#/cumpleanos">ruta del cumpleañero</a>. No se muestra en ninguna parte.</p>
+      <form id="form-cumpleanos">
+        <label class="campo"><span>Fecha de nacimiento (opcional)</span>
+          <input type="date" name="fecha" min="${NACIMIENTO_MINIMO}" max="${hoyISO()}" value="${esc(p.fecha_nacimiento || '')}">
+        </label>
+        <button class="boton primario">Guardar</button>
+      </form>
+    </section>
 
     <section class="tarjeta">
       <h2>Mis datos</h2>
@@ -154,6 +165,15 @@ export function montar(raiz, refrescar) {
         ? 'Guardado, pero algunos nombres no: escribe nombre y apellido, solo con letras.'
         : 'Guardado: lo que te transfieras entre tus cuentas no se anotará.';
     ejecutar(() => guardarPerfil({ rut, nombres_propios }), mensaje, refrescar);
+  });
+
+  raiz.querySelector('#form-cumpleanos').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const escrita = ev.target.fecha.value;
+    const fecha_nacimiento = escrita ? nacimiento(escrita) : null;
+    if (escrita && !fecha_nacimiento) return avisar(MENSAJE_FECHA, 'error');
+    ejecutar(() => guardarPerfil({ fecha_nacimiento }),
+      fecha_nacimiento ? 'Guardado: te avisaremos antes de tu cumpleaños.' : 'Guardado: sin fecha de nacimiento.', refrescar);
   });
 
   montarCorreo(raiz);

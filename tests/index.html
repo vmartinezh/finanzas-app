@@ -26,6 +26,7 @@
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
+    import { BENEFICIOS_CUMPLE, cumpleQueViene, rutaDelCumple, avisoCumple, rutaDelAnio } from '../js/cumpleanos.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
     ocultarMontos(false, false);
@@ -244,6 +245,22 @@
       igual(datosDeRegistro({ rut: '11111111-1', nombre: 'Ana <b>Rojas</b>' }).error, 'nombre', 'con símbolos:');
       igual(datosDeRegistro({}).error, 'nombre', 'vacío: primero el nombre, como en el formulario:');
     });
+    prueba('Al crear la cuenta, la fecha de nacimiento es opcional, pero si viene tiene que ser válida', () => {
+      const base = { rut: '11111111-1', nombre: 'Ana Rojas Pino' };
+      igual(datosDeRegistro({ ...base, fecha: '1990-05-17' }), { rut: '11111111-1', nombre: 'Ana Rojas Pino', fecha_nacimiento: '1990-05-17' });
+      igual(datosDeRegistro({ ...base, fecha: '' }), { rut: '11111111-1', nombre: 'Ana Rojas Pino', fecha_nacimiento: null }, 'sin fecha:');
+      igual(datosDeRegistro({ ...base, fecha: '1990-02-30' }).error, 'fecha', 'no existe:');
+      igual(datosDeRegistro({ ...base, fecha: '9999-01-01' }).error, 'fecha', 'futura:');
+    });
+    prueba('La fecha de nacimiento del registro también llega al perfil, sin pisar la que ya está', () => {
+      const vacio = { rut: null, nombres_propios: [], fecha_nacimiento: null };
+      igual(perfilDesdeRegistro(vacio, { rut: '11111111-1', full_name: 'Ana Rojas Pino', fecha_nacimiento: '1990-05-17' }),
+        { rut: '11111111-1', nombres_propios: ['Ana Rojas Pino'], fecha_nacimiento: '1990-05-17' });
+      igual(perfilDesdeRegistro({ ...vacio, rut: '22222222-2' }, { rut: '11111111-1', fecha_nacimiento: '1990-05-17' }), { fecha_nacimiento: '1990-05-17' }, 'ya tenía RUT:');
+      igual(perfilDesdeRegistro({ ...vacio, fecha_nacimiento: '1985-01-01' }, { fecha_nacimiento: '1990-05-17' }), null, 'ya tenía fecha:');
+      igual(perfilDesdeRegistro(vacio, { fecha_nacimiento: '1990-02-30' }), null, 'fecha mala:');
+      igual(perfilDesdeRegistro(vacio, { fecha_nacimiento: '1990-05-17', en_perfil: true }), null, 'ya se pasó:');
+    });
     prueba('Lo que se dio al crear la cuenta llega a "Tus cuentas" solo si ahí no hay un RUT', () => {
       const registro = { rut: '11111111-1', full_name: 'Ana Rojas Pino' };
       igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, registro), { rut: '11111111-1', nombres_propios: ['Ana Rojas Pino'] });
@@ -383,7 +400,20 @@
     });
     prueba('El perfil solo conserva campos conocidos', () => {
       igual(normalizarPerfil({ ingreso_mensual: '1500000', revisado_mes: ATAQUE, raro: 1 }),
-        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [] });
+        { ingreso_mensual: 1500000, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [], fecha_nacimiento: null, ruta_cumpleanos: null });
+    });
+    prueba('Tu fecha de nacimiento del perfil tiene que existir y no ser futura ni antes de 1900', () => {
+      igual(normalizarPerfil({ fecha_nacimiento: '1990-05-17' }).fecha_nacimiento, '1990-05-17');
+      igual(normalizarPerfil({ fecha_nacimiento: '2000-02-29' }).fecha_nacimiento, '2000-02-29', 'bisiesto:');
+      igual(['1990-02-30', '1899-12-31', '9999-01-01', ATAQUE, 19900517, ''].map(f => normalizarPerfil({ fecha_nacimiento: f }).fecha_nacimiento),
+        [null, null, null, null, null, null], 'inválidas:');
+    });
+    prueba('Tu ruta del cumpleañero guarda el año y solo ids del catálogo, sin repetir', () => {
+      igual(normalizarPerfil({ ruta_cumpleanos: { anio: 2026, elegidos: ['starbucks', 'domino', 'starbucks', ATAQUE, 7], usados: ['domino'], raro: 1 } }).ruta_cumpleanos,
+        { anio: 2026, elegidos: ['starbucks', 'domino'], usados: ['domino'] });
+      igual(normalizarPerfil({ ruta_cumpleanos: { anio: 'x', elegidos: ['starbucks'] } }).ruta_cumpleanos, null, 'sin año:');
+      igual(normalizarPerfil({ ruta_cumpleanos: 'starbucks' }).ruta_cumpleanos, null, 'no es objeto:');
+      igual(normalizarPerfil({ ruta_cumpleanos: { anio: 2026 } }).ruta_cumpleanos, { anio: 2026, elegidos: [], usados: [] }, 'vacía:');
     });
     prueba('Tu RUT y tus nombres del perfil se limpian', () => {
       const p = normalizarPerfil({ rut: '11.111.111-1', nombres_propios: ['  Ana   Rojas ', 'ANA ROJAS', ATAQUE, 'A', 'Ana', 'Rojas, Ana', 7, 'x'.repeat(81), 'Ana María Rojas Pino', 'Ana Rojas Pino'] });
@@ -671,6 +701,68 @@
         if (!/^https:\/\//.test(b.fuente)) throw new Error(`${quien} la fuente no es https`);
         if (b.hasta !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.hasta)) throw new Error(`${quien} fecha "hasta" inválida`);
         if (!b.descuento) throw new Error(`${quien} sin descuento`);
+      }
+    });
+
+    // Ruta del cumpleañero (js/cumpleanos.js). Con un catálogo de prueba, para
+    // que las fechas no dependan de lo que haya hoy en el catálogo real.
+    const CATALOGO = [
+      { id: 'cafe', marca: 'Café', icono: '☕', regalo: 'Un café', cuando: 'mes', antes: 'Inscríbete en el club', fuente: 'https://a.cl', hasta: null },
+      { id: 'cine', marca: 'Cine', icono: '🎬', regalo: '1 entrada', cuando: 'semana', antes: null, fuente: 'https://b.cl', hasta: null },
+      { id: 'dona', marca: 'Donas', icono: '🍩', regalo: 'Una dona', cuando: 'dia', antes: null, fuente: 'https://c.cl', hasta: null },
+      { id: 'vencido', marca: 'Viejo', icono: '🎁', regalo: 'Algo', cuando: 'mes', antes: null, fuente: 'https://d.cl', hasta: '2026-10-31' },
+    ];
+    prueba('Tu cumpleaños que viene es el de este año hasta que termina su mes; el 29 de febrero se celebra el 28 si el año no es bisiesto', () => {
+      igual(cumpleQueViene('1990-11-20', '2026-11-01'), '2026-11-20');
+      igual(cumpleQueViene('1990-11-20', '2026-11-25'), '2026-11-20', 'ya pasó, pero sigue el mes:');
+      igual(cumpleQueViene('1990-11-20', '2026-12-01'), '2027-11-20', 'terminó el mes:');
+      igual(cumpleQueViene('1990-01-05', '2026-12-28'), '2027-01-05', 'cambio de año:');
+      igual(cumpleQueViene('2000-02-29', '2027-01-10'), '2027-02-28', 'bisiesto en año normal:');
+      igual(cumpleQueViene('2000-02-29', '2028-01-10'), '2028-02-29', 'bisiesto en año bisiesto:');
+      igual(cumpleQueViene('1990-11-28', '2026-12-02'), '2026-11-28', 'terminó el mes, pero sigue la semana:');
+      igual(cumpleQueViene('1990-12-30', '2027-01-03'), '2026-12-30', 'la semana pasa a enero:');
+      igual(cumpleQueViene('1990-12-30', '2027-01-06'), '2027-12-30', 'terminó la semana:');
+    });
+    prueba('La ruta separa lo que hay que hacer antes y lo de tu día, tu semana y tu mes, sin lo vencido', () => {
+      const r = rutaDelCumple('1990-11-20', '2026-11-01', CATALOGO);
+      igual([r.cumple, r.dias], ['2026-11-20', 19]);
+      igual([r.antes, r.dia, r.semana, r.mes].map(g => g.map(b => b.id)), [['cafe'], ['dona'], ['cine'], ['cafe']]);
+      igual(rutaDelCumple('1990-12-05', '2026-11-01', CATALOGO).mes.map(b => b.id), ['cafe'], 'vencido antes de tu mes:');
+      igual(rutaDelCumple(null, '2026-11-01', CATALOGO), null, 'sin fecha:');
+      const despues = rutaDelCumple('1990-11-20', '2026-11-22', CATALOGO);
+      igual([despues.antes, despues.dia, despues.semana, despues.mes].map(g => g.map(b => b.id)), [[], [], ['cine'], ['cafe']], 'pasado el día:');
+      const finDeSemana = rutaDelCumple('1990-11-28', '2026-12-02', CATALOGO);
+      igual([finDeSemana.semana, finDeSemana.mes].map(g => g.map(b => b.id)), [['cine'], []], 'terminó el mes, sigue la semana:');
+    });
+    prueba('El aviso aparece 14 días antes, el día de tu cumpleaños y en tu mes mientras te quede algo elegido por usar', () => {
+      const ruta = { anio: 2026, elegidos: ['cafe'], usados: [] };
+      igual(avisoCumple('1990-11-20', '2026-11-05', null, CATALOGO), null, '15 días antes:');
+      igual(avisoCumple('1990-11-20', '2026-11-06', null, CATALOGO), { tipo: 'pronto', dias: 14, cuantos: 3, antes: 1 });
+      igual(avisoCumple('1990-11-20', '2026-11-06', null, CATALOGO.filter(b => !b.antes)).antes, 0, 'nada que hacer antes:');
+      igual(avisoCumple('1990-11-20', '2026-11-20', null, CATALOGO), { tipo: 'hoy', dias: 0, cuantos: 3, antes: 0 });
+      igual(avisoCumple('1990-11-20', '2026-11-25', ruta, CATALOGO), { tipo: 'mes', dias: -5, cuantos: 1, antes: 0 }, 'queda el café:');
+      igual(avisoCumple('1990-11-20', '2026-11-22', { ...ruta, elegidos: ['cine'] }, CATALOGO), { tipo: 'mes', dias: -2, cuantos: 1, antes: 0 }, 'queda el cine de la semana:');
+      igual(avisoCumple('1990-11-20', '2026-11-27', { ...ruta, elegidos: ['cine'] }, CATALOGO), null, 'terminó la semana del cine:');
+      igual(avisoCumple('1990-11-20', '2026-11-25', { ...ruta, usados: ['cafe'] }, CATALOGO), null, 'ya lo usó:');
+      igual(avisoCumple('1990-11-20', '2026-11-25', { ...ruta, anio: 2025 }, CATALOGO), null, 'la ruta era del año pasado:');
+      igual(avisoCumple(null, '2026-11-20', null, CATALOGO), null, 'sin fecha:');
+      igual(avisoCumple('1990-11-20', '2026-11-20', null, []), null, 'catálogo vacío:');
+    });
+    prueba('Tu ruta parte de cero cada año', () => {
+      igual(rutaDelAnio({ anio: 2026, elegidos: ['cafe'], usados: ['cafe'] }, 2026), { anio: 2026, elegidos: ['cafe'], usados: ['cafe'] });
+      igual(rutaDelAnio({ anio: 2025, elegidos: ['cafe'], usados: [] }, 2026), { anio: 2026, elegidos: [], usados: [] });
+      igual(rutaDelAnio(null, 2026), { anio: 2026, elegidos: [], usados: [] });
+    });
+    prueba('Cada beneficio de cumpleaños del catálogo está bien escrito y no se repite', () => {
+      const ids = new Set();
+      for (const b of BENEFICIOS_CUMPLE) {
+        const quien = `${b.marca} (${b.id}):`;
+        if (!/^[a-z0-9-]{1,40}$/.test(b.id) || ids.has(b.id)) throw new Error(`${quien} id inválido o repetido`);
+        ids.add(b.id);
+        if (!['dia', 'semana', 'mes'].includes(b.cuando)) throw new Error(`${quien} "cuando" inválido`);
+        if (!/^https:\/\//.test(b.fuente)) throw new Error(`${quien} la fuente no es https`);
+        if (b.hasta !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.hasta)) throw new Error(`${quien} fecha "hasta" inválida`);
+        if (!b.regalo || !b.icono || !b.donde) throw new Error(`${quien} le falta regalo, ícono o dónde`);
       }
     });
 

@@ -844,3 +844,15 @@ dialog:not([open])::backdrop { opacity: 0; }
   .tirar-actualizar, .tirar-actualizar svg { transition: none; }
   .tirar-actualizar.actualizando svg { animation: none; }
 }
+
+/* ── Tu cumpleaños ──────────────────────────────── */
+.regalos .regalo { display: flex; gap: 12px; align-items: flex-start; padding: 12px 2px; }
+.regalo-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.regalo-texto b { font-weight: 600; }
+.regalo-que { font-weight: 550; color: var(--acento); }
+.regalo-texto small { font-size: .8rem; color: var(--texto-2); }
+.regalo-texto .enlace { font-size: .85rem; margin-top: 2px; }
+.regalo-acciones { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; font-size: .9rem; }
+.regalo-acciones label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
+.regalo.usado .regalo-que, .regalo.usado b { text-decoration: line-through; color: var(--texto-3); }
+.lista.antes li { padding: 8px 2px; font-size: .92rem; }

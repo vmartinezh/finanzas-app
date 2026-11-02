@@ -5,7 +5,7 @@
 // Cada campo queda con el tipo que la app espera: los ids son UUID, los montos
 // son números, los textos son texto y los estados son valores conocidos. Así
 // un valor manipulado nunca llega a la página como HTML ni rompe los cálculos.
-import { NOMBRE_APP } from './util.js';
+import { NOMBRE_APP, hoyISO } from './util.js';
 // Las mismas reglas que usa el servidor (recibir-compra), para que calcen siempre.
 import { normalizarRut, nombreSirve, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
 
@@ -38,6 +38,21 @@ const logico = v => v !== false;
 // con el tipo de tarjeta (js/tarjetas.js): 'cmr:elite'.
 const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?$/;
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
+// Fecha de nacimiento: que exista, desde 1900 y no en el futuro. La usan el
+// registro, Ajustes y el perfil que llega de la nube.
+export const NACIMIENTO_MINIMO = '1900-01-01';
+export const nacimiento = v => (esFecha(v) && v >= NACIMIENTO_MINIMO && v <= hoyISO() ? v : null);
+// Tu ruta del cumpleañero (js/cumpleanos.js): el año y los ids del catálogo
+// que elegiste y que ya usaste.
+const ID_CUMPLE = /^[a-z0-9-]{1,40}$/;
+const idsCumple = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_CUMPLE.test(t)))].slice(0, 100) : []);
+function rutaCumpleanos(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  if (typeof v.anio !== 'number') return null;
+  const anio = enteroONulo(v.anio, 1900, 2200);
+  if (anio == null) return null;
+  return { anio, elegidos: idsCumple(v.elegidos), usados: idsCumple(v.usados) };
+}
 // Tus nombres como los escribe cada banco: solo letras, espacios, puntos,
 // apóstrofes y guiones, al menos dos palabras y sin repetir (lo que el servidor
 // ya trata como la misma persona cuenta una vez), hasta 5.
@@ -56,15 +71,21 @@ function nombresPropios(v) {
 // Los usan Crear cuenta y Ajustes, para que digan lo mismo.
 export const MENSAJE_RUT = 'Ese RUT no parece válido: revisa los números y el dígito verificador.';
 export const MENSAJE_NOMBRE = 'Escribe tu nombre completo, con nombre y apellido, solo con letras.';
+export const MENSAJE_FECHA = 'Revisa tu fecha de nacimiento: tiene que ser una fecha real y no en el futuro.';
 
-// Crear cuenta: { rut, nombre } listos para guardar, o { error: 'nombre' | 'rut' }
-// con el primer campo que hay que corregir, en el orden del formulario.
-export function datosDeRegistro({ rut, nombre } = {}) {
+// Crear cuenta: { rut, nombre[, fecha_nacimiento] } listos para guardar, o
+// { error: 'nombre' | 'rut' | 'fecha' } con el primer campo que hay que
+// corregir, en el orden del formulario. La fecha es opcional.
+export function datosDeRegistro({ rut, nombre, fecha } = {}) {
   const [n] = nombresPropios([nombre]);
   if (!n) return { error: 'nombre' };
   const r = normalizarRut(rut);
   if (!r) return { error: 'rut' };
-  return { rut: r, nombre: n };
+  const datos = { rut: r, nombre: n };
+  if (fecha === undefined) return datos;
+  const f = fecha ? nacimiento(fecha) : null;
+  if (fecha && !f) return { error: 'fecha' };
+  return { ...datos, fecha_nacimiento: f };
 }
 
 // Lo que se dio al crear la cuenta (user_metadata de Supabase: rut y full_name)
@@ -72,10 +93,18 @@ export function datosDeRegistro({ rut, nombre } = {}) {
 // perfil, o null si no hay nada que pasar, si ya hay un RUT ahí (no se pisa) o
 // si ya se pasó antes (registro.en_perfil): si la persona lo borra en Ajustes,
 // no vuelve a aparecer.
+// La fecha de nacimiento sigue la misma regla, por separado.
 export function perfilDesdeRegistro(perfil, registro) {
-  const rut = normalizarRut(registro?.rut);
-  if (!rut || perfil?.rut || registro.en_perfil) return null;
-  return { rut, nombres_propios: nombresPropios([...(perfil?.nombres_propios ?? []), registro.full_name]) };
+  if (!registro || registro.en_perfil) return null;
+  const cambios = {};
+  const rut = normalizarRut(registro.rut);
+  if (rut && !perfil?.rut) {
+    cambios.rut = rut;
+    cambios.nombres_propios = nombresPropios([...(perfil?.nombres_propios ?? []), registro.full_name]);
+  }
+  const fecha = nacimiento(registro.fecha_nacimiento);
+  if (fecha && !perfil?.fecha_nacimiento) cambios.fecha_nacimiento = fecha;
+  return Object.keys(cambios).length ? cambios : null;
 }
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
@@ -265,6 +294,8 @@ export function normalizarPerfil(p) {
     tarjetas: tarjetas(p.tarjetas),
     rut: normalizarRut(p.rut),
     nombres_propios: nombresPropios(p.nombres_propios),
+    fecha_nacimiento: nacimiento(p.fecha_nacimiento),
+    ruta_cumpleanos: rutaCumpleanos(p.ruta_cumpleanos),
   };
   // Respaldos de la primera versión guardaban solo el abono extra.
   if (p.pago_extra_deudas != null) limpio.pago_extra_deudas = entero(p.pago_extra_deudas);
