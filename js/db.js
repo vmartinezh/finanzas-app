@@ -3,7 +3,7 @@
 //   - modo local: localStorage del navegador
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { normalizarTabla, normalizarPerfil, prepararRespaldo, TABLAS } from './validar.js';
+import { normalizarTabla, normalizarPerfil, prepararRespaldo, perfilDesdeRegistro, TABLAS } from './validar.js';
 
 export { TABLAS };
 
@@ -98,17 +98,39 @@ export async function iniciar() {
   const { data: perfil, error } = await supabase.from('perfil').select('*').maybeSingle();
   if (error) throw error;
   if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
+  // El RUT y el nombre que se dieron al crear la cuenta pasan a "Tus cuentas"
+  // la primera vez que se entra (al registrarse puede no haber sesión todavía,
+  // si Supabase pide confirmar el correo). Si falla, se reintenta la próxima vez.
+  // Ya en el perfil (protegido por RLS), el RUT se borra de la cuenta: ahí
+  // viajaría en cada token y no se actualizaría al cambiarlo en Ajustes. Queda
+  // el nombre (Display name del panel) y la marca de que ya se pasó.
+  const registro = perfilDesdeRegistro(datos.perfil, session.user.user_metadata);
+  if (registro) {
+    const antes = { rut: datos.perfil.rut, nombres_propios: datos.perfil.nombres_propios };
+    try {
+      await guardarPerfil(registro);
+      const { error } = await supabase.auth.updateUser({ data: { rut: null, en_perfil: true } });
+      if (error) console.warn('El RUT quedó en Tus cuentas, pero no se pudo borrar de la cuenta', error);
+    } catch (e) {
+      // Sin guardar, Ajustes no puede mostrarlo como guardado.
+      Object.assign(datos.perfil, antes);
+      console.warn('No se pudo pasar el RUT del registro a Tus cuentas; se reintenta al volver a entrar', e);
+    }
+  }
   return session.user;
 }
 
 // Acceso con correo y contraseña. Crear la cuenta y entrar no envían correos;
 // solo recuperar la contraseña, y para eso Supabase necesita un SMTP propio
 // (el que trae por defecto solo llega a los miembros del proyecto).
+// El RUT y el nombre completo (ya validados con datosDeRegistro) se guardan en
+// la cuenta de Supabase solo hasta la primera entrada, cuando pasan a "Tus
+// cuentas" (ver iniciar): al registrarse puede no haber sesión para escribir el perfil.
 // Devuelve true si la cuenta quedó lista, o false si Supabase pide confirmar el correo.
-export async function crearCuenta(email, contraseña) {
+export async function crearCuenta(email, contraseña, { rut, nombre } = {}) {
   const { data, error } = await supabase.auth.signUp({
     email, password: contraseña,
-    options: { emailRedirectTo: location.origin + location.pathname },
+    options: { emailRedirectTo: location.origin + location.pathname, data: { full_name: nombre, rut } },
   });
   if (error) throw traducirError(error);
   return !!data.session;

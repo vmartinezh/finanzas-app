@@ -21,7 +21,7 @@
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
-    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo } from '../js/validar.js';
+    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
@@ -233,6 +233,28 @@
       igual(['11.111.111-1', '11111111-1', ' 22.222.222-2 ', '10.000.013-k', '10000013K', '11 111 111-1', '011.111.111-1', '999.999-K'].map(normalizarRut),
         ['11111111-1', '11111111-1', '22222222-2', '10000013-K', '10000013-K', '11111111-1', '11111111-1', '999999-K']);
       igual(['11.111.111-2', 'abc', '', '1-9', null, 11111111].map(normalizarRut), [null, null, null, null, null, null], 'inválidos:');
+    });
+    // Crear cuenta: el RUT y el nombre completo se piden al registrarse y pasan
+    // solos a "Tus cuentas" la primera vez que la persona entra.
+    prueba('Al crear la cuenta, el RUT tiene que tener bien el dígito verificador y el nombre al menos nombre y apellido', () => {
+      igual(datosDeRegistro({ rut: '11.111.111-1', nombre: '  Ana   Rojas Pino ' }), { rut: '11111111-1', nombre: 'Ana Rojas Pino' });
+      igual(datosDeRegistro({ rut: '11.111.111-2', nombre: 'Ana Rojas Pino' }).error, 'rut', 'dígito malo:');
+      igual(datosDeRegistro({ rut: '', nombre: 'Ana Rojas Pino' }).error, 'rut', 'sin RUT:');
+      igual(datosDeRegistro({ rut: '11111111-1', nombre: 'Ana' }).error, 'nombre', 'una sola palabra:');
+      igual(datosDeRegistro({ rut: '11111111-1', nombre: 'Ana <b>Rojas</b>' }).error, 'nombre', 'con símbolos:');
+      igual(datosDeRegistro({}).error, 'nombre', 'vacío: primero el nombre, como en el formulario:');
+    });
+    prueba('Lo que se dio al crear la cuenta llega a "Tus cuentas" solo si ahí no hay un RUT', () => {
+      const registro = { rut: '11111111-1', full_name: 'Ana Rojas Pino' };
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, registro), { rut: '11111111-1', nombres_propios: ['Ana Rojas Pino'] });
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: ['ANA ROJAS PINO', 'Ana Rojas'] }, registro),
+        { rut: '11111111-1', nombres_propios: ['ANA ROJAS PINO', 'Ana Rojas'] }, 'el nombre ya estaba:');
+      igual(perfilDesdeRegistro({ rut: '22222222-2', nombres_propios: [] }, registro), null, 'ya tiene RUT:');
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, { ...registro, en_perfil: true }), null, 'ya se pasó y lo borró en Ajustes:');
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, { rut: '11111111-2', full_name: 'Ana Rojas Pino' }), null, 'RUT malo:');
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, {}), null, 'cuenta antigua sin datos:');
+      igual(perfilDesdeRegistro({ rut: null, nombres_propios: [] }, { rut: '11111111-1', full_name: 'Ana' }),
+        { rut: '11111111-1', nombres_propios: [] }, 'nombre que no sirve:');
     });
     prueba('Dos nombres son la misma persona si son iguales, o si el más corto tiene tres palabras y todas están en el otro', () => {
       igual(esMismoNombre('Ana Rojas Pino', 'ANA ROJAS PINO'), true);

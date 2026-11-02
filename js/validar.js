@@ -53,6 +53,31 @@ function nombresPropios(v) {
   return limpios.slice(0, 5);
 }
 
+// Los usan Crear cuenta y Ajustes, para que digan lo mismo.
+export const MENSAJE_RUT = 'Ese RUT no parece válido: revisa los números y el dígito verificador.';
+export const MENSAJE_NOMBRE = 'Escribe tu nombre completo, con nombre y apellido, solo con letras.';
+
+// Crear cuenta: { rut, nombre } listos para guardar, o { error: 'nombre' | 'rut' }
+// con el primer campo que hay que corregir, en el orden del formulario.
+export function datosDeRegistro({ rut, nombre } = {}) {
+  const [n] = nombresPropios([nombre]);
+  if (!n) return { error: 'nombre' };
+  const r = normalizarRut(rut);
+  if (!r) return { error: 'rut' };
+  return { rut: r, nombre: n };
+}
+
+// Lo que se dio al crear la cuenta (user_metadata de Supabase: rut y full_name)
+// pasa a "Tus cuentas" la primera vez que se entra. Devuelve los cambios para el
+// perfil, o null si no hay nada que pasar, si ya hay un RUT ahí (no se pisa) o
+// si ya se pasó antes (registro.en_perfil): si la persona lo borra en Ajustes,
+// no vuelve a aparecer.
+export function perfilDesdeRegistro(perfil, registro) {
+  const rut = normalizarRut(registro?.rut);
+  if (!rut || perfil?.rut || registro.en_perfil) return null;
+  return { rut, nombres_propios: nombresPropios([...(perfil?.nombres_propios ?? []), registro.full_name]) };
+}
+
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
 export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
 

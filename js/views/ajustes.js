@@ -5,7 +5,7 @@ import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
 import { correoHTML, montarCorreo } from '../correo.js';
 import { walletHTML, montarWallet } from '../wallet.js';
 import { COMPRAS_SOLAS } from '../config.js';
-import { normalizarPerfil } from '../validar.js';
+import { normalizarPerfil, MENSAJE_RUT } from '../validar.js';
 import { normalizarRut } from '../../supabase/functions/recibir-compra/cuentas.js';
 
 export const titulo = 'Ajustes';
@@ -144,7 +144,7 @@ export function montar(raiz, refrescar) {
     ev.preventDefault();
     const f = ev.target;
     const rut = f.rut.value.trim() ? normalizarRut(f.rut.value) : null;
-    if (f.rut.value.trim() && !rut) return avisar('Ese RUT no parece válido: revisa los números y el dígito verificador.', 'error');
+    if (f.rut.value.trim() && !rut) return avisar(MENSAJE_RUT, 'error');
     const escritos = f.nombres.value.split('\n').filter(n => n.trim());
     const { nombres_propios } = normalizarPerfil({ nombres_propios: escritos });
     // Se dice qué quedó: un nombre con números, comas o de una sola palabra no se guarda.

@@ -5,6 +5,7 @@ import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto } from
 import { esc, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
+import { datosDeRegistro, MENSAJE_RUT, MENSAJE_NOMBRE } from './validar.js';
 import { activarRecarga } from './recargar.js';
 import { editarMovimiento } from './views/movimientos.js';
 
@@ -76,7 +77,15 @@ function pantallaAcceso(nueva = false) {
       <p class="ayuda">${nueva
         ? 'Tus datos quedan en tu cuenta y nadie más puede verlos.'
         : 'Tus cuentas, más simples. Tus días, más tranquilos.'}</p>
-      <form id="form-acceso">
+      <form id="form-acceso" novalidate>
+        ${nueva ? `
+        <label class="campo"><span>Nombre completo</span>
+          <input name="nombre" required autocomplete="name" maxlength="80" placeholder="ej: Ana María Rojas Pino">
+        </label>
+        <label class="campo"><span>RUT</span>
+          <input name="rut" required inputmode="text" autocomplete="off" maxlength="14" placeholder="ej: 12.345.678-5">
+          <small>Con tu RUT y tu nombre, la plata que te pasas entre tus cuentas no se anota como gasto. Nadie más los ve.</small>
+        </label>` : ''}
         <label class="campo"><span>Correo</span><input type="email" name="email" required autocomplete="email"></label>
         <label class="campo"><span>Contraseña</span>
           <input type="password" name="clave" required minlength="8" autocomplete="${nueva ? 'new-password' : 'current-password'}">
@@ -99,10 +108,21 @@ function pantallaAcceso(nueva = false) {
     e.preventDefault();
     const boton = e.target.querySelector('button');
     const email = e.target.email.value.trim();
+    let registro = null;
+    if (nueva) {
+      registro = datosDeRegistro({ rut: e.target.rut.value, nombre: e.target.nombre.value });
+      if (registro.error) {
+        e.target[registro.error].focus();
+        return avisar(registro.error === 'rut' ? MENSAJE_RUT : MENSAJE_NOMBRE, 'error');
+      }
+    }
+    // novalidate: el RUT y el nombre se revisan arriba con mensajes claros; el
+    // correo y la contraseña siguen con la revisión del navegador.
+    if (!e.target.reportValidity()) return;
     boton.disabled = true;
     try {
       if (nueva) {
-        const lista = await crearCuenta(email, e.target.clave.value);
+        const lista = await crearCuenta(email, e.target.clave.value, registro);
         if (!lista) {
           vista.querySelector('.acceso').innerHTML = `<h2>Confirma tu correo</h2><p>Mandamos un enlace a <b>${esc(email)}</b>. Ábrelo y después entra con tu contraseña.</p>`;
           return;
