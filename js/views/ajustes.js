@@ -1,4 +1,5 @@
-import { datos, guardar, borrar, guardarPerfil, modo, exportar, importar, cerrarSesion, TABLAS, PREFIJO } from '../db.js';
+import { datos, guardar, guardarVarios, borrar, guardarPerfil, modo, exportar, importar, cerrarSesion, TABLAS, PREFIJO } from '../db.js';
+import { hayComercios } from '../mis-comercios.js';
 import { cargarEjemplo } from '../semillas.js';
 import { abrirFormulario, ejecutar, avisar, confirmar, inputMonto } from '../ui.js';
 import { clp, esc, hoyISO, leerMonto, NOMBRE_APP } from '../util.js';
@@ -113,6 +114,9 @@ async function editarCategoria(c, refrescar) {
     return ejecutar(async () => {
       for (const m of datos.movimientos.filter(m => m.categoria_id === c.id)) await guardar('movimientos', { ...m, categoria_id: null });
       for (const r of datos.reglas.filter(r => r.categoria_id === c.id)) await borrar('reglas', r.id);
+      // Sus comercios se quedan, sin categoría (la nube lo haría sola; así se ve igual sin recargar).
+      const comercios = hayComercios() ? datos.comercios.filter(x => x.categoria_id === c.id) : [];
+      if (comercios.length) await guardarVarios('comercios', comercios.map(x => ({ ...x, categoria_id: null })));
       await borrar('categorias', c.id);
     }, 'Categoría borrada', refrescar);
   }

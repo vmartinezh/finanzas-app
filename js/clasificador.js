@@ -2,11 +2,15 @@
 // de lo que escribes ("uber al aeropuerto para lo del matri").
 //
 // Orden de prioridad:
-//   1. Reglas aprendidas: la última vez que clasificaste ese comercio.
-//   2. Palabras clave de abajo + las que agregues a cada categoría.
+//   1. Lo que escribes ("uber para el matri").
+//   2. Lo aprendido: la categoría del comercio (js/mis-comercios.js), que vale
+//      para todas las formas de escribirlo ("JUMBO LAS CONDES", "Jumbo"). Las
+//      transferencias, y lo aprendido antes de la tabla comercios, en reglas.
+//   3. Palabras clave de abajo + las que agregues a cada categoría.
 // Más adelante, en la fase 3, lo que no se resuelva aquí se mandará a la IA.
 import { datos, guardar } from './db.js';
 import { normalizar } from './util.js';
+import { comercioDe, comercioPara } from './mis-comercios.js';
 
 // Palabras clave por nombre de categoría (de las categorías por defecto).
 const PALABRAS_BASE = {
@@ -41,10 +45,9 @@ export function clasificar({ comercio = '', descripcion = '' }) {
     if (cat) Object.assign(resultado, { categoria_id: cat.id, motivo: 'por lo que escribiste' });
   }
   if (!resultado.categoria_id && comercioN) {
-    const regla = datos.reglas.find(r => r.patron === comercioN);
-    if (regla && datos.categorias.some(c => c.id === regla.categoria_id)) {
-      Object.assign(resultado, { categoria_id: regla.categoria_id, motivo: 'como la última vez' });
-    }
+    const aprendida = [comercioDe(comercio)?.categoria_id, datos.reglas.find(r => r.patron === comercioN)?.categoria_id]
+      .find(id => id && datos.categorias.some(c => c.id === id));
+    if (aprendida) Object.assign(resultado, { categoria_id: aprendida, motivo: 'como la última vez' });
   }
   if (!resultado.categoria_id) {
     const cat = buscarPorPalabras(texto);
@@ -77,10 +80,14 @@ function palabrasEvento(evento) {
   return [evento.nombre, ...String(evento.palabras || '').split(',')].map(normalizar).filter(Boolean);
 }
 
-// Cuando clasificas a mano una compra con comercio, se recuerda para la próxima.
+// Cuando clasificas a mano una compra con comercio, se recuerda para la
+// próxima: en el comercio si se puede; si no (una transferencia, un ingreso o
+// la nube sin la tabla comercios), en reglas.
 export async function aprender(comercio, categoria_id) {
   const patron = normalizar(comercio);
   if (!patron || !categoria_id) return;
+  const deIngreso = datos.categorias.find(c => c.id === categoria_id)?.tipo === 'ingreso';
+  if (!deIngreso && await comercioPara(comercio, { categoria_id })) return;
   const existente = datos.reglas.find(r => r.patron === patron);
   if (existente?.categoria_id === categoria_id) return;
   await guardar('reglas', { ...(existente || {}), patron, categoria_id });

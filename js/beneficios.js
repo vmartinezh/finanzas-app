@@ -11,6 +11,7 @@
 import { normalizar } from './util.js';
 // El mismo reconocimiento de bancos que usa el servidor con los avisos de compra.
 import { bancoPorNombre } from '../supabase/functions/recibir-compra/bancos.js';
+import { claveExacta } from './comercios.js';
 
 export const REVISADO = '2026-11-01';
 
@@ -200,11 +201,30 @@ export function sugerirTarjeta(deuda, mias) {
 // días; dentro de cada grupo, los más altos primero.
 export function beneficiosDelDia(tarjetas, fechaISO) {
   const dia = diaSemana(fechaISO);
-  const mias = new Set(tarjetas.map(t => separarTarjeta(t).banco));
-  return BENEFICIOS
-    .filter(b => mias.has(b.tarjeta) && (!b.hasta || b.hasta >= fechaISO))
+  return vigentes(tarjetas, fechaISO)
     .filter(b => !b.dias.length || b.dias.includes(dia))
     .sort((a, b) => (!a.dias.length - !b.dias.length) || valor(b) - valor(a) || a.comercio.localeCompare(b.comercio, 'es'));
+}
+
+// Los descuentos de tus tarjetas (sus bancos) que no han vencido en esa fecha.
+function vigentes(tarjetas, fechaISO) {
+  const mias = new Set(tarjetas.map(t => separarTarjeta(t).banco));
+  return BENEFICIOS.filter(b => mias.has(b.tarjeta) && (!b.hasta || b.hasta >= fechaISO));
+}
+
+// La clave de comercio de cada descuento, calculada una vez.
+const CLAVE_DESCUENTO = new Map(BENEFICIOS.map(b => [b, claveExacta(b.comercio)]));
+
+// Los descuentos de tus tarjetas en un comercio (patrones: sus claves, ver
+// js/comercios.js) que siguen vigentes, cualquier día. Calza si el nombre del
+// descuento es una de las formas de escribir el comercio o está dentro de una
+// ("santa brasa" en "santa brasa la dehesa"); "PedidosYa Market" no calza con
+// cualquier pedido de PedidosYa.
+export function descuentosEn(patrones, tarjetas, fechaISO) {
+  const calza = clave => !!clave && patrones.some(p => p === clave || (' ' + p + ' ').includes(' ' + clave + ' '));
+  return vigentes(tarjetas, fechaISO)
+    .filter(b => calza(CLAVE_DESCUENTO.get(b)))
+    .sort((a, b) => valor(b) - valor(a));
 }
 
 // Texto corto para los días: "jueves", "lunes y viernes", "todos los días".

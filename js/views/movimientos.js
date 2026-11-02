@@ -4,7 +4,10 @@ import { cobrosParaTransferencia, estadoCobro, personaDeTransferencia } from '..
 import { normalizarPerfil } from '../validar.js';
 import { esMismoNombre } from '../../supabase/functions/recibir-compra/cuentas.js';
 import { abrirFormulario, avisar, confirmar, ejecutar } from '../ui.js';
-import { misTarjetas, cuentaPorId, nombreTarjeta, nombreCorto } from '../mis-tarjetas.js';
+import { misTarjetas, misClaves, cuentaPorId, nombreTarjeta, nombreCorto, nombreDelBanco } from '../mis-tarjetas.js';
+import { hayComercios, comercioPorId, conComercio, juntarComercios } from '../mis-comercios.js';
+import { esTransferencia as esTransferenciaTexto } from '../comercios.js';
+import { descuentosEn, textoDias } from '../beneficios.js';
 import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
 export const titulo = 'Gastos';
@@ -98,7 +101,7 @@ export function montarFilas(raiz, refrescar) {
 // pasaste a ti mismo; esa no es un gasto. "Me la pasé yo" la borra y, si
 // quieres, recuerda ese nombre como tuyo (Ajustes → Tus cuentas): así las
 // próximas no llegan, ni aunque el mismo correo se lea de nuevo.
-export const esTransferencia = mov => /^transferencia (a|de) /i.test(mov.comercio || '');
+export const esTransferencia = mov => esTransferenciaTexto(mov.comercio);
 
 // Los nombres que tendrías al recordar el de esta transferencia, o null si no
 // se puede: una sola palabra, caracteres raros, ya está o ya hay 5.
@@ -152,8 +155,8 @@ export async function darContexto(mov, refrescar) {
   const cat = datos.categorias.find(c => c.id === guess.categoria_id);
   const evento = datos.eventos.find(e => e.id === guess.evento_id);
   await ejecutar(async () => {
-    await guardar('movimientos', { ...mov, descripcion: valores.descripcion, categoria_id: guess.categoria_id, evento_id: guess.evento_id || mov.evento_id || null, estado: 'clasificado' });
     await aprender(mov.comercio, guess.categoria_id);
+    await guardar('movimientos', await conComercio({ ...mov, descripcion: valores.descripcion, categoria_id: guess.categoria_id, evento_id: guess.evento_id || mov.evento_id || null, estado: 'clasificado' }));
   }, `Ah, corresponde a ${cat.icono} ${cat.nombre}${evento ? ' · ' + evento.nombre : ''}`, refrescar);
 }
 
@@ -210,10 +213,16 @@ export async function editarMovimiento(mov, refrescar) {
   // Tus tarjetas, y la de este gasto aunque la hayas quitado (quedó archivada).
   const usada = m.cuenta_id ? cuentaPorId(m.cuenta_id) : null;
   const tarjetas = [...misTarjetas(), ...(usada && usada.activa === false ? [usada] : [])];
+  // Su comercio: los otros, para juntarlo si es el mismo lugar escrito distinto,
+  // y los descuentos que tienes ahí con tus tarjetas.
+  const comercio = m.comercio_id && hayComercios() ? comercioPorId(m.comercio_id) : null;
+  const otros = comercio ? datos.comercios.filter(c => c.id !== comercio.id).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es')) : [];
+  const descuentos = comercio ? descuentosEn(comercio.patrones, misClaves(), hoyISO()).slice(0, 2) : [];
 
   const valores = await abrirFormulario({
     titulo: nuevo ? 'Nuevo movimiento' : 'Editar movimiento',
     puedeBorrar: !nuevo,
+    intro: descuentos.map(b => `🏷️ En ${esc(b.comercio)} tienes ${esc(b.descuento)} ${b.dias.length ? `(${esc(textoDias(b.dias))}) ` : ''}con tu ${esc(nombreDelBanco(b.tarjeta))}.`).join('<br>'),
     campos: [
       { nombre: 'tipo', etiqueta: 'Tipo', tipo: 'select', valor: m.tipo, opciones: [['gasto', 'Gasto'], ['ingreso', 'Ingreso']] },
       { nombre: 'monto', etiqueta: 'Monto ($)', tipo: 'monto', valor: m.monto, requerido: true },
@@ -221,6 +230,9 @@ export async function editarMovimiento(mov, refrescar) {
       { nombre: 'categoria_id', etiqueta: 'Categoría', tipo: 'select', valor: m.categoria_id || '', opciones: opcionesCat },
       { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'date', valor: m.fecha, requerido: true },
       { nombre: 'comercio', etiqueta: 'Comercio (opcional)', tipo: 'text', valor: m.comercio },
+      ...(otros.length ? [{ nombre: 'mismo', etiqueta: `¿${comercio.nombre} es el mismo lugar que otro?`, tipo: 'select', valor: '',
+        opciones: [['', 'No, es otro lugar'], ...otros.map(c => [c.id, c.nombre])],
+        ayuda: 'Si eliges uno, quedan juntos: sus gastos y la categoría aprendida.' }] : []),
       ...(tarjetas.length ? [{ nombre: 'cuenta_id', etiqueta: '¿Con qué tarjeta?', tipo: 'select', valor: m.cuenta_id || '',
         opciones: [['', 'Otra, o no fue con tarjeta'], ...tarjetas.map(c => [c.id, nombreTarjeta(c)])] }] : []),
       { nombre: 'evento_id', etiqueta: 'Evento (opcional)', tipo: 'select', valor: m.evento_id || '', opciones: [['', 'Ninguno'], ...datos.eventos.filter(e => e.activo !== false || e.id === m.evento_id).map(e => [e.id, e.nombre])] },
@@ -231,7 +243,8 @@ export async function editarMovimiento(mov, refrescar) {
   if (!valores) return;
   if (valores === 'borrar') return ejecutar(() => borrar('movimientos', m.id), 'Movimiento borrado', refrescar);
 
-  const { pago, ...resto } = valores;
+  const { pago, mismo, ...resto } = valores;
+  const juntarCon = mismo && comercio ? comercioPorId(mismo) : null;
   const fila = {
     ...m, ...resto,
     monto: Math.round(resto.monto || 0),
@@ -256,8 +269,12 @@ export async function editarMovimiento(mov, refrescar) {
 
   let deudaTerminada = null;
   await ejecutar(async () => {
-    await guardar('movimientos', fila);
-    if (fila.comercio && fila.categoria_id) await aprender(fila.comercio, fila.categoria_id);
+    // Juntar va primero: el gasto queda en el comercio que se queda, que conserva
+    // su categoría (por eso al juntar no se aprende la de este gasto).
+    if (juntarCon) await juntarComercios(comercio, juntarCon);
+    // Aprender antes de guardar: si el comercio es nuevo, se crea ya con su categoría.
+    else if (fila.comercio && fila.categoria_id) await aprender(fila.comercio, fila.categoria_id);
+    await guardar('movimientos', await conComercio(fila));
 
     // Un pago nuevo de compromiso lo marca como pagado ese mes.
     if (fila.compromiso_id && (nuevo || fila.compromiso_id !== m.compromiso_id)) {

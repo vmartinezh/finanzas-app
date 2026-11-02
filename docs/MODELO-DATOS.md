@@ -1,8 +1,9 @@
 # Modelo de datos de Simplifika
 
 > Describe cómo estaban los datos, qué "datos sueltos" conviene volver
-> entidades y en qué orden migrar sin perder nada. **Fases 1 (`cuentas`) y 2
-> (con qué tarjeta se pagó) hechas el 2026-11-02**; las demás siguen siendo propuesta.
+> entidades y en qué orden migrar sin perder nada. **Fases 1 (`cuentas`), 2
+> (con qué tarjeta se pagó) y 3 (`comercios`) hechas el 2026-11-02**; las demás
+> siguen siendo propuesta.
 
 ## La idea en una frase
 
@@ -102,9 +103,8 @@ erDiagram
   COMERCIOS {
     uuid id
     text nombre "Jumbo"
-    text_arr patrones "jumbo las condes, jumbo.cl"
+    text_arr patrones "jumbo, unimarc (claves limpias)"
     uuid categoria_id
-    text marca "id del catálogo de descuentos, opcional"
   }
   BENEFICIOS_USADOS {
     uuid id
@@ -130,14 +130,24 @@ que mañana quepan las cuentas sin rediseñar.
   que tiene descuento hoy", y sincronizar con el banco (open finance) cuenta por cuenta.
 
 **`comercios`: dónde gastas.** Junta las variantes de un mismo comercio y su categoría.
-- `movimientos.comercio_id`; el texto original queda en `descripcion`.
-- `comercios.categoria_id` + `patrones` reemplaza a `reglas`: lo que la app aprende
-  queda en un solo lugar. `categorias.palabras` sigue para palabras genéricas ("uber",
-  "farmacia") que no son un comercio.
-- `marca` apunta al catálogo de descuentos: un gasto en Jumbo sabe que hay descuento
-  en Jumbo.
-- **Abre:** "este mes gastaste $X en Jumbo", "con tu Santander te habrías ahorrado
-  $Y", y ofertas por comercio.
+- `claveComercio` (`js/comercios.js`) limpia el texto del banco: sin intermediario
+  (`MERPAGO*`), forma legal, números de sucursal ni comuna, y con las marcas
+  conocidas ("JUMBO LAS CONDES" → `jumbo`). `patrones` guarda esas claves; si la app
+  no unió dos, la persona los junta al editar un gasto ("es el mismo lugar que…").
+- `movimientos.comercio_id`; el texto como llegó del banco queda en `comercio`
+  (`descripcion` es la nota de la persona).
+- `comercios.categoria_id` reemplaza a `reglas` para lo que aprende la app. `reglas`
+  se sigue leyendo (lo de antes) y guarda lo de las transferencias, que no son un
+  comercio. `categorias.palabras` sigue para palabras genéricas ("farmacia").
+- **Sin columna `marca`:** el catálogo de descuentos no tiene ids estables por
+  comercio (lo reescribe la rutina de cada lunes), así que el cruce se calcula
+  comparando claves (`descuentosEn` en `js/beneficios.js`), sin guardar nada.
+- **El paso de los datos lo hace la app, no el SQL:** agrupar variantes necesita la
+  limpieza de `claveComercio`, y tenerla en JS y en SQL haría que algún día no
+  calcen. `pasarAComercios` corre al abrir la app (también enlaza lo que llegó solo
+  del banco), al importar un respaldo y en modo local.
+- **Abre:** "¿Dónde más gastaste?" en Gráficos, el descuento que tienes en ese
+  comercio al revisar un gasto, y más adelante ofertas por comercio.
 
 **Pagos de compromisos: una sola fuente.** El pago de un mes es el movimiento con
 `compromiso_id` y `mes_pagado`. Marcar "pagado" sin monto crea ese movimiento con el
@@ -172,7 +182,7 @@ y migra el modo local al cargar. Además lleva pruebas y `/ecc:security-scan`.
 |---|---|---|---|
 | 1 ✓ | `cuentas` + `deudas.cuenta_id`; `cupo_total` pasa a la cuenta | `perfil.tarjetas` → una fila por tarjeta; `deudas.tarjeta` → `cuenta_id` | Medio: toca Plan, Descuentos y Cumpleaños |
 | 2 ✓ | `movimientos.cuenta_id`; Atajo y correos leen los 4 dígitos (`tarjetaDeCompra`); una tarjeta con compras se archiva en vez de borrarse | — | Bajo |
-| 3 | `comercios` + `movimientos.comercio_id`; `reglas` → `comercios` | Agrupa `movimientos.comercio` por texto normalizado | Medio: el clasificador cambia de fuente |
+| 3 ✓ | `comercios` + `movimientos.comercio_id`; lo aprendido pasa de `reglas` a `comercios` | En la app (`pasarAComercios`): agrupa `movimientos.comercio` por `claveComercio` | Medio: el clasificador cambia de fuente |
 | 4 | Pagos de compromisos como movimientos (`mes_pagado`) | Cada mes en `pagados` sin movimiento → movimiento con el monto del compromiso | Medio: cambia "puedes gastar hoy"; hay que cuidar no contar doble |
 | 5 | `beneficios_usados` | `ruta_cumpleanos.usados` → filas | Bajo |
 | 6 | `movimientos.persona_id`, `personas.rut`, `cuenta_destino_id` | — | Bajo |

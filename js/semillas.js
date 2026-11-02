@@ -1,4 +1,4 @@
-import { datos, guardarVarios, guardarPerfil, nuevoId } from './db.js';
+import { datos, guardarVarios, guardarPerfil, nuevoId, pasarComercios } from './db.js';
 import { mesActual, hoyISO, diasDelMes, sumarDias } from './util.js';
 
 const CATEGORIAS_BASE = [
@@ -70,7 +70,7 @@ export async function cargarEjemplo() {
     g(7, 18500, 'SUSHI HOME', 'Comida fuera'),
     g(8, 4590, 'CRUZ VERDE', 'Salud'),
     g(9, 15990, 'CINEMARK', 'Entretención'),
-    g(10, 52000, 'UNIMARC', 'Supermercado'),
+    g(10, 52000, 'JUMBO LA REINA 0423', 'Supermercado'),
     g(11, 22400, 'PEDIDOSYA', 'Comida fuera'),
     g(12, 9800, 'UBER', 'Transporte'),
     { ...g(12, 27990, 'MERCADOPAGO*TIENDA', null), categoria_id: null, origen: 'correo', estado: 'pendiente' },
@@ -93,4 +93,6 @@ export async function cargarEjemplo() {
   await guardarVarios('movimientos', [
     { id: nuevoId(), fecha: fecha(2), monto: 40500, tipo: 'ingreso', comercio: '', descripcion: 'Pago de Matías · Zapatillas de Brasil', categoria_id: null, cobro_id: zapatillas.id, origen: 'manual', estado: 'clasificado' },
   ]);
+  // Cada gasto, con su comercio (Jumbo, Starbucks…).
+  await pasarComercios();
 }

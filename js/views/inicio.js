@@ -6,6 +6,7 @@ import { ejecutar, barraProgreso, ICONO_ESTADO, contarHasta, sinMovimiento } fro
 import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos, NOMBRE_APP } from '../util.js';
 import { filaMovimiento, montarFilas, esTransferencia } from './movimientos.js';
 import { clasificar, aprender } from '../clasificador.js';
+import { conComercio } from '../mis-comercios.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
@@ -37,10 +38,12 @@ async function confirmarSugerencias(botones) {
     categoria_id: b.dataset.confirmar,
     evento_id: b.dataset.evento || null,
   })).filter(x => x.m?.estado === 'pendiente');
-  await Promise.all(elegidos.map(({ m, categoria_id, evento_id }) =>
-    guardar('movimientos', { ...m, categoria_id, evento_id: m.evento_id || evento_id, estado: 'clasificado' })));
+  // Primero se aprende cada comercio una vez (si es nuevo, se crea ya con su
+  // categoría); después los gastos se guardan juntos y solo lo encuentran.
   const porComercio = new Map(elegidos.map(x => [x.m.comercio, x.categoria_id]));
   for (const [comercio, categoria_id] of porComercio) await aprender(comercio, categoria_id);
+  await Promise.all(elegidos.map(async ({ m, categoria_id, evento_id }) =>
+    guardar('movimientos', await conComercio({ ...m, categoria_id, evento_id: m.evento_id || evento_id, estado: 'clasificado' }))));
   return elegidos.length;
 }
 

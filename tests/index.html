@@ -19,10 +19,11 @@
     // No toca tus datos: trabaja sobre datos en memoria.
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
-    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cupoDe, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
+    import { claveComercio, claveExacta, nombreDeClave, pasarAComercios, sinPatronesRepetidos, esTransferencia } from '../js/comercios.js';
+    import { planDeudas, gastoPorComercio, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cupoDe, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo, pasarTarjetasACuentas } from '../js/validar.js';
-    import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta } from '../js/beneficios.js';
+    import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta, descuentosEn } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { tarjetaDeCompra, bancoPorNombre, bancoPorRemitente, digitosDelNombre } from '../supabase/functions/recibir-compra/bancos.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
@@ -737,6 +738,114 @@
       } finally {
         datos.cuentas = antes;
       }
+    });
+
+    // Comercios (fase 3): el mismo lugar escrito de varias formas
+    prueba('Comercio: las formas de escribir Jumbo son una sola', () => {
+      igual(['JUMBO LAS CONDES', 'Jumbo', 'MERPAGO*JUMBO', 'jumbo.cl', 'JUMBO 0423', 'Jumbo La Reina'].map(claveComercio), Array(6).fill('jumbo'));
+    });
+    prueba('Comercio: sin intermediario, forma legal, sucursal ni comuna', () => {
+      igual(['LA PICCOLA ITALIA SPA', 'SANTA BRASA VITACURA', 'STARBUCKS CHILE', 'EXPRESS DE LIDER', 'SumUp *Café Altura 12', 'Mc Donald’s'].map(claveComercio),
+        ['la piccola italia', 'santa brasa', 'starbucks', 'lider', 'cafe altura', 'mcdonalds']);
+    });
+    prueba('Comercio: la marca más larga gana y una corta solo al principio', () => {
+      igual(['UBER *EATS', 'UBER *TRIP', 'PARIS PARQUE ARAUCO', 'Café Paris', 'Pizzería Starbucks Lovers'].map(claveComercio),
+        ['uber eats', 'uber', 'paris', 'cafe paris', 'starbucks']);
+    });
+    prueba('Comercio: una transferencia o solo números no son comercio', () => {
+      igual(['Transferencia a Juan Pérez', 'transferencia de Cata', '4521', '', null].map(claveComercio), [null, null, null, null, null]);
+      igual(esTransferencia('Transferencia a Juan'), true);
+    });
+    prueba('Comercio: nombre que se muestra', () => {
+      igual(['jumbo', 'mcdonalds', 'la piccola italia', 'casa de la tia'].map(nombreDeClave), ['Jumbo', 'McDonald’s', 'La Piccola Italia', 'Casa de la Tia']);
+    });
+    prueba('Paso a comercios: enlaza los gastos y lleva lo aprendido en reglas', () => {
+      const g = (id, comercio, extra = {}) => ({ id, fecha: '2026-11-01', monto: 1000, tipo: 'gasto', comercio, comercio_id: null, ...extra });
+      const movimientos = [g('m1', 'JUMBO'), g('m2', 'MERPAGO*JUMBO'), g('m3', 'Transferencia a Juan'), g('m4', 'Sueldo', { tipo: 'ingreso' }), g('m5', 'Sushi Home'), g('m6', 'COPEC', { comercio_id: 'otro' })];
+      const reglas = [{ id: 'r1', patron: 'jumbo las condes', categoria_id: 'super' }, { id: 'r2', patron: 'transferencia a juan', categoria_id: 'regalos' }];
+      const paso = pasarAComercios({ comercios: [], movimientos, reglas }, contador());
+      igual(paso.comercios.map(c => [c.nombre, c.patrones, c.categoria_id]), [['Jumbo', ['jumbo'], 'super'], ['Sushi Home', ['sushi home'], null]]);
+      const jumbo = paso.comercios[0].id;
+      igual(paso.movimientos.map(m => [m.id, m.comercio_id]), [['m1', jumbo], ['m2', jumbo], ['m5', paso.comercios[1].id]]);
+      // Repetirlo no cambia nada.
+      const ya = new Map(paso.movimientos.map(m => [m.id, m]));
+      igual(pasarAComercios({ comercios: paso.comercios, movimientos: movimientos.map(m => ya.get(m.id) ?? m), reglas }, contador()), null);
+    });
+    prueba('Comercio: un nombre genérico con número no se junta con otro', () => {
+      igual(['CAFE 1050', 'CAFE 2000', 'BAR 21', 'SUSHI HOME 12'].map(claveComercio), ['cafe 1050', 'cafe 2000', 'bar 21', 'sushi home']);
+    });
+    prueba('Comercio: una palabra genérica o un movimiento del banco no son comercio', () => {
+      igual(['MERCADOPAGO*TIENDA', 'Tienda', 'PAGO CMR FALABELLA', 'BANCO RIPLEY', 'COMISION MANTENCION'].map(claveComercio), [null, null, null, null, null]);
+    });
+    prueba('Descuento de una sub-marca no es de toda la marca', () => {
+      igual([claveExacta('PedidosYa Market'), claveExacta('Farmacias Cruz Verde'), claveExacta('Starbucks')], ['pedidosya market', 'cruz verde', 'starbucks']);
+    });
+    prueba('Paso a comercios: reglas que no se ponen de acuerdo, o de ingresos, no dan categoría', () => {
+      const reglas = [{ patron: 'copec', categoria_id: 'trans' }, { patron: 'copec pronto', categoria_id: 'comida' }, { patron: 'empresa xyz', categoria_id: 'sueldo' }];
+      const categorias = [{ id: 'trans', tipo: 'gasto' }, { id: 'comida', tipo: 'gasto' }, { id: 'sueldo', tipo: 'ingreso' }];
+      igual(pasarAComercios({ comercios: [], movimientos: [], reglas, categorias }, contador()), null);
+    });
+    prueba('Restaurar: un gasto cuyo comercio no venía encuentra el suyo por el texto', () => {
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }],
+        movimientos: [{ id: D1, fecha: '2026-11-01', monto: 5, tipo: 'gasto', comercio: 'JUMBO', comercio_id: D3 }],
+      }, contador());
+      igual(tablas.movimientos[0].comercio_id, tablas.comercios[0].id);
+      igual(tablas.comercios[0].nombre, 'Jumbo');
+    });
+    prueba('Paso a comercios: no pisa la categoría que el comercio ya tiene', () => {
+      const comercios = [{ id: 'k1', nombre: 'Jumbo', patrones: ['jumbo'], categoria_id: 'comida' }];
+      igual(pasarAComercios({ comercios, movimientos: [], reglas: [{ patron: 'jumbo', categoria_id: 'super' }] }, contador()), null);
+    });
+    prueba('Comercios: una clave en un solo comercio', () => {
+      igual(sinPatronesRepetidos([{ id: 'a', patrones: ['jumbo', 'lider'] }, { id: 'b', patrones: ['jumbo', 'tottus'] }]).map(c => c.patrones), [['jumbo', 'lider'], ['tottus']]);
+    });
+    prueba('Comercios: se validan como cualquier fila', () => {
+      const c = normalizarFila('comercios', { id: ID, nombre: ATAQUE, patrones: ['jumbo', '<script>', 'jumbo', 3], categoria_id: ATAQUE });
+      igual([c.patrones, c.categoria_id], [['jumbo'], null]);
+      igual(normalizarFila('movimientos', { id: ID, fecha: '2026-11-01', monto: 1, comercio_id: ATAQUE }).comercio_id, null);
+    });
+    prueba('Restaurar un respaldo de antes de los comercios: los crea y enlaza con ids nuevos', () => {
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }],
+        reglas: [{ id: D3, patron: 'jumbo', categoria_id: ID }],
+        movimientos: [{ id: D1, fecha: '2026-11-01', monto: 5, tipo: 'gasto', comercio: 'JUMBO LAS CONDES' }, { id: D2, fecha: '2026-11-02', monto: 6, tipo: 'gasto', comercio: 'Jumbo' }],
+      }, contador());
+      igual(tablas.comercios.length, 1);
+      const [c] = tablas.comercios;
+      igual([c.nombre, c.categoria_id], ['Jumbo', tablas.categorias[0].id]);
+      igual(tablas.movimientos.map(m => m.comercio_id), [c.id, c.id]);
+    });
+    prueba('El clasificador usa la categoría del comercio, en cualquiera de sus formas', () => {
+      const antes = datos.comercios;
+      datos.comercios = [{ id: 'k1', nombre: 'Jumbo', patrones: ['jumbo'], categoria_id: 'regalos' }];
+      try {
+        const r = clasificar({ comercio: 'MERPAGO*JUMBO LA REINA' });
+        igual([r.categoria_id, r.motivo], ['regalos', 'como la última vez']);
+        igual(clasificar({ comercio: 'JUMBO', descripcion: 'uber al aeropuerto' }).categoria_id, 'trans', 'lo que escribes manda;');
+      } finally {
+        datos.comercios = antes;
+      }
+    });
+    prueba('Dónde más gastaste: suma por comercio, sin ingresos ni gastos sin comercio', () => {
+      const antes = datos.movimientos;
+      const mes = mesActual();
+      const m = (monto, comercio_id, tipo = 'gasto') => ({ fecha: mes + '-01', monto, tipo, comercio_id });
+      datos.movimientos = [m(100, 'a'), m(50, 'b'), m(70, 'a'), m(999, 'a', 'ingreso'), m(500, null), { ...m(800, 'b'), fecha: '2001-01-01' }, { ...m(300, 'b'), deuda_id: 'd' }];
+      try {
+        igual(gastoPorComercio(mes), [{ comercio_id: 'a', total: 170, veces: 2 }, { comercio_id: 'b', total: 50, veces: 1 }]);
+      } finally {
+        datos.movimientos = antes;
+      }
+    });
+    prueba('Descuentos en un comercio: solo los de tus bancos y vigentes', () => {
+      const hoy = '2026-11-02';
+      const b = BENEFICIOS.find(x => !x.hasta || x.hasta >= hoy);
+      const clave = claveComercio(b.comercio);
+      igual(descuentosEn([clave], [b.tarjeta], hoy).includes(b), true);
+      igual(descuentosEn([clave + ' providencia norte'], [b.tarjeta], hoy).includes(b), true, 'con más palabras;');
+      igual(descuentosEn([clave], ['otro-banco'], hoy).includes(b), false, 'otro banco;');
+      igual(descuentosEn([clave], [b.tarjeta], '2999-01-01').includes(b), !b.hasta, 'vencido;');
     });
 
     // Descuentos de las tarjetas

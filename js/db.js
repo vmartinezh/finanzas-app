@@ -4,6 +4,7 @@
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { normalizarTabla, normalizarPerfil, prepararRespaldo, perfilDesdeRegistro, pasarTarjetasACuentas, mezclar, TABLAS } from './validar.js';
+import { pasarAComercios } from './comercios.js';
 
 export { TABLAS };
 
@@ -12,6 +13,8 @@ export const datos = {
   // Tus tarjetas (y más adelante tus cuentas): ver js/mis-tarjetas.js. Cada
   // deuda de tarjeta apunta a la suya con deudas.cuenta_id.
   cuentas: [],
+  // Dónde gastas: ver js/comercios.js. Cada gasto apunta al suyo con movimientos.comercio_id.
+  comercios: [],
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
   // tarjetas: de antes de la tabla cuentas; queda vacío después del paso (pasarTarjetas).
@@ -72,6 +75,7 @@ export async function iniciar() {
     for (const t of TABLAS) datos[t] = normalizarTabla(t, leerLocal(t, []));
     Object.assign(datos.perfil, normalizarPerfil(leerLocal('perfil', {})));
     await pasarTarjetas();
+    await pasarComercios();
     return 'local';
   }
 
@@ -108,6 +112,7 @@ export async function iniciar() {
   if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
   await pasarRegistro(session.user.user_metadata);
   await pasarTarjetas();
+  await pasarComercios();
   return session.user;
 }
 
@@ -130,6 +135,27 @@ async function pasarTarjetas() {
   } catch (e) {
     // Se puede repetir: lo que ya quedó en cuentas no se duplica.
     console.warn('No se pudieron pasar tus tarjetas a cuentas; se reintenta al volver a entrar', e);
+  }
+}
+
+// Los gastos sin comercio_id (de antes de la tabla comercios, o que llegaron
+// solos del banco desde la última vez) se enlazan a su comercio, y lo aprendido
+// en reglas pasa a la categoría del comercio. Sin la tabla en la nube no se hace
+// nada: el clasificador sigue con reglas.
+export async function pasarComercios() {
+  if (tablasQueFaltan.has('comercios')) return;
+  const paso = pasarAComercios(datos, nuevoId);
+  if (!paso) return;
+  // guardarVarios cambia la memoria antes de subir: si la nube falla, la memoria
+  // vuelve a como estaba, para que ningún gasto apunte a un comercio que la nube no tiene.
+  const antes = { comercios: [...datos.comercios], movimientos: [...datos.movimientos] };
+  try {
+    await guardarVarios('comercios', paso.comercios);
+    await guardarVarios('movimientos', paso.movimientos);
+  } catch (e) {
+    Object.assign(datos, antes);
+    // Se puede repetir: lo que ya quedó enlazado no se vuelve a crear.
+    console.warn('No se pudieron enlazar tus gastos a sus comercios; se reintenta al volver a entrar', e);
   }
 }
 
@@ -265,7 +291,7 @@ export async function borrarClaveIngreso(fuente) {
 // Columnas agregadas después que la app puede mandar con valor. Si la base
 // todavía no tiene una (falta correr supabase/schema.sql), la fila se guarda
 // sin ella: mejor guardar el resto del cambio que perderlo entero.
-const COLUMNAS_NUEVAS = ['cuenta_id'];
+const COLUMNAS_NUEVAS = ['cuenta_id', 'comercio_id'];
 async function subir(tabla, filas) {
   let { error } = await supabase.from(tabla).upsert(filas);
   const columna = error?.code === 'PGRST204' ? COLUMNAS_NUEVAS.find(c => error.message?.includes(`'${c}'`)) : null;
@@ -359,6 +385,7 @@ function sinUsuario(fila, anterior = null) {
   // Igual que la tarjeta: un cuenta_id vacío no se manda (la base puede no tener
   // movimientos.cuenta_id todavía), salvo que sea para soltar uno que había.
   if (tablasQueFaltan.has('cuentas') || (resto.cuenta_id == null && anterior?.cuenta_id == null)) delete resto.cuenta_id;
+  if (tablasQueFaltan.has('comercios') || (resto.comercio_id == null && anterior?.comercio_id == null)) delete resto.comercio_id;
   return resto;
 }
 

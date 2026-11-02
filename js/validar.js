@@ -7,6 +7,7 @@
 // un valor manipulado nunca llega a la página como HTML ni rompe los cálculos.
 import { NOMBRE_APP, hoyISO } from './util.js';
 import { armarTarjeta } from './beneficios.js';
+import { pasarAComercios, sinPatronesRepetidos } from './comercios.js';
 // Las mismas reglas que usa el servidor (recibir-compra), para que calcen siempre.
 import { normalizarRut, nombreSirve, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
 
@@ -44,6 +45,9 @@ const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t ===
 // Un id del catálogo ('santander', 'elite') o null.
 const SLUG = /^[a-z0-9-]{1,40}$/;
 const slug = v => (typeof v === 'string' && SLUG.test(v) ? v : null);
+// Las claves de un comercio (js/comercios.js): minúsculas, letras, números y espacios.
+const PATRON = /^[a-z0-9ñ ]{1,120}$/;
+const patrones = v => (Array.isArray(v) ? [...new Set(v.filter(p => typeof p === 'string' && PATRON.test(p)))].slice(0, 50) : []);
 const cuatroDigitos = v => (typeof v === 'string' && /^\d{4}$/.test(v) ? v : null);
 // Fecha de nacimiento: que exista, desde 1900 y no en el futuro. La usan el
 // registro, Ajustes y el perfil que llega de la nube.
@@ -121,7 +125,7 @@ export function perfilDesdeRegistro(perfil, registro) {
 }
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
-export const TABLAS = ['categorias', 'eventos', 'cuentas', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
+export const TABLAS = ['categorias', 'eventos', 'cuentas', 'comercios', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
 
 export const TIPOS_CUENTA = ['credito', 'debito', 'corriente', 'vista', 'efectivo'];
 
@@ -151,6 +155,13 @@ const FORMAS = {
     cupo_total: f.cupo_total ? entero(f.cupo_total) || null : null,
     dia_facturacion: enteroONulo(f.dia_facturacion, 1, 31),
     activa: logico(f.activa),
+  }),
+  // Dónde gastas: el nombre que se muestra, las formas en que lo escribe el
+  // banco (claveComercio) y la categoría aprendida.
+  comercios: f => ({
+    nombre: texto(f.nombre, 60) ?? 'Sin nombre',
+    patrones: patrones(f.patrones),
+    categoria_id: id(f.categoria_id),
   }),
   deudas: f => ({
     nombre: texto(f.nombre, 80) ?? 'Sin nombre',
@@ -202,6 +213,8 @@ const FORMAS = {
     cobro_id: id(f.cobro_id),
     // Con cuál de tus tarjetas se pagó.
     cuenta_id: id(f.cuenta_id),
+    // El comercio (tabla comercios); el texto como llegó queda en comercio.
+    comercio_id: id(f.comercio_id),
     origen: opcion(f.origen, ['manual', 'correo', 'wallet']),
     estado: opcion(f.estado, ['clasificado', 'pendiente']),
   }),
@@ -238,10 +251,11 @@ export function normalizarTabla(tabla, filas) {
 // Es la misma lista de claves foráneas de supabase/schema.sql: si agregas una
 // allá, agrégala aquí.
 const REFERENCIAS = {
+  comercios: { categoria_id: 'categorias' },
   deudas: { cuenta_id: 'cuentas' },
   compromisos: { categoria_id: 'categorias' },
   cobros: { persona_id: 'personas' },
-  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros', cuenta_id: 'cuentas' },
+  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros', cuenta_id: 'cuentas', comercio_id: 'comercios' },
   reglas: { categoria_id: 'categorias' },
 };
 // Tablas cuya referencia es obligatoria: sin ella, la fila no se guarda.
@@ -297,11 +311,13 @@ export function prepararRespaldo(copia, crearId) {
   if (!validas.categorias.length) throw new Error('El respaldo no trae categorías válidas');
   // Respaldos de antes de la tabla cuentas: las tarjetas venían en el perfil.
   const paso = pasarTarjetasACuentas({ tarjetas: tarjetas(copia.perfil?.tarjetas), cuentas: validas.cuentas, deudas: validas.deudas }, crearId);
-  const creadas = paso ? paso.cuentas.filter(c => !validas.cuentas.some(x => x.id === c.id)).length : 0;
+  let creadas = paso ? paso.cuentas.filter(c => !validas.cuentas.some(x => x.id === c.id)).length : 0;
   if (paso) {
     validas.cuentas = mezclar(validas.cuentas, paso.cuentas);
     validas.deudas = mezclar(validas.deudas, paso.deudas);
   }
+  // Una clave, un comercio.
+  validas.comercios = sinPatronesRepetidos(validas.comercios);
   // Las tarjetas se muestran en el orden en que se agregaron; al restaurar,
   // ese orden es el de la lista (la fecha original no viaja, ver schema.sql).
   const fechaDe = c => c.creado ?? '\uffff';
@@ -311,6 +327,16 @@ export function prepararRespaldo(copia, crearId) {
   const soltadas = soltar(validas);
   const enteras = Object.fromEntries(nombres.map(t => [t, sinRepetidos(t, soltadas.tablas[t])]));
   const sueltos = soltadas.sueltos;
+  // Respaldos de antes de la tabla comercios: los gastos y lo aprendido en
+  // reglas pasan a comercios. Va después de soltar los enlaces rotos, así solo
+  // usa categorías que el respaldo trae, y un gasto cuyo comercio no venía
+  // vuelve a encontrar el suyo por el texto.
+  const comercios = pasarAComercios(enteras, crearId);
+  if (comercios) {
+    creadas += comercios.comercios.filter(c => !enteras.comercios.some(x => x.id === c.id)).length;
+    enteras.comercios = mezclar(enteras.comercios, comercios.comercios);
+    enteras.movimientos = mezclar(enteras.movimientos, comercios.movimientos);
+  }
   const recibidas = creadas + nombres.reduce((n, t) => n + (Array.isArray(copia[t]) ? copia[t].length : 0), 0);
   const descartadas = recibidas - nombres.reduce((n, t) => n + enteras[t].length, 0);
 

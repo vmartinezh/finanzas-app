@@ -76,6 +76,18 @@ create table if not exists public.cuentas (
   creado timestamptz not null default now()
 );
 
+-- Dónde gastas: "JUMBO LAS CONDES", "Jumbo" y "MERPAGO*JUMBO" son un comercio.
+-- patrones son las formas en que lo escribe el banco, ya limpias (js/comercios.js);
+-- la categoría es la que aprende la app al clasificar.
+create table if not exists public.comercios (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  nombre text not null check (char_length(nombre) between 1 and 60),
+  patrones text[] not null default '{}' check (cardinality(patrones) <= 50 and array_to_string(patrones, '|') ~ '^[a-z0-9ñ |]*$'),
+  categoria_id uuid,                     -- clave foránea con dueño, más abajo
+  creado timestamptz not null default now()
+);
+
 create table if not exists public.compromisos (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null default auth.uid() references auth.users on delete cascade,
@@ -207,6 +219,9 @@ alter table public.deudas add column if not exists cuenta_id uuid;
 -- Con cuál de tus tarjetas (o cuentas) se pagó: lo llenan los avisos del banco
 -- (los 4 dígitos), el Atajo de Apple Pay o tú al revisar.
 alter table public.movimientos add column if not exists cuenta_id uuid;
+-- El comercio del gasto (tabla comercios). El texto como llegó queda en comercio.
+-- Los gastos anteriores los enlaza la app al abrir (js/comercios.js: pasarAComercios).
+alter table public.movimientos add column if not exists comercio_id uuid;
 
 -- Tus tarjetas pasan de perfil.tarjetas (texto: 'cmr:elite#1234') a filas de
 -- cuentas, cada deuda de tarjeta apunta a la suya con cuenta_id y el cupo pasa
@@ -256,7 +271,7 @@ create index if not exists movimientos_usuario_fecha on public.movimientos (user
 do $$
 declare t text;
 begin
-  foreach t in array array['perfil', 'categorias', 'eventos', 'cuentas', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push', 'claves_ingreso'] loop
+  foreach t in array array['perfil', 'categorias', 'eventos', 'cuentas', 'comercios', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push', 'claves_ingreso'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "solo lo propio" on public.%I', t);
     execute format(
@@ -266,7 +281,7 @@ begin
 end $$;
 
 -- Claves foráneas con dueño: una fila solo puede apuntar a categorías, eventos,
--- cuentas, compromisos, deudas, personas o cobros con su mismo user_id. RLS no alcanza, porque Postgres
+-- cuentas, comercios, compromisos, deudas, personas o cobros con su mismo user_id. RLS no alcanza, porque Postgres
 -- revisa las claves foráneas sin mirar las políticas: con una clave simple,
 -- alguien podría guardar en su fila el id de un registro ajeno.
 -- Va después de RLS para que, si algo falla aquí, las políticas ya estén puestas.
@@ -281,7 +296,7 @@ begin
     raise exception 'Las claves foráneas con dueño necesitan Postgres 15 o más nuevo (esta base tiene %).', current_setting('server_version');
   end if;
 
-  foreach t in array array['categorias', 'eventos', 'cuentas', 'compromisos', 'deudas', 'personas', 'cobros'] loop
+  foreach t in array array['categorias', 'eventos', 'cuentas', 'comercios', 'compromisos', 'deudas', 'personas', 'cobros'] loop
     if not exists (select 1 from pg_constraint
                    where conrelid = format('public.%I', t)::regclass and conname = t || '_id_dueno') then
       execute format('alter table public.%I add constraint %I unique (id, user_id)', t, t || '_id_dueno');
@@ -291,6 +306,8 @@ begin
   for r in select * from (values
       ('deudas',      'cuenta_id',     'cuentas',     'set null (cuenta_id)'),
       ('movimientos', 'cuenta_id',     'cuentas',     'set null (cuenta_id)'),
+      ('comercios',   'categoria_id',  'categorias',  'set null (categoria_id)'),
+      ('movimientos', 'comercio_id',   'comercios',   'set null (comercio_id)'),
       ('compromisos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'evento_id',     'eventos',     'set null (evento_id)'),
@@ -335,6 +352,8 @@ create index if not exists reglas_categoria on public.reglas (user_id, categoria
 create index if not exists movimientos_cobro on public.movimientos (user_id, cobro_id);
 create index if not exists cobros_persona on public.cobros (user_id, persona_id);
 create index if not exists movimientos_cuenta on public.movimientos (user_id, cuenta_id);
+create index if not exists movimientos_comercio on public.movimientos (user_id, comercio_id);
+create index if not exists comercios_categoria on public.comercios (user_id, categoria_id);
 
 -- Restaurar un respaldo: reemplaza todos los datos de la persona por los del
 -- archivo en una sola transacción, así que si algo falla no se borra nada.
@@ -360,6 +379,7 @@ begin
 
   delete from public.reglas where user_id = yo;
   delete from public.movimientos where user_id = yo;
+  delete from public.comercios where user_id = yo;
   delete from public.cobros where user_id = yo;
   delete from public.personas where user_id = yo;
   delete from public.compromisos where user_id = yo;
@@ -383,6 +403,10 @@ begin
   from jsonb_array_elements(coalesce(respaldo->'cuentas', '[]')) with ordinality as x(fila, orden),
     jsonb_populate_record(null::public.cuentas, x.fila) as c;
 
+  insert into public.comercios (id, user_id, nombre, patrones, categoria_id)
+  select id, yo, nombre, coalesce(patrones, '{}'), categoria_id
+  from jsonb_populate_recordset(null::public.comercios, coalesce(respaldo->'comercios', '[]'));
+
   insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta, cuenta_id)
   select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta, cuenta_id
   from jsonb_populate_recordset(null::public.deudas, coalesce(respaldo->'deudas', '[]'));
@@ -399,8 +423,8 @@ begin
   select id, yo, persona_id, concepto, monto_total, cuotas, primer_vencimiento, estado
   from jsonb_populate_recordset(null::public.cobros, coalesce(respaldo->'cobros', '[]'));
 
-  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, origen, estado, id_externo)
-  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, origen, estado, id_externo
+  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, origen, estado, id_externo)
+  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, origen, estado, id_externo
   from jsonb_populate_recordset(null::public.movimientos, coalesce(respaldo->'movimientos', '[]'));
 
   insert into public.reglas (id, user_id, patron, categoria_id)

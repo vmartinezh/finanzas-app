@@ -68,6 +68,21 @@ export function gastoPorCategoria(mes = mesActual(), { sinEventos = false } = {}
   return totales;
 }
 
+// Dónde gastaste en el mes: [{ comercio_id, total, veces }], de más a menos.
+// Solo las compras con comercio: las transferencias no tienen, y los pagos de
+// deudas o de pagos fijos no son compras en ese lugar.
+export function gastoPorComercio(mes = mesActual()) {
+  const totales = new Map();
+  for (const m of movimientosDelMes(mes)) {
+    if (!esGastoVariable(m) || !m.comercio_id) continue;
+    const t = totales.get(m.comercio_id) ?? { comercio_id: m.comercio_id, total: 0, veces: 0 };
+    t.total += m.monto;
+    t.veces += 1;
+    totales.set(m.comercio_id, t);
+  }
+  return [...totales.values()].sort((a, b) => b.total - a.total);
+}
+
 // Estado del presupuesto de una categoría: 'ok' | 'alerta' (≥80%) | 'excedido'
 export function estadoPresupuesto(gastado, tope) {
   if (!tope) return 'sin-tope';

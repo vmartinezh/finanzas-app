@@ -1,5 +1,6 @@
 import { datos } from '../db.js';
-import { gastoPorCategoria, movimientosDelMes, acumuladoDiario, disponibleDelMes } from '../calculos.js';
+import { gastoPorCategoria, gastoPorComercio, movimientosDelMes, acumuladoDiario, disponibleDelMes } from '../calculos.js';
+import { comercioPorId } from '../mis-comercios.js';
 import { graficoMeses, graficoRitmo } from '../graficos.js';
 import { clp, esc, mesActual, nombreMes, sumarMeses } from '../util.js';
 
@@ -36,6 +37,13 @@ export function render() {
 
   const d = disponibleDelMes(mesVisto);
 
+  // Los 5 comercios donde más gastaste ese mes.
+  const lugares = gastoPorComercio(mesVisto)
+    .map(x => ({ ...x, comercio: comercioPorId(x.comercio_id) }))
+    .filter(x => x.comercio)
+    .slice(0, 5);
+  const maxLugar = lugares[0]?.total || 1;
+
   return `
     <div class="selector-mes">
       <button class="boton-icono" data-mes="-1" aria-label="Mes anterior">‹</button>
@@ -57,6 +65,17 @@ export function render() {
         </li>`).join('')}</ul>`
       : '<div class="vacio">No hay gastos este mes.</div>'}
     </section>
+
+    ${lugares.length ? `
+    <section class="tarjeta">
+      <h2>¿Dónde más gastaste?</h2>
+      <ul class="barras-h">${lugares.map(x => `
+        <li>
+          <span class="barras-h-nombre">${esc(x.comercio.nombre)} <small>${x.veces === 1 ? '1 vez' : `${x.veces} veces`}</small></span>
+          <span class="barras-h-pista"><span class="barras-h-barra" style="width:${(x.total / maxLugar) * 100}%"></span></span>
+          <span class="barras-h-valor">${clp(x.total)}</span>
+        </li>`).join('')}</ul>
+    </section>` : ''}
 
     <section class="tarjeta">
       <h2>Últimos 6 meses</h2>
