@@ -1,7 +1,8 @@
-import { datos, guardarPerfil } from '../db.js';
-import { TARJETAS, RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo, separarTarjeta, agregarTarjeta } from '../beneficios.js';
-import { ejecutar } from '../ui.js';
-import { TIPOS, tipoDe, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
+import { RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo, separarTarjeta } from '../beneficios.js';
+import { avisar, confirmar, ejecutar } from '../ui.js';
+import { TIPOS, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
+import { misTarjetas, misTarjetasDelBanco, nombreBanco, nombreTarjeta, deudaDe, quitarTarjeta, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
+import { usoCupo } from '../calculos.js';
 import { clp, esc, hoyISO, sumarDias, fechaCorta, conMontosVisibles } from '../util.js';
 
 export const titulo = 'Descuentos';
@@ -9,13 +10,24 @@ export const titulo = 'Descuentos';
 // Día que se está mirando (1 = lunes … 7 = domingo); null = hoy.
 let diaElegido = null;
 
-const nombreTarjeta = id => TARJETAS.find(t => t.id === id)?.nombre ?? id;
+// Con cuál de tus tarjetas sirve ("con tu CMR Elite ·1234"); si son varias del
+// mismo banco, se nombra el banco.
+const conTuTarjeta = (banco, mias) => (mias.length === 1 ? `con tu ${nombreTarjeta(mias[0])}` : nombreBanco(banco));
+
+// Si todas tus tarjetas de ese banco están sobre el 85% del cupo, se recuerda.
+function avisoCupo(mias) {
+  const altas = mias.map(deudaDe).filter(d => d && d.saldo > 0 && usoCupo(d)?.estado === 'excedido');
+  if (!altas.length || altas.length < mias.length) return null;
+  return `Ojo: a esa tarjeta le quedan ${conMontosVisibles(() => clp(Math.max(0, usoCupo(altas[0]).disponible)))} de cupo.`;
+}
 
 // Una fila por descuento. Toda la fila lleva a la ficha oficial del banco,
 // que es donde están las condiciones completas.
 export function filaBeneficio(b, { conTarjeta = true } = {}) {
+  const mias = conTarjeta ? misTarjetasDelBanco(b.tarjeta) : [];
+  const cupo = conTarjeta ? avisoCupo(mias) : null;
   const detalle = [
-    conTarjeta ? nombreTarjeta(b.tarjeta) : null,
+    conTarjeta ? conTuTarjeta(b.tarjeta, mias) : null,
     // Si es de un solo día, ya está dicho en el título ("Hoy martes").
     b.dias.length > 1 ? textoDias(b.dias) : null,
     // El tope es del banco, no de la persona: se ve aunque el ojo esté cerrado.
@@ -24,49 +36,14 @@ export function filaBeneficio(b, { conTarjeta = true } = {}) {
   ].filter(Boolean).join(' · ');
   return `<li><a class="fila" href="${esc(b.fuente)}" target="_blank" rel="noopener noreferrer">
     <span class="icono-cat" aria-hidden="true">${RUBROS[b.rubro] || '🏷️'}</span>
-    <span class="fila-texto"><b>${esc(b.comercio)}</b><small>${esc(detalle)}</small>${b.nota ? `<small class="nota">${esc(b.nota)}</small>` : ''}</span>
+    <span class="fila-texto"><b>${esc(b.comercio)}</b><small>${esc(detalle)}</small>${b.nota ? `<small class="nota">${esc(b.nota)}</small>` : ''}${cupo ? `<small class="estado-texto" data-estado="excedido">${esc(cupo)}</small>` : ''}</span>
     <span class="descuento">${esc(b.descuento)}</span>
     <span class="sr-only">(abre la página del banco)</span>
   </a></li>`;
 }
 
-// null: mirando · true: eligiendo el banco · 'cmr': eligiendo el tipo de ese banco.
-// Al salir de Descuentos se cierra el selector.
-let eligiendo = null;
-window.addEventListener('hashchange', () => { eligiendo = null; });
-
-const bancoDelCatalogo = id => TARJETAS.find(t => t.id === separarTarjeta(id).banco);
-const nombreBanco = id => bancoDelCatalogo(id)?.nombre ?? 'Tarjeta';
-function nombreConTipo(id) {
-  const tipo = tipoDe(id);
-  return tipo ? `${nombreBanco(id)} ${tipo.nombre}` : nombreBanco(id);
-}
 // Guardada antes de que existieran los tipos: se puede completar sin quitarla.
-const faltaTipo = id => !separarTarjeta(id).tipo && Boolean(TIPOS[id]);
-
-function elegirHTML(mias) {
-  if (eligiendo === true) {
-    return `<div class="elegir-tarjeta">
-      <p class="ayuda">¿De qué banco es?</p>
-      <div class="chips" role="group" aria-label="Banco">${TARJETAS.map(t => `
-        <button class="chip" data-banco="${t.id}" title="${esc(t.detalle)}">${esc(t.nombre)}</button>`).join('')}
-      </div>
-      <button class="boton-texto" id="cancelar-tarjeta">Cancelar</button>
-    </div>`;
-  }
-  const banco = TARJETAS.find(t => t.id === eligiendo);
-  return `<div class="elegir-tarjeta">
-    <p class="ayuda">¿Cuál ${esc(banco.nombre)} tienes?</p>
-    <ul class="elegir-tipo">${TIPOS[eligiendo].map(t => {
-      const id = `${eligiendo}:${t.id}`;
-      return `<li><button class="elegir-tipo-boton" data-agregar="${id}" ${mias.includes(id) ? 'disabled' : ''}>
-        ${tarjetaHTML(id, banco.nombre, { chica: true })}
-        <span>${esc(t.nombre)}${mias.includes(id) ? ' · ya la tienes' : ''}</span>
-      </button></li>`;
-    }).join('')}</ul>
-    <button class="boton-texto" id="cancelar-tarjeta">Cancelar</button>
-  </div>`;
-}
+const faltaTipo = id => !separarTarjeta(id).tipo && Boolean(TIPOS[separarTarjeta(id).banco]);
 
 export function render() {
   const hoy = hoyISO();
@@ -74,7 +51,8 @@ export function render() {
   const dia = diaElegido ?? diaHoy;
   // La próxima vez que toca ese día, contando hoy: así se descartan los que ya vencieron.
   const fecha = sumarDias(hoy, (dia - diaHoy + 7) % 7);
-  const mias = datos.perfil.tarjetas || [];
+  const mias = misTarjetas();
+  const eligiendo = estaEligiendo();
   const lista = beneficiosDelDia(mias, fecha);
   const delDia = lista.filter(b => b.dias.length);
   const siempre = lista.filter(b => !b.dias.length);
@@ -86,11 +64,12 @@ export function render() {
       ${mias.length ? `<ul class="mis-tarjetas">${mias.map(id => `
         <li>
           ${tarjetaHTML(id, nombreBanco(id))}
-          <span class="mis-tarjetas-pie"><b>${esc(nombreConTipo(id))}</b><span class="mis-tarjetas-acciones">${faltaTipo(id)
-            ? `<button class="boton-texto" data-completar="${esc(id)}">Elegir tipo</button>` : ''}<button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span></span>
+          <span class="mis-tarjetas-pie"><b>${esc(nombreTarjeta(id))}</b><span class="mis-tarjetas-acciones">${faltaTipo(id)
+            ? `<button class="boton-texto" data-completar="${esc(id)}">Elegir tipo</button>`
+            : `<button class="boton-texto" data-editar="${esc(id)}">Editar</button>`}<button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span></span>
         </li>`).join('')}</ul>`
       : eligiendo ? '' : '<p class="ayuda">Agrega las tarjetas que tienes y te muestro en qué tienes descuento cada día.</p>'}
-      ${eligiendo ? elegirHTML(mias) : ''}
+      ${elegirHTML()}
     </section>
 
     <section class="tarjeta">
@@ -113,33 +92,21 @@ export function render() {
 
 export function montar(raiz, refrescar) {
   activarTarjetas3D(raiz);
-  const guardarTarjetas = tarjetas => ejecutar(() => guardarPerfil({ tarjetas }), null, refrescar);
-  raiz.querySelector('#agregar-tarjeta')?.addEventListener('click', () => { eligiendo = true; refrescar(); });
-  raiz.querySelector('#cancelar-tarjeta')?.addEventListener('click', () => { eligiendo = null; refrescar(); });
-  raiz.querySelectorAll('[data-banco]').forEach(b => b.addEventListener('click', () => {
-    const banco = b.dataset.banco;
-    // Un banco con tipos dibujados pide elegir el tipo; los demás se agregan al tiro.
-    if (TIPOS[banco]) { eligiendo = banco; refrescar(); return; }
-    eligiendo = null;
-    const actuales = datos.perfil.tarjetas || [];
-    const nuevas = agregarTarjeta(actuales, banco);
-    if (nuevas === actuales) refrescar();
-    else guardarTarjetas(nuevas);
-  }));
-  raiz.querySelectorAll('[data-agregar]').forEach(b => b.addEventListener('click', () => {
-    eligiendo = null;
-    const actuales = datos.perfil.tarjetas || [];
-    const nuevas = agregarTarjeta(actuales, b.dataset.agregar);
-    if (nuevas === actuales) refrescar();
-    else guardarTarjetas(nuevas);
-  }));
-  // Una tarjeta guardada solo con el banco: elegir el tipo la reemplaza en su lugar.
+  montarElegir(raiz, { refrescar, avisarError: m => avisar(m, 'error') });
+  raiz.querySelector('#agregar-tarjeta')?.addEventListener('click', () => { empezarAElegir(); refrescar(); });
+  // Una tarjeta guardada solo con el banco: elegir el tipo la completa en su lugar.
   raiz.querySelectorAll('[data-completar]').forEach(b => b.addEventListener('click', () => {
-    eligiendo = b.dataset.completar;
+    empezarAElegir(b.dataset.completar, 'tipo');
     refrescar();
   }));
-  raiz.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', () => {
-    guardarTarjetas((datos.perfil.tarjetas || []).filter(t => t !== b.dataset.quitar));
+  raiz.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => {
+    empezarAElegir(b.dataset.editar);
+    refrescar();
+  }));
+  raiz.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', async () => {
+    const id = b.dataset.quitar;
+    if (deudaDe(id) && !(await confirmar(`Tu deuda "${deudaDe(id).nombre}" queda anotada, pero sin tarjeta. ¿Quitar la ${nombreTarjeta(id)}?`))) return;
+    ejecutar(() => quitarTarjeta(id), null, refrescar);
   }));
   raiz.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
     diaElegido = Number(b.dataset.dia);

@@ -35,8 +35,10 @@ const opcion = (v, opciones) => (opciones.includes(v) ? v : opciones[0]);
 const mes = v => (typeof v === 'string' && MES.test(v) ? v : null);
 const logico = v => v !== false;
 // Ids del catálogo de tarjetas (js/beneficios.js): 'santander', 'lider-bci', y
-// con el tipo de tarjeta (js/tarjetas.js): 'cmr:elite'.
-const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?$/;
+// con el tipo de tarjeta (js/tarjetas.js): 'cmr:elite'; con los últimos 4
+// dígitos, si la persona los puso: 'cmr:elite#1234'.
+const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?(?:#\d{4})?$/;
+const idTarjeta = v => (typeof v === 'string' && ID_TARJETA.test(v) ? v : null);
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
 // Fecha de nacimiento: que exista, desde 1900 y no en el futuro. La usan el
 // registro, Ajustes y el perfil que llega de la nube.
@@ -141,6 +143,8 @@ const FORMAS = {
     fecha_limite: mes(f.fecha_limite),
     estado: opcion(f.estado, ['activa', 'pausa']),
     notas: texto(f.notas, 500),
+    // La tarjeta de "Tus tarjetas" a la que corresponde esta deuda.
+    tarjeta: idTarjeta(f.tarjeta),
   }),
   compromisos: f => ({
     nombre: texto(f.nombre, 80) ?? 'Sin nombre',

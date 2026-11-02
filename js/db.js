@@ -11,7 +11,8 @@ export const datos = {
   categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [], personas: [], cobros: [],
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
-  // tarjetas: ids del catálogo de descuentos (js/beneficios.js) que la persona tiene.
+  // tarjetas: las de la persona ('cmr:elite#1234', ver separarTarjeta en js/beneficios.js).
+  // Sus deudas apuntan a ellas con deudas.tarjeta.
   perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [], fecha_nacimiento: null, ruta_cumpleanos: null },
 };
 
@@ -228,13 +229,14 @@ export async function guardar(tabla, fila) {
   if (!fila.id) fila.id = nuevoId();
   const lista = datos[tabla];
   const i = lista.findIndex(f => f.id === fila.id);
+  const anterior = i >= 0 ? lista[i] : null;
   if (i >= 0) lista[i] = { ...lista[i], ...fila };
   else lista.push(fila);
 
   if (modo === 'local') {
     escribirLocal(tabla, lista);
   } else {
-    const { error } = await supabase.from(tabla).upsert(sinUsuario(fila));
+    const { error } = await supabase.from(tabla).upsert(sinUsuario(fila, anterior));
     if (error) throw error;
   }
   return fila;
@@ -242,6 +244,7 @@ export async function guardar(tabla, fila) {
 
 export async function guardarVarios(tabla, filas) {
   for (const f of filas) if (!f.id) f.id = nuevoId();
+  const anteriores = new Map(filas.map(f => [f.id, datos[tabla].find(x => x.id === f.id) ?? null]));
   for (const f of filas) {
     const i = datos[tabla].findIndex(x => x.id === f.id);
     if (i >= 0) datos[tabla][i] = { ...datos[tabla][i], ...f };
@@ -250,7 +253,7 @@ export async function guardarVarios(tabla, filas) {
   if (modo === 'local') {
     escribirLocal(tabla, datos[tabla]);
   } else if (filas.length) {
-    const { error } = await supabase.from(tabla).upsert(filas.map(sinUsuario));
+    const { error } = await supabase.from(tabla).upsert(filas.map(f => sinUsuario(f, anteriores.get(f.id))));
     if (error) throw error;
   }
 }
@@ -291,11 +294,14 @@ export async function guardarPerfil(cambios) {
 }
 
 // user_id lo pone la base de datos (default auth.uid()); no lo mandamos.
-// Un cobro_id vacío tampoco: así un movimiento se puede guardar aunque la base
-// todavía no tenga esa columna (falta correr supabase/schema.sql).
-function sinUsuario(fila) {
+// Un cobro_id o una tarjeta vacíos tampoco: así un movimiento o una deuda se
+// pueden guardar aunque la base todavía no tenga esa columna (falta correr
+// supabase/schema.sql). Si la deuda tenía tarjeta (la columna existe), el
+// vacío sí se manda: es soltarla de la tarjeta.
+function sinUsuario(fila, anterior = null) {
   const { user_id, creado, ...resto } = fila;
   if (resto.cobro_id == null) delete resto.cobro_id;
+  if (resto.tarjeta == null && anterior?.tarjeta == null) delete resto.tarjeta;
   return resto;
 }
 

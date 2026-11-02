@@ -8,6 +8,7 @@
 // descuento: texto tal como lo anuncia el banco ("40%", "$100 por litro", "2x1").
 // tope: descuento máximo en pesos, si el banco lo informa.
 // hasta: último día de vigencia ('YYYY-MM-DD'); null si el banco no la publica.
+import { normalizar } from './util.js';
 
 export const REVISADO = '2026-11-01';
 
@@ -141,19 +142,70 @@ export function diaSemana(fechaISO) {
 // son porcentaje ("$100 por litro", "2x1") quedan al final.
 const valor = b => Number(/(\d+)%/.exec(b.descuento)?.[1] ?? 0);
 
-// Una tarjeta del perfil es 'banco' o 'banco:tipo' ('cmr:elite', ver js/tarjetas.js).
+// Una tarjeta del perfil es 'banco', 'banco:tipo' ('cmr:elite', ver
+// js/tarjetas.js) y, si la persona los puso, con los últimos 4 dígitos
+// ('cmr:elite#1234'): así se distinguen dos tarjetas iguales.
 export const separarTarjeta = id => {
-  const [banco, tipo = null] = String(id).split(':');
-  return { banco, tipo };
+  const [resto, terminacion = null] = String(id).split('#');
+  const [banco, tipo = null] = resto.split(':');
+  return { banco, tipo, terminacion };
 };
 
-// Agrega una tarjeta a la lista del perfil. Si ya estaba la del mismo banco sin
-// tipo ('cmr', de antes de que existieran los tipos), la reemplaza en su lugar.
+export const armarTarjeta = ({ banco, tipo = null, terminacion = null }) =>
+  banco + (tipo ? `:${tipo}` : '') + (/^\d{4}$/.test(terminacion ?? '') ? `#${terminacion}` : '');
+
+// Agrega una tarjeta a la lista del perfil. Si había una del mismo banco con
+// menos datos (sin tipo, como las de antes de que existieran los tipos, o del
+// mismo tipo sin los 4 dígitos), la completa en su lugar en vez de repetirla.
 export function agregarTarjeta(lista, id) {
   if (lista.includes(id)) return lista;
-  const { banco } = separarTarjeta(id);
-  if (banco !== id && lista.includes(banco)) return lista.map(t => (t === banco ? id : t));
+  const nueva = separarTarjeta(id);
+  const completa = t => {
+    const vieja = separarTarjeta(t);
+    return vieja.banco === nueva.banco && !vieja.terminacion && t !== id
+      && (!vieja.tipo || (vieja.tipo === nueva.tipo && nueva.terminacion));
+  };
+  const i = lista.findIndex(completa);
+  if (i >= 0) return lista.map((t, j) => (j === i ? id : t));
   return [...lista, id];
+}
+
+// Cambiar el tipo o los dígitos de una tarjeta: queda en su mismo lugar. Si
+// la nueva ya estaba en la lista, queda una sola.
+export function reemplazarTarjeta(lista, vieja, nueva) {
+  if (vieja === nueva) return lista;
+  if (lista.includes(nueva)) return lista.filter(t => t !== vieja);
+  return lista.map(t => (t === vieja ? nueva : t));
+}
+
+// Cómo se nombra cada banco en una deuda ("Tarjeta Falabella", "Bco. Chile").
+// Lider Bci va antes que Bci: "Lider Bci" no es una tarjeta Bci.
+const NOMBRES_BANCO = [
+  ['lider-bci', /\blider\b/],
+  ['cmr', /\b(cmr|falabella)\b/],
+  ['santander', /\bsantander\b/],
+  ['banco-de-chile', /\b(banco de chile|bco\.? chile|edwards)\b/],
+  ['bancoestado', /\b(banco ?estado|cuenta ?rut)\b/],
+  ['scotiabank', /\bscotia/],
+  ['cencosud', /\b(cencosud|jumbo|paris)\b/],
+  ['ripley', /\bripley\b/],
+  ['itau', /\bitau\b/],
+  ['bci', /\bbci\b/],
+];
+
+// Para unir una deuda anotada con una de tus tarjetas: primero por los 4
+// dígitos que aparezcan en su nombre; si no, por el banco, solo si tienes una
+// sola tarjeta de ese banco (con dos, no adivina). null si no hay calce.
+export function sugerirTarjeta(deuda, mias) {
+  const texto = normalizar(`${deuda.nombre ?? ''} ${deuda.acreedor ?? ''}`);
+  const porDigitos = mias.filter(t => {
+    const { terminacion } = separarTarjeta(t);
+    return terminacion && new RegExp(`(?<!\\d)${terminacion}(?!\\d)`).test(texto);
+  });
+  if (porDigitos.length === 1) return porDigitos[0];
+  const banco = NOMBRES_BANCO.find(([, patron]) => patron.test(texto))?.[0];
+  const delBanco = banco ? mias.filter(t => separarTarjeta(t).banco === banco) : [];
+  return delBanco.length === 1 ? delBanco[0] : null;
 }
 
 // Los descuentos de tus tarjetas que sirven en una fecha: primero los que

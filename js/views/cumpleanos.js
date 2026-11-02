@@ -3,6 +3,8 @@ import { REVISADO, TIPOS_CUMPLE, CUANDO_CUMPLE, rutaDelCumple, rutaDelAnio, rega
 import { nacimiento, NACIMIENTO_MINIMO, MENSAJE_FECHA } from '../validar.js';
 import { ejecutar, avisar } from '../ui.js';
 import { esc, hoyISO, fechaCorta, nombreMes, sumarDias } from '../util.js';
+import { separarTarjeta } from '../beneficios.js';
+import { misTarjetas, nombreTarjeta } from '../mis-tarjetas.js';
 
 export const titulo = 'Tu cumpleaños';
 
@@ -61,19 +63,32 @@ function notaVieja(b) {
 // al abrirla muestra la letra chica, de dónde sale el dato y las dos casillas:
 // "En mi ruta" para juntarlo arriba y "Ya lo usé" para tacharlo. Lo de
 // inscribirse se destaca solo mientras alcanzas (antes de tu cumpleaños).
+// La tarjeta tuya con la que sirve este regalo, si lo pide y la tienes.
+function tuTarjetaPara(b) {
+  if (!b.tarjeta) return null;
+  const pide = separarTarjeta(b.tarjeta);
+  return misTarjetas().find(t => {
+    const mia = separarTarjeta(t);
+    return mia.banco === pide.banco && (!pide.tipo || mia.tipo === pide.tipo);
+  }) ?? null;
+}
+
 function filaRegalo(b, ruta, r) {
   const o = origen(b);
   const elegido = ruta.elegidos.includes(b.id);
   const usado = ruta.usados.includes(b.id);
   const alcanzas = r.dias > 0;
+  const tuya = tuTarjetaPara(b);
   const detalle = [
     ['Cuándo', ventana(b, r.cumple)],
     ['Ojo', b.condiciones],
     ['Lleva', b.llevar],
+    ['Tu tarjeta', tuya ? `Tienes la ${nombreTarjeta(tuya)}: este regalo es para ti.` : null],
     ['Dónde', b.donde],
   ].filter(([, texto]) => texto);
   const etiqueta = usado ? '<span class="etiqueta pagada">Usado</span>'
-    : b.antes && alcanzas ? '<span class="etiqueta pendiente">Pide inscribirse</span>' : '';
+    : (b.antes && alcanzas ? '<span class="etiqueta pendiente">Pide inscribirse</span>' : '')
+      + (tuya ? '<span class="etiqueta pagada">Tienes la tarjeta</span>' : '');
   return `<li class="regalo${usado ? ' usado' : ''}">
     <details data-regalo="${esc(b.id)}"${abiertos.has(b.id) ? ' open' : ''}>
       <summary>

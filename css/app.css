@@ -588,6 +588,10 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 .t-banco { left: 10%; top: 44%; font-weight: 800; font-size: calc(var(--alto) * .07); letter-spacing: -.02em; max-width: 80%; }
 .t-tipo { right: 9%; bottom: 7%; font-weight: 600; font-size: calc(var(--alto) * .045); text-align: right; max-width: 60%; }
 .t-red { left: 10%; bottom: 7%; font-weight: 800; font-style: italic; font-size: calc(var(--alto) * .05); }
+.t-numero { position: absolute; left: 10%; top: 60%; font-weight: 600; font-size: calc(var(--alto) * .055); letter-spacing: .08em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px rgb(0 0 0 / .25); white-space: nowrap; }
+.tarjeta-3d[data-forma="horizontal"] .t-numero { top: auto; left: 7%; bottom: 11%; font-size: calc(var(--alto) * .08); }
+.tarjeta-3d:has(.t-banda) .t-numero { top: 50%; color: #fff; text-shadow: 0 1px 4px rgb(0 0 0 / .5); }
+.tarjeta-3d:has(.t-fan) .t-numero { top: auto; bottom: 18%; }
 .t-fan { left: 10%; top: 54%; font-weight: 900; font-size: calc(var(--alto) * .085); color: #8ec2ff; letter-spacing: .02em; }
 /* Horizontales (BancoEstado, algunas de Banco de Chile). */
 .tarjeta-3d[data-forma="horizontal"] .t-chip { width: 13%; top: 40%; left: 8%; right: auto; }
@@ -619,6 +623,25 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 .mis-tarjetas-acciones { display: flex; flex-direction: column; align-items: flex-end; }
 .mis-tarjetas-pie .boton-texto { min-height: 32px; font-size: .8rem; }
 .elegir-tarjeta { display: flex; flex-direction: column; gap: 10px; }
+.elegir-tarjeta .tarjeta-3d { align-self: flex-start; }
+
+/* ── Tus tarjetas (Plan) ────────────────────────── */
+.lista-tarjetas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+.fila-tarjeta {
+  width: 100%; display: flex; align-items: center; gap: 16px; padding: 4px 2px;
+  background: none; border: none; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.tarjeta-marco { flex: none; width: 120px; display: flex; justify-content: center; }
+.fila-tarjeta .tarjeta-3d.chica { --alto: 108px; }
+.fila-tarjeta .tarjeta-3d[data-forma="horizontal"].chica { --alto: 76px; }
+.tarjeta-datos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.tarjeta-etiqueta { font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-3); }
+.tarjeta-monto { font-size: 1.35rem; font-weight: 750; letter-spacing: -.02em; }
+.tarjeta-accion { font-size: .85rem; color: var(--acento); }
+.tarjeta-datos .estado-texto { font-size: .8rem; }
+.calce { padding: 10px 12px; border-radius: 14px; background: var(--acento-suave); display: flex; flex-direction: column; gap: 6px; }
+.calce p { margin: 0; font-size: .92rem; }
+.calce .botones { display: flex; align-items: center; gap: 12px; }
 .elegir-tipo {
   list-style: none; margin: 0 -16px; padding: 6px 16px;
   display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none;

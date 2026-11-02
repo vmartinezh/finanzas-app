@@ -141,15 +141,16 @@ const arteDe = (id, t) => {
 
 // La tarjeta dibujada. nombreBanco: como aparece en el catálogo ("CMR Falabella").
 export function tarjetaHTML(id, nombreBanco, { chica = false } = {}) {
-  const { banco } = separarTarjeta(id);
+  const { banco, terminacion } = separarTarjeta(id);
   const t = tipoDe(id) ?? { nombre: '', forma: 'horizontal', fondo: GENERICAS[banco] ?? 'linear-gradient(135deg, #3e9b4f, #183020)', tinta: '#fff' };
-  const arte = t.arte ? `<svg class="t-arte" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${arteDe(id, t)}</svg>` : '';
+  // El arte es del tipo de tarjeta: el mismo para todas las de ese tipo, tengan los dígitos que tengan.
+  const arte = t.arte ? `<svg class="t-arte" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${arteDe(id.split('#')[0], t)}</svg>` : '';
   const conBanda = Boolean(t.banda);
   // En la tarjeta, el tipo sin la red que ya está escrita aparte: "Visa Infinite" → "Infinite".
   const tipoEnTarjeta = t.red ? t.nombre.replace(/^(?:Visa|Mastercard)\s*/i, '').trim() : t.nombre;
   return `<div class="tarjeta-3d${chica ? ' chica' : ''}" data-forma="${t.forma}" data-emisor="${esc(banco)}"${t.borde ? ` data-borde` : ''}
       style="--fondo: ${t.fondo ?? t.banda}; --tinta: ${t.tinta}; ${t.banda ? `--banda: ${t.banda};` : ''} ${t.borde ? `--borde: ${t.borde};` : ''}"
-      role="img" aria-label="${esc(`${nombreBanco}${t.nombre ? ' ' + t.nombre : ''}`)}">
+      role="img" aria-label="${esc(`${nombreBanco}${t.nombre ? ' ' + t.nombre : ''}${terminacion ? `, terminada en ${terminacion}` : ''}`)}">
     <div class="t-cara">
       ${conBanda ? `<div class="t-arriba">${arte}</div><div class="t-banda"></div>` : arte}
       ${t.fan ? '<span class="t-fan" aria-hidden="true">FAN<br>FAN<br>FAN</span>' : ''}
@@ -157,6 +158,7 @@ export function tarjetaHTML(id, nombreBanco, { chica = false } = {}) {
       <span class="t-banco">${esc(nombreBanco)}</span>
       ${tipoEnTarjeta ? `<span class="t-tipo">${esc(tipoEnTarjeta)}</span>` : ''}
       ${t.red ? `<span class="t-red">${esc(t.red)}</span>` : ''}
+      ${terminacion ? `<span class="t-numero">•••• ${esc(terminacion)}</span>` : ''}
       <span class="t-brillo" aria-hidden="true"></span>
     </div>
   </div>`;

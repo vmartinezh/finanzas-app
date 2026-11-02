@@ -53,6 +53,7 @@ create table if not exists public.deudas (
   fecha_limite text,                    -- 'YYYY-MM': debe quedar pagada a más tardar ese mes
   estado text not null default 'activa' check (estado in ('activa', 'pausa')),
   notas text,                           -- acuerdos: "cuotas de honor", "pausa hasta resolver tarjetas"
+  tarjeta text check (tarjeta ~ '^[a-z0-9-]{1,40}(:[a-z0-9-]{1,40})?(#[0-9]{4})?$'), -- la de "Tus tarjetas" (perfil.tarjetas): 'cmr:elite#1234'
   creado timestamptz not null default now()
 );
 
@@ -177,6 +178,7 @@ end $$;
 
 -- Instalaciones anteriores: columnas agregadas después de crear las tablas.
 alter table public.perfil add column if not exists tarjetas text[] not null default '{}';
+alter table public.deudas add column if not exists tarjeta text check (tarjeta ~ '^[a-z0-9-]{1,40}(:[a-z0-9-]{1,40})?(#[0-9]{4})?$');
 alter table public.perfil add column if not exists rut text check (rut ~ '^[0-9]{6,8}-[0-9K]$');
 alter table public.perfil add column if not exists nombres_propios text[] not null default '{}' check (cardinality(nombres_propios) <= 5);
 alter table public.perfil add column if not exists fecha_nacimiento date check (fecha_nacimiento >= '1900-01-01');
@@ -305,8 +307,8 @@ begin
   select id, yo, nombre, palabras, activo
   from jsonb_populate_recordset(null::public.eventos, coalesce(respaldo->'eventos', '[]'));
 
-  insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas)
-  select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas
+  insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta)
+  select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta
   from jsonb_populate_recordset(null::public.deudas, coalesce(respaldo->'deudas', '[]'));
 
   insert into public.compromisos (id, user_id, nombre, monto, dia_pago, categoria_id, activo, hasta_mes, pagados)

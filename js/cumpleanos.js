@@ -23,6 +23,8 @@
 //         son más de 14: el aviso de Inicio llega con ese tiempo.
 // noVale: (opcional) { meses: [11, 12], diasSemana: [1] } cuando el lugar
 //         cierra: si tu cumpleaños cae ahí, ese regalo no aparece.
+// tarjeta: (opcional) la tarjeta que pide ('cmr:premium', o solo el banco
+//         'ripley'): si la tienes en Tus tarjetas, el regalo lo dice.
 
 import { diasDelMes, sumarDias } from './util.js';
 import { diaSemana } from './beneficios.js';
@@ -54,7 +56,7 @@ export const BENEFICIOS_CUMPLE = [
     antes: 'Hazte Socio Cineplanet en su web o app (es gratis) y haz al menos una compra como socio.',
     llevar: 'Tu carnet', donde: 'Todo Chile',
     fuente: 'https://www.cineplanet.cl/socio-cineplanet', hasta: null },
-  { id: 'cmr-premium', tipo: 'tienda', marca: 'Falabella, Tottus y Sodimac', icono: '🛍️', cuando: 'mes', segun: 'web',
+  { id: 'cmr-premium', tipo: 'tienda', marca: 'Falabella, Tottus y Sodimac', icono: '🛍️', cuando: 'mes', segun: 'web', tarjeta: 'cmr:premium',
     regalo: 'Cupones de descuento',
     condiciones: 'Con la CMR Mastercard Premium. El banco no publica de cuánto son.',
     antes: null,
@@ -172,7 +174,7 @@ export const BENEFICIOS_CUMPLE = [
   { id: 'americanino', tipo: 'tienda', marca: 'Americanino', icono: '👕', cuando: 'dia', segun: 'prensa', visto: '2026-02',
     regalo: '25% de descuento en ropa', condiciones: `Solo nivel AMCNO PLUS del club. ${SIN_PLAZO}`,
     antes: 'Únete al Club Americanino.', llevar: null, donde: 'Todo Chile', fuente: CHOCALE, hasta: null },
-  { id: 'ripley', tipo: 'tienda', marca: 'Ripley', icono: '🛍️', cuando: 'dia', segun: 'prensa', visto: '2026-02',
+  { id: 'ripley', tipo: 'tienda', marca: 'Ripley', icono: '🛍️', cuando: 'dia', segun: 'prensa', visto: '2026-02', tarjeta: 'ripley',
     regalo: '20% a 30% en vestuario, deporte y calzado', condiciones: `Según tu categoría Ripley Puntos GO, pagando con tarjeta Ripley; tiene tope. ${SIN_PLAZO}`,
     antes: null, llevar: 'Tu tarjeta Ripley', donde: 'Todo Chile', fuente: CHOCALE, hasta: null },
   { id: 'casaideas', tipo: 'tienda', marca: 'Casaideas', icono: '🏠', cuando: 'mes', segun: 'prensa', visto: '2026-03',

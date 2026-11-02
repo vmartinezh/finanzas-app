@@ -22,7 +22,7 @@
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo } from '../js/validar.js';
-    import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
+    import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
@@ -375,6 +375,10 @@
     prueba('Descarta filas cuyo id no es un UUID', () => {
       igual(normalizarFila('deudas', { id: ATAQUE, nombre: 'x', saldo: 1 }), null);
       igual(normalizarTabla('deudas', [{ id: ATAQUE }, { id: ID, nombre: 'ok' }]).length, 1);
+      igual(normalizarTabla('deudas', [{ id: ID, nombre: 'ok', tarjeta: 'cmr:elite#1234' }])[0].tarjeta, 'cmr:elite#1234');
+      igual(normalizarTabla('deudas', [{ id: ID, nombre: 'ok', tarjeta: 'cmr:elite#12345' }])[0].tarjeta, null, 'dígitos de más:');
+      igual(normalizarTabla('deudas', [{ id: ID, nombre: 'ok' }])[0].tarjeta, null);
+      igual(normalizarPerfil({ tarjetas: ['cmr:elite#1234', 'cmr:elite#1234', 'santander#99', '<b>'] }).tarjetas, ['cmr:elite#1234'], 'perfil:');
     });
     prueba('Los números manipulados quedan como números', () => {
       const d = normalizarFila('deudas', { id: ID, nombre: 'x', saldo: ATAQUE, dia_pago: ATAQUE, cae: '-5', cupo_total: 'mil' });
@@ -648,7 +652,12 @@
       igual(beneficiosDelDia([], '2026-10-12'), []);
     });
     prueba('Una tarjeta del perfil se separa en banco y tipo', () => {
-      igual([separarTarjeta('cmr:elite'), separarTarjeta('bci')], [{ banco: 'cmr', tipo: 'elite' }, { banco: 'bci', tipo: null }]);
+      igual([separarTarjeta('cmr:elite'), separarTarjeta('bci')], [{ banco: 'cmr', tipo: 'elite', terminacion: null }, { banco: 'bci', tipo: null, terminacion: null }]);
+      igual(separarTarjeta('santander:platinum#4821'), { banco: 'santander', tipo: 'platinum', terminacion: '4821' });
+      igual(separarTarjeta('ripley#0042'), { banco: 'ripley', tipo: null, terminacion: '0042' });
+      igual(armarTarjeta({ banco: 'cmr', tipo: 'elite', terminacion: '1234' }), 'cmr:elite#1234');
+      igual(armarTarjeta({ banco: 'cmr', tipo: null, terminacion: null }), 'cmr');
+      igual(armarTarjeta({ banco: 'cmr', tipo: 'elite', terminacion: '12' }), 'cmr:elite', 'terminación incompleta se ignora:');
     });
     prueba('Agregar el tipo de una tarjeta guardada solo con el banco la reemplaza en su lugar', () => {
       igual(agregarTarjeta(['cmr', 'santander', 'bci'], 'cmr:elite'), ['cmr:elite', 'santander', 'bci']);
@@ -656,8 +665,30 @@
       const lista = ['bci'];
       igual(agregarTarjeta(lista, 'bci') === lista, true, 'sin cambios devuelve la misma lista:');
     });
+    prueba('Con los 4 dígitos puedes tener dos tarjetas iguales; ponerle los dígitos a una que no los tenía la completa', () => {
+      igual(agregarTarjeta(['santander:platinum#1111'], 'santander:platinum#2222'), ['santander:platinum#1111', 'santander:platinum#2222']);
+      igual(agregarTarjeta(['santander:platinum', 'bci'], 'santander:platinum#2222'), ['santander:platinum#2222', 'bci']);
+      igual(agregarTarjeta(['cmr'], 'cmr:elite#1234'), ['cmr:elite#1234']);
+      igual(agregarTarjeta(['cmr:elite#1234'], 'cmr:elite'), ['cmr:elite#1234', 'cmr:elite'], 'sin dígitos no pisa a una con dígitos:');
+    });
+    prueba('Cambiar los datos de una tarjeta la reemplaza en su lugar, sin repetirla', () => {
+      igual(reemplazarTarjeta(['bci', 'cmr:elite'], 'cmr:elite', 'cmr:elite#9876'), ['bci', 'cmr:elite#9876']);
+      igual(reemplazarTarjeta(['cmr:elite#1', 'cmr:elite#9876'].map(t => t.replace('#1', '#1111')), 'cmr:elite#1111', 'cmr:elite#9876'), ['cmr:elite#9876'], 'si ya existe, queda una:');
+    });
+    prueba('Una deuda se calza con tu tarjeta por los 4 dígitos o por el banco, si tienes una sola de ese banco', () => {
+      const mias = ['santander:platinum#4821', 'santander:life#1111', 'cmr:elite', 'lider-bci', 'banco-de-chile:infinite'];
+      igual(sugerirTarjeta({ nombre: 'Visa terminada en 4821', acreedor: null }, mias), 'santander:platinum#4821', 'por dígitos:');
+      igual(sugerirTarjeta({ nombre: 'Tarjeta Santander', acreedor: null }, mias), null, 'dos Santander, no adivina:');
+      igual(sugerirTarjeta({ nombre: 'Tarjeta CMR', acreedor: null }, mias), 'cmr:elite');
+      igual(sugerirTarjeta({ nombre: 'Falabella', acreedor: null }, mias), 'cmr:elite', 'por el nombre de la tienda:');
+      igual(sugerirTarjeta({ nombre: 'Tarjeta Líder', acreedor: 'BCI' }, mias), 'lider-bci', 'Lider Bci no es Bci:');
+      igual(sugerirTarjeta({ nombre: 'Crédito de consumo', acreedor: 'Banco de Chile' }, mias), 'banco-de-chile:infinite');
+      igual(sugerirTarjeta({ nombre: 'Préstamo papá', acreedor: null }, mias), null);
+      igual(sugerirTarjeta({ nombre: 'Tarjeta Ripley', acreedor: null }, mias), null, 'sin esa tarjeta:');
+    });
     prueba('Una tarjeta con tipo ("cmr:elite") trae los descuentos de su banco', () => {
       igual(beneficiosDelDia(['cmr:elite'], '2026-10-13'), beneficiosDelDia(['cmr'], '2026-10-13'));
+      igual(beneficiosDelDia(['cmr:elite#1234'], '2026-10-13'), beneficiosDelDia(['cmr'], '2026-10-13'), 'con dígitos:');
     });
     prueba('Cada tipo de tarjeta dibujado es de un banco del catálogo y no se repite', () => {
       const bancos = new Set(TARJETAS.map(t => t.id));
@@ -806,6 +837,11 @@
         if (!TIPOS_CUMPLE[b.tipo]) throw new Error(`${quien} "tipo" desconocido`);
         if (b.segun === 'prensa' && !/^\d{4}-\d{2}$/.test(b.visto ?? '')) throw new Error(`${quien} lo de prensa necesita "visto" (AAAA-MM de la nota)`);
         if (b.anticipacion != null && !(Number.isInteger(b.anticipacion) && b.anticipacion > 0 && b.anticipacion <= 90)) throw new Error(`${quien} "anticipacion" son días entre 1 y 90`);
+        if (b.tarjeta != null) {
+          const { banco, tipo } = separarTarjeta(b.tarjeta);
+          if (!TARJETAS.some(t => t.id === banco)) throw new Error(`${quien} "tarjeta" de un banco que no está en el catálogo`);
+          if (tipo && !TIPOS[banco]?.some(t => t.id === tipo)) throw new Error(`${quien} "tarjeta" con un tipo que no está dibujado`);
+        }
         if (b.noVale && !(b.noVale.meses ?? []).every(m => Number.isInteger(m) && m >= 1 && m <= 12)) throw new Error(`${quien} "noVale.meses" inválido`);
         if (b.noVale && !(b.noVale.diasSemana ?? []).every(d => Number.isInteger(d) && d >= 1 && d <= 7)) throw new Error(`${quien} "noVale.diasSemana" inválido`);
       }

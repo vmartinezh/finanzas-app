@@ -119,6 +119,17 @@ los usa; cada uno dice de dónde sale el dato: "confirmado en su web" o "visto
 en prensa" (muchas marcas los muestran solo en su app). La rutina de los lunes
 también revisa ese catálogo y pasa a "web" lo que la marca publique.
 
+Tus tarjetas (2026-11-01): las tarjetas se registran una vez (banco, tipo y,
+opcional, los últimos 4 dígitos; nunca el número completo, el vencimiento ni el
+código) en `perfil.tarjetas` como `'cmr:elite#1234'`, y cada deuda de tarjeta
+apunta a una con `deudas.tarjeta`. Plan muestra cada tarjeta dibujada con su
+disponible (cupo − deuda); Descuentos dice "con tu CMR Elite ·1234" y avisa si
+esa tarjeta está sobre el 85% del cupo; Tu cumpleaños marca los regalos que
+piden una tarjeta que tienes. Las deudas anotadas antes se proponen para unir
+con un toque (`sugerirTarjeta`: por los 4 dígitos o por el banco). Los 4
+dígitos también calzan con los correos del banco ("terminada en 1234"), para
+más adelante saber con qué tarjeta se hizo cada compra que llega sola.
+
 Hacia adelante: cada fuente (correo, Atajo de Wallet en iPhone, un agregador
 como Fintoc o Floid, y desde julio de 2027 el Sistema de Finanzas Abiertas de
 la CMF) debe llegar por la misma puerta, `recibir-compra` → "por revisar".
