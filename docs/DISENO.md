@@ -113,9 +113,11 @@ Supabase hasta la primera entrada, pasan al perfil y el RUT y la fecha se
 borran de la cuenta. La fecha sirve solo para la ruta del cumpleañero
 (`js/cumpleanos.js`, vista `#/cumpleanos`): los regalos de tu día, tu semana y
 tu mes, un aviso en Inicio dos semanas antes y casillas para armar la ruta y
-tachar lo usado (`perfil.ruta_cumpleanos`, se reinicia cada año). Solo entran
-regalos confirmados en la página oficial de cada marca; la rutina de los lunes
-también revisa ese catálogo.
+tachar lo usado (`perfil.ruta_cumpleanos`, se reinicia cada año). Entran todos
+los regalos que existan, aunque pidan app o club, porque la persona decide si
+los usa; cada uno dice de dónde sale el dato: "confirmado en su web" o "visto
+en prensa" (muchas marcas los muestran solo en su app). La rutina de los lunes
+también revisa ese catálogo y pasa a "web" lo que la marca publique.
 
 Hacia adelante: cada fuente (correo, Atajo de Wallet en iPhone, un agregador
 como Fintoc o Floid, y desde julio de 2027 el Sistema de Finanzas Abiertas de

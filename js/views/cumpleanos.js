@@ -2,7 +2,7 @@ import { datos, guardarPerfil } from '../db.js';
 import { REVISADO, rutaDelCumple, rutaDelAnio, regalosDe } from '../cumpleanos.js';
 import { nacimiento, NACIMIENTO_MINIMO, MENSAJE_FECHA } from '../validar.js';
 import { ejecutar, avisar } from '../ui.js';
-import { esc, hoyISO, fechaCorta } from '../util.js';
+import { esc, hoyISO, fechaCorta, nombreMes } from '../util.js';
 
 export const titulo = 'Tu cumpleaños';
 
@@ -14,9 +14,26 @@ function cuentaRegresiva(dias, cumple) {
   return `Faltan ${dias} ${dias === 1 ? 'día' : 'días'} para tu cumpleaños, el ${fechaCorta(cumple)}.`;
 }
 
-// Una fila por regalo: lo que dan, qué llevar y el link a la página oficial;
+// Primero lo confirmado en la web de la marca; después lo visto en prensa.
+const porOrigen = lista => [...lista].sort((a, b) => (a.segun === 'web' ? 0 : 1) - (b.segun === 'web' ? 0 : 1));
+
+// De dónde sale el dato, para que cada persona decida si le cree.
+const origen = b => (b.segun === 'web'
+  ? { etiqueta: 'Confirmado en su web', enlace: 'Ver condiciones', clase: 'web' }
+  : { etiqueta: `Visto en prensa (${b.visto ? nombreMes(b.visto) : 'sin fecha'})${notaVieja(b) ? ', hace más de un año: puede que ya no exista' : ''}. Confírmalo en su app o en el local.`, enlace: 'Ver la nota', clase: 'prensa' });
+
+// Una nota de hace más de un año puede estar desactualizada: se dice.
+function notaVieja(b) {
+  if (!b.visto) return true;
+  const [a, m] = hoyISO().split('-').map(Number);
+  const [va, vm] = b.visto.split('-').map(Number);
+  return (a - va) * 12 + (m - vm) > 12;
+}
+
+// Una fila por regalo: lo que dan, qué llevar, de dónde sale el dato y su link;
 // dos casillas para armar la ruta (lo quiero) y tacharlo (ya lo usé).
 function filaRegalo(b, ruta) {
+  const o = origen(b);
   const elegido = ruta.elegidos.includes(b.id);
   const usado = ruta.usados.includes(b.id);
   const detalle = [b.condiciones, b.llevar ? `Lleva: ${b.llevar}` : null, b.donde].filter(Boolean);
@@ -26,7 +43,8 @@ function filaRegalo(b, ruta) {
       <b>${esc(b.marca)}</b>
       <span class="regalo-que">${esc(b.regalo)}</span>
       ${detalle.map(d => `<small>${esc(d)}</small>`).join('')}
-      <a class="enlace" href="${esc(b.fuente)}" target="_blank" rel="noopener noreferrer">Ver condiciones<span class="sr-only"> de ${esc(b.marca)} (abre su página)</span></a>
+      <small class="origen ${o.clase}">${esc(o.etiqueta)}</small>
+      <a class="enlace" href="${esc(b.fuente)}" target="_blank" rel="noopener noreferrer">${o.enlace}<span class="sr-only"> de ${esc(b.marca)} (abre otra página)</span></a>
       <div class="regalo-acciones">
         <label><input type="checkbox" data-elegir="${esc(b.id)}" ${elegido ? 'checked' : ''}> En mi ruta</label>
         <label><input type="checkbox" data-usar="${esc(b.id)}" ${usado ? 'checked' : ''}> Ya lo usé</label>
@@ -40,7 +58,7 @@ function grupo(tituloGrupo, ayuda, lista, ruta) {
   return `<section class="tarjeta">
     <h2>${tituloGrupo}</h2>
     <p class="ayuda">${ayuda}</p>
-    <ul class="lista regalos">${lista.map(b => filaRegalo(b, ruta)).join('')}</ul>
+    <ul class="lista regalos">${porOrigen(lista).map(b => filaRegalo(b, ruta)).join('')}</ul>
   </section>`;
 }
 
@@ -75,20 +93,20 @@ export function render() {
       <p class="hero-detalle"><b>${esc(cuentaRegresiva(r.dias, r.cumple))}</b></p>
       <p class="hero-detalle">${total
         ? `${total} ${total === 1 ? 'regalo' : 'regalos'} para ti${enRuta ? ` · ${enRuta} en tu ruta${usados ? ` · ${usados} ya ${usados === 1 ? 'usado' : 'usados'}` : ''}` : ''}.`
-        : 'Por ahora no tenemos regalos confirmados para tu fecha.'}</p>
+        : 'Por ahora no encontramos regalos para tu fecha.'}</p>
     </section>
 
     ${r.antes.length ? `<section class="tarjeta destacada">
       <h2>Hazlo antes</h2>
       <p class="ayuda">Estos regalos solo llegan si te inscribiste antes. Mejor hacerlo ya.</p>
-      <ul class="lista antes">${r.antes.map(b => `<li><b>${esc(b.icono)} ${esc(b.marca)}:</b> ${esc(b.antes)}</li>`).join('')}</ul>
+      <ul class="lista antes">${porOrigen(r.antes).map(b => `<li><b>${esc(b.icono)} ${esc(b.marca)}:</b> ${esc(b.antes)}</li>`).join('')}</ul>
     </section>` : ''}
 
     ${grupo('Tu día', `Solo el ${esc(fechaCorta(r.cumple))}.`, r.dia, ruta)}
-    ${grupo('Tu semana', 'Los 7 días desde tu cumpleaños.', r.semana, ruta)}
-    ${grupo('Tu mes', 'Todo el mes de tu cumpleaños.', r.mes, ruta)}
+    ${grupo('Tu semana', 'Tu día y los 7 siguientes.', r.semana, ruta)}
+    ${grupo('Tu mes', 'En el mes de tu cumpleaños: revisa en cada uno desde cuándo vale.', r.mes, ruta)}
 
-    <p class="nota">Lista revisada el ${esc(fechaCorta(REVISADO))}. Solo ponemos lo que dice la página oficial de cada marca, y cada una cambia sus condiciones: revisa el link antes de ir.
+    <p class="nota">Lista revisada el ${esc(fechaCorta(REVISADO))}. Ponemos todos los regalos que encontramos: los "confirmados en su web" los dice la página de la marca; los "vistos en prensa" salen de guías de noticias, porque muchas marcas los muestran solo en su app. Cada marca cambia sus condiciones: revisa antes de ir.
       Tu fecha de nacimiento se cambia en <a href="#/ajustes">Ajustes</a>.</p>
   `;
 }

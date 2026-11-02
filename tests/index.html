@@ -721,7 +721,8 @@
       igual(cumpleQueViene('2000-02-29', '2028-01-10'), '2028-02-29', 'bisiesto en año bisiesto:');
       igual(cumpleQueViene('1990-11-28', '2026-12-02'), '2026-11-28', 'terminó el mes, pero sigue la semana:');
       igual(cumpleQueViene('1990-12-30', '2027-01-03'), '2026-12-30', 'la semana pasa a enero:');
-      igual(cumpleQueViene('1990-12-30', '2027-01-06'), '2027-12-30', 'terminó la semana:');
+      igual(cumpleQueViene('1990-12-30', '2027-01-06'), '2026-12-30', 'el séptimo día después todavía vale:');
+      igual(cumpleQueViene('1990-12-30', '2027-01-07'), '2027-12-30', 'terminó la semana:');
     });
     prueba('La ruta separa lo que hay que hacer antes y lo de tu día, tu semana y tu mes, sin lo vencido', () => {
       const r = rutaDelCumple('1990-11-20', '2026-11-01', CATALOGO);
@@ -742,11 +743,26 @@
       igual(avisoCumple('1990-11-20', '2026-11-20', null, CATALOGO), { tipo: 'hoy', dias: 0, cuantos: 3, antes: 0 });
       igual(avisoCumple('1990-11-20', '2026-11-25', ruta, CATALOGO), { tipo: 'mes', dias: -5, cuantos: 1, antes: 0 }, 'queda el café:');
       igual(avisoCumple('1990-11-20', '2026-11-22', { ...ruta, elegidos: ['cine'] }, CATALOGO), { tipo: 'mes', dias: -2, cuantos: 1, antes: 0 }, 'queda el cine de la semana:');
-      igual(avisoCumple('1990-11-20', '2026-11-27', { ...ruta, elegidos: ['cine'] }, CATALOGO), null, 'terminó la semana del cine:');
+      igual(avisoCumple('1990-11-20', '2026-11-27', { ...ruta, elegidos: ['cine'] }, CATALOGO).cuantos, 1, 'el séptimo día después el cine todavía vale:');
+      igual(avisoCumple('1990-11-20', '2026-11-28', { ...ruta, elegidos: ['cine'] }, CATALOGO), null, 'terminó la semana del cine:');
       igual(avisoCumple('1990-11-20', '2026-11-25', { ...ruta, usados: ['cafe'] }, CATALOGO), null, 'ya lo usó:');
       igual(avisoCumple('1990-11-20', '2026-11-25', { ...ruta, anio: 2025 }, CATALOGO), null, 'la ruta era del año pasado:');
       igual(avisoCumple(null, '2026-11-20', null, CATALOGO), null, 'sin fecha:');
       igual(avisoCumple('1990-11-20', '2026-11-20', null, []), null, 'catálogo vacío:');
+    });
+    prueba('Un regalo no aparece si el lugar cierra el día o el mes de tu cumpleaños', () => {
+      const parque = { id: 'parque', marca: 'Parque', icono: '🎢', regalo: 'Entrada', cuando: 'dia', antes: null, fuente: 'https://e.cl', hasta: null, noVale: { meses: [11, 12] } };
+      const museo = { id: 'museo', marca: 'Museo', icono: '🏛️', regalo: 'Entrada', cuando: 'dia', antes: null, fuente: 'https://f.cl', hasta: null, noVale: { diasSemana: [1] } };
+      igual(rutaDelCumple('1990-11-20', '2026-11-01', [parque]).dia, [], 'cerrado en noviembre:');
+      igual(rutaDelCumple('1990-10-20', '2026-10-01', [parque]).dia.length, 1, 'abierto en octubre:');
+      igual(rutaDelCumple('1990-11-23', '2026-11-01', [museo]).dia, [], 'el 23-11-2026 es lunes:');
+      igual(rutaDelCumple('1990-11-24', '2026-11-01', [museo]).dia.length, 1, 'el martes sí:');
+    });
+    prueba('Si un regalo pide inscribirse con más anticipación, el aviso llega antes', () => {
+      const conTiempo = { id: 'cine2', marca: 'Cine', icono: '🎬', regalo: 'Entrada', cuando: 'semana', antes: 'Compra el pack un mes antes', anticipacion: 30, fuente: 'https://g.cl', hasta: null };
+      igual(avisoCumple('1990-11-20', '2026-10-21', null, [...CATALOGO, conTiempo]), { tipo: 'pronto', dias: 30, cuantos: 4, antes: 2 });
+      igual(avisoCumple('1990-11-20', '2026-10-20', null, [...CATALOGO, conTiempo]), null, '31 días antes:');
+      igual(avisoCumple('1990-11-20', '2026-10-21', null, CATALOGO), null, 'sin esa anticipación, 30 días es muy pronto:');
     });
     prueba('Tu ruta parte de cero cada año', () => {
       igual(rutaDelAnio({ anio: 2026, elegidos: ['cafe'], usados: ['cafe'] }, 2026), { anio: 2026, elegidos: ['cafe'], usados: ['cafe'] });
@@ -763,6 +779,11 @@
         if (!/^https:\/\//.test(b.fuente)) throw new Error(`${quien} la fuente no es https`);
         if (b.hasta !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.hasta)) throw new Error(`${quien} fecha "hasta" inválida`);
         if (!b.regalo || !b.icono || !b.donde) throw new Error(`${quien} le falta regalo, ícono o dónde`);
+        if (!['web', 'prensa'].includes(b.segun)) throw new Error(`${quien} "segun" tiene que ser 'web' o 'prensa'`);
+        if (b.segun === 'prensa' && !/^\d{4}-\d{2}$/.test(b.visto ?? '')) throw new Error(`${quien} lo de prensa necesita "visto" (AAAA-MM de la nota)`);
+        if (b.anticipacion != null && !(Number.isInteger(b.anticipacion) && b.anticipacion > 0 && b.anticipacion <= 90)) throw new Error(`${quien} "anticipacion" son días entre 1 y 90`);
+        if (b.noVale && !(b.noVale.meses ?? []).every(m => Number.isInteger(m) && m >= 1 && m <= 12)) throw new Error(`${quien} "noVale.meses" inválido`);
+        if (b.noVale && !(b.noVale.diasSemana ?? []).every(d => Number.isInteger(d) && d >= 1 && d <= 7)) throw new Error(`${quien} "noVale.diasSemana" inválido`);
       }
     });
 

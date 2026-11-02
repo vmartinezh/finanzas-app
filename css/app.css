@@ -856,3 +856,6 @@ dialog:not([open])::backdrop { opacity: 0; }
 .regalo-acciones label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
 .regalo.usado .regalo-que, .regalo.usado b { text-decoration: line-through; color: var(--texto-3); }
 .lista.antes li { padding: 8px 2px; font-size: .92rem; }
+.regalo-texto small.origen { font-size: .75rem; font-weight: 600; }
+.regalo-texto small.origen.web { color: var(--bien); }
+.regalo-texto small.origen.prensa { color: var(--texto-3); }
