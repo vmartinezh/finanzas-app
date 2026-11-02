@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" aria-hidden="true">
+  <!-- Gorro de Santa para el logo (icons/icon.svg): mismas coordenadas, se pone encima.
+       Va inclinado sobre la esquina de arriba a la izquierda del globo. Un contorno
+       verde lo separa del globo, como el que separa la moneda. -->
+  <g transform="translate(144 110) rotate(-14) scale(.8)">
+    <g fill="#3E9B4F" stroke="#3E9B4F" stroke-width="16" stroke-linejoin="round">
+      <path d="M-54 -6 C-46 -64 -6 -106 50 -106 C84 -106 104 -86 108 -58 C96 -70 80 -70 72 -56 C64 -42 60 -24 56 -6 Z"/>
+      <rect x="-70" y="-22" width="140" height="40" rx="20"/>
+      <circle cx="108" cy="-58" r="21"/>
+    </g>
+    <path d="M-54 -6 C-46 -64 -6 -106 50 -106 C84 -106 104 -86 108 -58 C96 -70 80 -70 72 -56 C64 -42 60 -24 56 -6 Z" fill="#D63A35"/>
+    <path d="M50 -106 C84 -106 104 -86 108 -58 C96 -70 80 -70 72 -56 C70 -78 62 -94 50 -106 Z" fill="#AE2B27"/>
+    <rect x="-70" y="-22" width="140" height="40" rx="20" fill="#F2F5EF"/>
+    <circle cx="108" cy="-58" r="21" fill="#F2F5EF"/>
+  </g>
+</svg>

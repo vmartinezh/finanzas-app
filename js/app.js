@@ -5,6 +5,7 @@ import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto, activ
 import { esc, hoyISO, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
+import { decorarLogo } from './temporada.js';
 import { datosDeRegistro, NACIMIENTO_MINIMO, MENSAJE_RUT, MENSAJE_NOMBRE, MENSAJE_FECHA } from './validar.js';
 import { activarRecarga } from './recargar.js';
 import { editarMovimiento } from './views/movimientos.js';
@@ -282,6 +283,7 @@ async function arrancar() {
   sincronizarAvisos();
 }
 
+decorarLogo();
 iniciarCarga();
 activarCamposMonto();
 activarHoja();

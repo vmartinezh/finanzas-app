@@ -150,7 +150,9 @@ button { font: inherit; color: inherit; }
   .barra-superior { gap: 6px; }
   .barra-superior h1 { font-size: 1.15rem; }
 }
-.logo { flex: none; display: block; line-height: 0; }
+.logo { flex: none; display: block; line-height: 0; position: relative; }
+/* Gorro de temporada (js/temporada.js): mismo cuadro que el logo, encima. */
+.logo-gorro { position: absolute; inset: 0; pointer-events: none; }
 /* En oscuro el cuadro verde se pierde sobre el salvia oscuro: un borde claro lo separa. */
 .logo-marca { border-radius: 7px; box-shadow: 0 0 0 1px var(--logo-borde); }
 .boton-mas {

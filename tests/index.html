@@ -29,6 +29,7 @@
     import { tarjetaDeCompra, bancoPorNombre, bancoPorRemitente, digitosDelNombre } from '../supabase/functions/recibir-compra/bancos.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
+    import { TEMPORADAS, temporadaDe } from '../js/temporada.js';
     import { BENEFICIOS_CUMPLE, TIPOS_CUMPLE, CUANDO_CUMPLE, cumpleQueViene, rutaDelCumple, avisoCumple, rutaDelAnio, filtrarRegalos } from '../js/cumpleanos.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
@@ -1147,6 +1148,34 @@
         }
         if (b.noVale && !(b.noVale.meses ?? []).every(m => Number.isInteger(m) && m >= 1 && m <= 12)) throw new Error(`${quien} "noVale.meses" inválido`);
         if (b.noVale && !(b.noVale.diasSemana ?? []).every(d => Number.isInteger(d) && d >= 1 && d <= 7)) throw new Error(`${quien} "noVale.diasSemana" inválido`);
+      }
+    });
+
+    // Decoraciones de temporada (js/temporada.js).
+    prueba('El logo se pone el gorro de Navidad todo diciembre y se lo saca en enero', () => {
+      igual(temporadaDe('2026-11-30'), null, 'el día antes:');
+      igual(temporadaDe('2026-12-01'), 'navidad');
+      igual(temporadaDe('2026-12-25'), 'navidad');
+      igual(temporadaDe('2026-12-31'), 'navidad');
+      igual(temporadaDe('2027-01-01'), null, 'año nuevo:');
+      igual(temporadaDe(null), null, 'sin fecha:');
+      igual(temporadaDe('hola'), null, 'fecha rara:');
+    });
+
+    prueba('Una temporada puede cruzar el año nuevo', () => {
+      const reyes = [{ id: 'reyes', desde: '12-20', hasta: '01-06' }];
+      igual(temporadaDe('2026-12-19', reyes), null);
+      igual(temporadaDe('2026-12-20', reyes), 'reyes');
+      igual(temporadaDe('2027-01-06', reyes), 'reyes');
+      igual(temporadaDe('2027-01-07', reyes), null);
+    });
+
+    prueba('Cada temporada tiene id y fechas bien escritas, sin repetirse', () => {
+      const ids = new Set();
+      for (const t of TEMPORADAS) {
+        if (!/^[a-z-]+$/.test(t.id) || ids.has(t.id)) throw new Error(`${t.id}: id inválido o repetido`);
+        ids.add(t.id);
+        for (const f of [t.desde, t.hasta]) if (!/^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(f)) throw new Error(`${t.id}: fecha "${f}" inválida`);
       }
     });
 
