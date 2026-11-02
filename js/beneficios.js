@@ -12,7 +12,7 @@ import { normalizar } from './util.js';
 // El mismo reconocimiento de bancos que usa el servidor con los avisos de compra.
 import { bancoPorNombre } from '../supabase/functions/recibir-compra/bancos.js';
 
-export const REVISADO = '2026-11-01';
+export const REVISADO = '2026-11-02';
 
 export const TARJETAS = [
   { id: 'santander', nombre: 'Santander', detalle: 'Tarjetas de crédito y débito Santander' },
@@ -51,6 +51,9 @@ export const BENEFICIOS = [
   { tarjeta: 'santander', comercio: 'PedidosYa Market', rubro: 'delivery', descuento: '30%', dias: [], tope: 10000, hasta: '2026-11-30', fuente: SANTANDER + 'pedidosya-market' },
   { tarjeta: 'santander', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [1], hasta: '2026-11-30', fuente: SANTANDER + 'superzoo-2' },
 
+  { tarjeta: 'santander', comercio: 'Burger King', rubro: 'comida-rapida', descuento: '40%', dias: [4], tope: 15000, hasta: '2026-11-30', nota: 'Pagando en mesón de locales y Autoking, no en tótem de autoservicio.', fuente: SANTANDER + 'burger-king-3' },
+  { tarjeta: 'santander', comercio: 'Just Burger', rubro: 'comida-rapida', descuento: '40%', dias: [3], hasta: '2026-11-30', nota: 'Solo crédito Santander. En local y online, con los 6 primeros dígitos como código.', fuente: SANTANDER + 'just-burger-3' },
+
   // ── Banco de Chile ──
   { tarjeta: 'banco-de-chile', comercio: 'Domino’s Pizza', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-12-31', fuente: CHILE + 'dominos-pizza' },
   { tarjeta: 'banco-de-chile', comercio: 'Mamut', rubro: 'restaurante', descuento: 'hasta 40%', dias: [2], hasta: '2026-12-31', fuente: CHILE + 'mamut' },
@@ -69,6 +72,8 @@ export const BENEFICIOS = [
 
   // ── Bci ──
   { tarjeta: 'bci', comercio: 'Starbucks', rubro: 'cafe', descuento: '30%', dias: [1], hasta: '2026-12-31', fuente: BCI + 'tu-cafe-favorito-y-el-momento-perfecto-para-recargar-tu-dia.-8nywci7' },
+  { tarjeta: 'bci', comercio: 'Starbucks', rubro: 'cafe', descuento: '50%', dias: [2, 3, 4], hasta: '2026-11-30', nota: 'Solo crédito Black, Infinite y Signature, en bebidas preparadas en barra. Pide el código en la app Bci.', fuente: BCI + '50-por-ciento-mgcj0mn' },
+  { tarjeta: 'bci', comercio: 'Mamut', rubro: 'restaurante', descuento: '40%', dias: [5], tope: 30000, hasta: '2026-12-31', nota: 'Solo crédito, presencial; pídelo al pedir la cuenta.', fuente: BCI + 'viernes-presencial-v5scbgu' },
   { tarjeta: 'bci', comercio: 'KFC', rubro: 'comida-rapida', descuento: '30%', dias: [1], hasta: '2026-12-31', nota: 'En el combo Chicken Share.', fuente: BCI + 'todos-los-lunes-en-combo-chicken-share-alitas-us5tjzf' },
   { tarjeta: 'bci', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-12-31', nota: 'Pidiendo en la app de McDonald’s.', fuente: BCI + 'todos-los-martes-en-tu-app-de-mcdonalds-nf4vg4m' },
   { tarjeta: 'bci', comercio: 'Juan Valdez', rubro: 'cafe', descuento: '40%', dias: [3], hasta: '2026-12-31', nota: 'Solo con crédito, en bebidas preparadas en barra.', fuente: BCI + '40-por-ciento-de-descuento-en-bebidas-preparadas-en-barra-5h1tty' },
@@ -78,7 +83,17 @@ export const BENEFICIOS = [
   { tarjeta: 'bci', comercio: 'PedidosYa Market', rubro: 'delivery', descuento: '30%', dias: [], tope: 8000, hasta: '2026-12-31', nota: 'Solo con crédito.', fuente: BCI + 'tu-pedido-en-tu-casa-ya-no-tienes-que-ir-al-supermercado-con-pedidosya-hjjwl2' },
 
   // ── CMR Falabella ──
-  // Los descuentos de comida terminaron el 31-10-2026; al 01-11 el banco aún no publica los de noviembre.
+  { tarjeta: 'cmr', comercio: 'Doggis', rubro: 'comida-rapida', descuento: '40%', dias: [1], tope: 16000, hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Presencial en tótem y online, con los 6 primeros dígitos de la tarjeta como cupón. Tope por boleta.', fuente: CMR + 'doggis' },
+  { tarjeta: 'cmr', comercio: 'Dunkin’', rubro: 'cafe', descuento: '40%', dias: [2], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Excluye caja de 24 unidades, café de libras y merchandising.', fuente: CMR + 'dunkin' },
+  { tarjeta: 'cmr', comercio: 'Juan Valdez', rubro: 'cafe', descuento: '40%', dias: [5], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Solo presencial, en bebidas preparadas en barra.', fuente: CMR + 'juan-valdez' },
+  { tarjeta: 'cmr', comercio: 'Juan Maestro', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. En tótem y app.', fuente: CMR + 'juan-maestro' },
+  { tarjeta: 'cmr', comercio: 'Just Burger', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Presencial y online, con los 6 primeros dígitos como cupón.', fuente: CMR + 'just-burger' },
+  { tarjeta: 'cmr', comercio: 'Mamut', rubro: 'restaurante', descuento: 'hasta 40%', dias: [1], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Solo presencial. 40% con CMR y 30% con Débito Banco Falabella.', fuente: CMR + 'mamut' },
+  { tarjeta: 'cmr', comercio: 'Tommy Beans', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Solo en app y tótem.', fuente: CMR + 'tommy-beans' },
+  { tarjeta: 'cmr', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [5], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Compras online sobre $25.000.', fuente: CMR + 'superzoo' },
+  { tarjeta: 'cmr', comercio: 'Farmacias Ahumada', rubro: 'farmacia', descuento: '25%', dias: [1, 6, 7], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Presencial y online. Excluye remedios sobre $90.000 y no aplica en la wallet.', fuente: CMR + 'farmacias-ahumada-medicamentos' },
+  { tarjeta: 'cmr', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite, Premium y Débito Banco Falabella. Solo en el combo del mes, en mesón y McAuto.', fuente: CMR + 'mccombodelmes' },
+  { tarjeta: 'cmr', comercio: 'Shell', rubro: 'bencina', descuento: '$100 por litro', dias: [3], hasta: '2026-11-30', nota: 'Solo CMR Mastercard, Elite y Premium, pagando con la App Shell. Hasta 2 cargas de 70 litros por cliente.', fuente: CMR + 'shell' },
 
   // ── BancoEstado ──
   { tarjeta: 'bancoestado', comercio: 'Doggis', rubro: 'comida-rapida', descuento: '30%', dias: [2], tope: 16000, hasta: '2026-12-31', fuente: ESTADO + 'doggis---beneficios-bancoestado.html' },
