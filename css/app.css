@@ -205,13 +205,14 @@ main:focus { outline: none; }
   /* Alineado con el borde derecho de la barra (100% no cuenta la barra de desplazamiento). */
   right: calc(max(12px, (100% - 520px) / 2) + 4px);
   bottom: calc(24px + var(--nav-alto) + env(safe-area-inset-bottom));
-  height: 52px; padding: 0 20px 0 16px; border-radius: 18px; border: none;
-  display: flex; align-items: center; gap: 6px; cursor: pointer;
+  /* Solo el "+": no siempre es un gasto (también un ingreso). */
+  width: 56px; height: 56px; padding: 0; border-radius: 18px; border: none;
+  display: grid; place-items: center; cursor: pointer;
   background: var(--agregar); color: var(--agregar-texto); font: inherit; font-weight: 800; font-size: 1rem;
   box-shadow: 0 10px 24px rgb(0 0 0 / .2);
   view-transition-name: boton-agregar;
 }
-.boton-agregar svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.boton-agregar svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
 
 /* ── Tarjetas ───────────────────────────────────── */
 .tarjeta {

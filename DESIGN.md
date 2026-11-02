@@ -107,7 +107,7 @@ components:
     backgroundColor: "{colors.agregar}"
     textColor: "{colors.agregar-texto}"
     rounded: "{rounded.dialogo}"
-    size: "52px"
+    size: "56px"
   chip:
     backgroundColor: "{colors.superficie}"
     textColor: "{colors.texto-2}"
@@ -170,7 +170,7 @@ Una paleta de hoja fresca: verdes vivos y amigables (no el verde de WhatsApp) so
 ### Primary
 - **Hoja** (`hoja`, #3e9b4f): el verde del logo, de la pantalla de carga y del ícono de la app.
 - **Salvia** (`salvia`, el nombre del token se mantuvo): el verde hoja claro del bloque del número del día en Inicio (con la barra superior fundida en él), los íconos de la barra inferior y el `theme-color` del navegador. El texto encima siempre va oscuro.
-- **Agregar** (`agregar`): el verde más vivo, solo para el botón "+ Gasto", con texto oscuro (7:1).
+- **Agregar** (`agregar`): el verde más vivo, solo para el botón "+", con el ícono oscuro (7:1).
 - **Acento** (`acento`, #26753a): la hoja oscurecida para que el texto blanco encima y los enlaces sobre papel pasen 4.5:1. Botón primario, enlaces, `summary` de los desgloses y el anillo de foco. En modo oscuro se invierte a un verde menta claro (#8ed99b) con texto oscuro.
 - **Noche de huerto** (`noche-de-huerto`): verde muy oscuro, el fondo de la barra inferior flotante. Es la única superficie oscura del modo claro.
 
@@ -244,7 +244,7 @@ Casi plano. La profundidad viene de la capa tonal (fondo de hoja → papel → p
 - **Tooltip** (`0 6px 20px rgb(0 0 0 / .15)`): tooltips de los gráficos.
 
 ### Named Rules
-**La regla de las cosas que flotan.** Solo la barra inferior, el botón "+ Gasto", los diálogos y los tooltips llevan sombra real. Una tarjeta nueva no flota: se separa por tono y borde.
+**La regla de las cosas que flotan.** Solo la barra inferior, el botón "+", los diálogos y los tooltips llevan sombra real. Una tarjeta nueva no flota: se separa por tono y borde.
 
 ## Shapes
 
@@ -284,7 +284,7 @@ Suaves y redondeados, nunca agresivos.
 ### Navigation
 - **Barra inferior flotante:** noche de huerto con 24px de radio y cuatro pestañas, por frecuencia de uso: Inicio, Gastos, Presupuesto y Plan. Solo sirve para moverse entre secciones: ninguna acción va dentro (consejo de jiron.design, elegido por el usuario).
 - **Ítems:** ícono de 22px sobre una etiqueta de 0.72rem/600, en salvia; toda la celda (54px de alto) se puede tocar. El activo no depende solo del color: pasa a `nav-activo`, con la etiqueta en 800, el ícono a 2.5px de trazo y un velo blanco al 10% con 16px de radio.
-- **Agregar ("+ Gasto"):** la acción principal va fuera de la barra: un botón verde vivo (`agregar`) de 52px de alto con ícono y texto, flotando sobre la barra a la derecha, al alcance del pulgar.
+- **Agregar ("+"):** la acción principal va fuera de la barra: un botón cuadrado verde vivo (`agregar`) de 56px con solo el "+", flotando sobre la barra a la derecha, al alcance del pulgar. Sin la palabra "Gasto", porque también anota ingresos (decisión del usuario, 2026-11-01); su nombre accesible es "Anotar un gasto o un ingreso".
 - **Barra superior:** el logo de 32px (`icons/icon.svg`: la k en un globo de chat, con la moneda, sobre verde hoja), título, el ojo y "Más". El título toma el espacio libre y, si no cabe, termina en "…". El ojo es un círculo de 44px sin borde (abierto o cerrado) y "Más", un círculo de 44px con borde. Dónde están guardados los datos (local o nube) se dice en Ajustes, no en la barra.
 - **Montos ocultos (el ojo):** toda cifra de plata pasa a `$•••••`, del mismo largo y sin signo, con los puntos achicados para ocupar lo que un monto real (más chicos aún en el número del día). Se ven igual las proporciones (barras, gráficos, %) y los topes de los descuentos, que son del banco. Es la versión para compartir pantallazos: tiene que verse completa.
 
