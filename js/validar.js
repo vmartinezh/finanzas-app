@@ -6,6 +6,7 @@
 // son números, los textos son texto y los estados son valores conocidos. Así
 // un valor manipulado nunca llega a la página como HTML ni rompe los cálculos.
 import { NOMBRE_APP, hoyISO } from './util.js';
+import { armarTarjeta } from './beneficios.js';
 // Las mismas reglas que usa el servidor (recibir-compra), para que calcen siempre.
 import { normalizarRut, nombreSirve, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
 
@@ -40,6 +41,10 @@ const logico = v => v !== false;
 const ID_TARJETA = /^[a-z0-9-]{1,40}(?::[a-z0-9-]{1,40})?(?:#\d{4})?$/;
 const idTarjeta = v => (typeof v === 'string' && ID_TARJETA.test(v) ? v : null);
 const tarjetas = v => (Array.isArray(v) ? [...new Set(v.filter(t => typeof t === 'string' && ID_TARJETA.test(t)))].slice(0, 30) : []);
+// Un id del catálogo ('santander', 'elite') o null.
+const SLUG = /^[a-z0-9-]{1,40}$/;
+const slug = v => (typeof v === 'string' && SLUG.test(v) ? v : null);
+const cuatroDigitos = v => (typeof v === 'string' && /^\d{4}$/.test(v) ? v : null);
 // Fecha de nacimiento: que exista, desde 1900 y no en el futuro. La usan el
 // registro, Ajustes y el perfil que llega de la nube.
 export const NACIMIENTO_MINIMO = '1900-01-01';
@@ -116,7 +121,9 @@ export function perfilDesdeRegistro(perfil, registro) {
 }
 
 // En orden de dependencia: las primeras son referenciadas por las siguientes.
-export const TABLAS = ['categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
+export const TABLAS = ['categorias', 'eventos', 'cuentas', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas'];
+
+export const TIPOS_CUENTA = ['credito', 'debito', 'corriente', 'vista', 'efectivo'];
 
 const FORMAS = {
   categorias: f => ({
@@ -132,6 +139,19 @@ const FORMAS = {
     palabras: texto(f.palabras, 500),
     activo: logico(f.activo),
   }),
+  // Tus tarjetas y, más adelante, tus cuentas del banco y el efectivo. Del
+  // banco y del tipo de tarjeta se guarda solo su id del catálogo
+  // (js/beneficios.js y js/tarjetas.js) y, si quieres, los últimos 4 dígitos.
+  cuentas: f => ({
+    tipo: opcion(f.tipo, TIPOS_CUENTA),
+    institucion: slug(f.institucion),
+    producto: slug(f.producto),
+    terminacion: cuatroDigitos(f.terminacion),
+    apodo: texto(f.apodo, 40),
+    cupo_total: f.cupo_total ? entero(f.cupo_total) || null : null,
+    dia_facturacion: enteroONulo(f.dia_facturacion, 1, 31),
+    activa: logico(f.activa),
+  }),
   deudas: f => ({
     nombre: texto(f.nombre, 80) ?? 'Sin nombre',
     acreedor: texto(f.acreedor, 80),
@@ -143,7 +163,10 @@ const FORMAS = {
     fecha_limite: mes(f.fecha_limite),
     estado: opcion(f.estado, ['activa', 'pausa']),
     notas: texto(f.notas, 500),
-    // La tarjeta de "Tus tarjetas" a la que corresponde esta deuda.
+    // La tarjeta (fila de cuentas) a la que corresponde esta deuda.
+    cuenta_id: id(f.cuenta_id),
+    // Antes de la tabla cuentas: la tarjeta como texto ('cmr:elite#1234'). Solo
+    // se lee, para pasarla a cuentas (pasarTarjetasACuentas).
     tarjeta: idTarjeta(f.tarjeta),
   }),
   compromisos: f => ({
@@ -213,6 +236,7 @@ export function normalizarTabla(tabla, filas) {
 // Es la misma lista de claves foráneas de supabase/schema.sql: si agregas una
 // allá, agrégala aquí.
 const REFERENCIAS = {
+  deudas: { cuenta_id: 'cuentas' },
   compromisos: { categoria_id: 'categorias' },
   cobros: { persona_id: 'personas' },
   movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros' },
@@ -269,12 +293,23 @@ export function prepararRespaldo(copia, crearId) {
   const nombres = TABLAS;
   const validas = Object.fromEntries(nombres.map(t => [t, normalizarTabla(t, copia[t])]));
   if (!validas.categorias.length) throw new Error('El respaldo no trae categorías válidas');
+  // Respaldos de antes de la tabla cuentas: las tarjetas venían en el perfil.
+  const paso = pasarTarjetasACuentas({ tarjetas: tarjetas(copia.perfil?.tarjetas), cuentas: validas.cuentas, deudas: validas.deudas }, crearId);
+  const creadas = paso ? paso.cuentas.filter(c => !validas.cuentas.some(x => x.id === c.id)).length : 0;
+  if (paso) {
+    validas.cuentas = mezclar(validas.cuentas, paso.cuentas);
+    validas.deudas = mezclar(validas.deudas, paso.deudas);
+  }
+  // Las tarjetas se muestran en el orden en que se agregaron; al restaurar,
+  // ese orden es el de la lista (la fecha original no viaja, ver schema.sql).
+  const fechaDe = c => c.creado ?? '\uffff';
+  validas.cuentas.sort((a, b) => (fechaDe(a) < fechaDe(b) ? -1 : fechaDe(a) > fechaDe(b) ? 1 : 0));
   // Primero se sueltan los enlaces rotos y después se sacan los repetidos: así
   // una regla repetida sin su categoría no le gana a su gemela válida.
   const soltadas = soltar(validas);
   const enteras = Object.fromEntries(nombres.map(t => [t, sinRepetidos(t, soltadas.tablas[t])]));
   const sueltos = soltadas.sueltos;
-  const recibidas = nombres.reduce((n, t) => n + (Array.isArray(copia[t]) ? copia[t].length : 0), 0);
+  const recibidas = creadas + nombres.reduce((n, t) => n + (Array.isArray(copia[t]) ? copia[t].length : 0), 0);
   const descartadas = recibidas - nombres.reduce((n, t) => n + enteras[t].length, 0);
 
   const idNuevo = Object.fromEntries(nombres.map(t => [t, new Map(enteras[t].map(f => [f.id, crearId()]))]));
@@ -285,13 +320,70 @@ export function prepararRespaldo(copia, crearId) {
     }
     return fila;
   })]));
+  // Cada tarjeta, una deuda (la base lo exige): si dos apuntan a la misma, la segunda queda sin tarjeta.
+  const conDeuda = new Set();
+  tablas.deudas = tablas.deudas.map(d => {
+    if (!d.cuenta_id) return d;
+    if (conDeuda.has(d.cuenta_id)) return { ...d, cuenta_id: null };
+    conDeuda.add(d.cuenta_id);
+    return d;
+  });
 
   const { pago_extra_deudas, user_id, ...perfil } = normalizarPerfil(copia.perfil);
+  if (paso) perfil.tarjetas = [];
   // Respaldos de la primera versión guardaban solo el abono extra; se convierte al total.
   if (copia.perfil?.presupuesto_deudas == null && pago_extra_deudas) {
     perfil.presupuesto_deudas = tablas.deudas.reduce((s, d) => s + d.cuota_mensual, 0) + pago_extra_deudas;
   }
   return { tablas, perfil, sueltos, descartadas };
+}
+
+// Reemplaza las filas con el mismo id y agrega las nuevas al final.
+export function mezclar(filas, cambios) {
+  const porId = new Map(cambios.map(f => [f.id, f]));
+  const ids = new Set(filas.map(f => f.id));
+  return [...filas.map(f => porId.get(f.id) ?? f), ...cambios.filter(f => !ids.has(f.id))];
+}
+
+const claveDeCuenta = c => armarTarjeta({ banco: c.institucion, tipo: c.producto, terminacion: c.terminacion });
+
+// Antes, tus tarjetas eran texto en perfil.tarjetas ('cmr:elite#1234') y cada
+// deuda apuntaba a una con deudas.tarjeta. Ahora cada tarjeta es una fila de
+// cuentas, y la deuda la apunta con cuenta_id. Esto hace el paso; en la nube lo
+// hace supabase/schema.sql y esto cubre el modo local, los respaldos antiguos y
+// lo que anote una versión vieja de la app que siga en caché.
+// - Una tarjeta que ya está en cuentas no se repite.
+// - Cada tarjeta, una deuda: la primera que la nombra.
+// - El cupo pasa de la deuda a la tarjeta, salvo con moverCupo: false (cuando
+//   la nube todavía no tiene la tabla y el paso queda solo en memoria).
+// Devuelve las cuentas y deudas que cambian, o null si no hay tarjetas que pasar
+// (después del paso, perfil.tarjetas queda vacío).
+export function pasarTarjetasACuentas({ tarjetas: claves = [], cuentas = [], deudas = [] }, crearId, { moverCupo = true } = {}) {
+  if (!claves.length) return null;
+  const porClave = new Map(cuentas.map(c => [claveDeCuenta(c), c]));
+  const cambiadas = new Map();
+  for (const t of claves) {
+    if (!ID_TARJETA.test(t) || porClave.has(t)) continue;
+    const [resto, terminacion = null] = t.split('#');
+    const [institucion, producto = null] = resto.split(':');
+    const c = { id: crearId(), tipo: 'credito', institucion, producto, terminacion, apodo: null, cupo_total: null, dia_facturacion: null, activa: true };
+    porClave.set(t, c);
+    cambiadas.set(c.id, c);
+  }
+  const conDeuda = new Set(deudas.map(d => d.cuenta_id).filter(Boolean));
+  const deudasCambiadas = [];
+  for (const d of deudas) {
+    const c = !d.cuenta_id && d.tarjeta ? porClave.get(d.tarjeta) : null;
+    if (!c || conDeuda.has(c.id)) continue;
+    conDeuda.add(c.id);
+    if (d.cupo_total && !c.cupo_total) {
+      const conCupo = { ...c, cupo_total: d.cupo_total };
+      porClave.set(d.tarjeta, conCupo);
+      cambiadas.set(c.id, conCupo);
+    }
+    deudasCambiadas.push({ ...d, cuenta_id: c.id, cupo_total: moverCupo ? null : d.cupo_total });
+  }
+  return { cuentas: [...cambiadas.values()], deudas: deudasCambiadas };
 }
 
 export function normalizarPerfil(p) {

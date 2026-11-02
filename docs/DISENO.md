@@ -122,7 +122,9 @@ también revisa ese catálogo y pasa a "web" lo que la marca publique.
 Tus tarjetas (2026-11-01): las tarjetas se registran una vez (banco, tipo y,
 opcional, los últimos 4 dígitos; nunca el número completo, el vencimiento ni el
 código) en `perfil.tarjetas` como `'cmr:elite#1234'`, y cada deuda de tarjeta
-apunta a una con `deudas.tarjeta`. Plan muestra cada tarjeta dibujada con su
+apunta a una con `deudas.tarjeta`. Desde el 2026-11-02 cada tarjeta es una fila
+de la tabla `cuentas`, con su cupo, y su deuda la apunta con `deudas.cuenta_id`
+(ver `docs/MODELO-DATOS.md`); `perfil.tarjetas` queda vacío. Plan muestra cada tarjeta dibujada con su
 disponible (cupo − deuda); Descuentos dice "con tu CMR Elite ·1234" y avisa si
 esa tarjeta está sobre el 85% del cupo; Tu cumpleaños marca los regalos que
 piden una tarjeta que tienes. Las deudas anotadas antes se proponen para unir

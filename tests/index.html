@@ -19,9 +19,9 @@
     // No toca tus datos: trabaja sobre datos en memoria.
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
-    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
+    import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cupoDe, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
-    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo } from '../js/validar.js';
+    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo, pasarTarjetasACuentas } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
@@ -630,6 +630,69 @@
       }, contador());
       igual(tablas.cobros.map(c => c.concepto), ['Asado']);
       igual([tablas.cobros[0].persona_id, tablas.movimientos[0].cobro_id], [tablas.personas[0].id, tablas.cobros[0].id]);
+    });
+
+    // Tus tarjetas como filas de cuentas
+    prueba('Cuentas: solo ids del catálogo, 4 dígitos y tipos conocidos', () => {
+      const c = normalizarFila('cuentas', { id: ID, tipo: 'tarjeta', institucion: ATAQUE, producto: 'Elite', terminacion: '12345', apodo: 'x'.repeat(99), cupo_total: -5, dia_facturacion: 40 });
+      igual([c.tipo, c.institucion, c.producto, c.terminacion, c.apodo.length, c.cupo_total, c.dia_facturacion, c.activa], ['credito', null, null, null, 40, null, null, true]);
+      const ok = normalizarFila('cuentas', { id: ID, tipo: 'debito', institucion: 'lider-bci', producto: 'elite', terminacion: '0042', cupo_total: '900000', activa: false });
+      igual([ok.tipo, ok.institucion, ok.producto, ok.terminacion, ok.cupo_total, ok.activa], ['debito', 'lider-bci', 'elite', '0042', 900000, false]);
+      igual(normalizarFila('deudas', { id: ID, nombre: 'x', cuenta_id: ATAQUE }).cuenta_id, null);
+    });
+    const D1 = 'dddddddd-dddd-4ddd-8ddd-000000000001', D2 = 'dddddddd-dddd-4ddd-8ddd-000000000002', D3 = 'dddddddd-dddd-4ddd-8ddd-000000000003';
+    prueba('Paso a cuentas: cada tarjeta del perfil es una fila y su deuda la apunta con el cupo', () => {
+      const paso = pasarTarjetasACuentas({
+        tarjetas: ['cmr:elite#1234', 'santander', '<b>'],
+        cuentas: [],
+        deudas: [{ id: D1, nombre: 'CMR', tarjeta: 'cmr:elite#1234', cupo_total: 1000 }, { id: D2, nombre: 'Otra CMR', tarjeta: 'cmr:elite#1234', cupo_total: 5 }, { id: D3, nombre: 'Línea', cupo_total: 300 }],
+      }, contador());
+      igual(paso.cuentas.map(c => [c.institucion, c.producto, c.terminacion, c.cupo_total]), [['cmr', 'elite', '1234', 1000], ['santander', null, null, null]]);
+      igual(paso.deudas.map(d => [d.id, d.cuenta_id, d.cupo_total]), [[D1, paso.cuentas[0].id, null]], 'cada tarjeta, una deuda;');
+    });
+    prueba('Paso a cuentas: no repite una tarjeta que ya está, y sin tarjetas en el perfil no hace nada', () => {
+      const ya = { id: D3, tipo: 'credito', institucion: 'santander', producto: null, terminacion: null, cupo_total: null };
+      const paso = pasarTarjetasACuentas({ tarjetas: ['santander'], cuentas: [ya], deudas: [{ id: D1, nombre: 'S', tarjeta: 'santander', cupo_total: 7 }] }, contador(), { moverCupo: false });
+      igual(paso.cuentas.map(c => [c.id, c.cupo_total]), [[D3, 7]], 'la existente recibe el cupo;');
+      igual(paso.deudas.map(d => [d.cuenta_id, d.cupo_total]), [[D3, 7]], 'sin mover el cupo, la deuda lo conserva;');
+      igual(pasarTarjetasACuentas({ tarjetas: [], cuentas: [], deudas: [] }, contador()), null);
+    });
+    prueba('Restaurar un respaldo antiguo: las tarjetas del perfil pasan a cuentas', () => {
+      const { tablas, perfil, descartadas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }],
+        perfil: { tarjetas: ['ripley#4821'] },
+        deudas: [{ id: D1, nombre: 'Ripley', tarjeta: 'ripley#4821', cupo_total: 800000 }],
+      }, contador());
+      igual(tablas.cuentas.map(c => [c.institucion, c.terminacion, c.cupo_total]), [['ripley', '4821', 800000]]);
+      igual([tablas.deudas[0].cuenta_id, tablas.deudas[0].cupo_total], [tablas.cuentas[0].id, null]);
+      igual([perfil.tarjetas, descartadas], [[], 0]);
+    });
+    prueba('Restaurar: si dos deudas apuntan a la misma tarjeta, la segunda queda sin tarjeta', () => {
+      const C = 'cccccccc-cccc-4ccc-8ccc-000000000001';
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }],
+        cuentas: [{ id: C, tipo: 'credito', institucion: 'cmr' }],
+        deudas: [{ id: D1, nombre: 'a', cuenta_id: C }, { id: D2, nombre: 'b', cuenta_id: C }, { id: D3, nombre: 'c', cuenta_id: ID }],
+      }, contador());
+      igual(tablas.deudas.map(d => d.cuenta_id), [tablas.cuentas[0].id, null, null], 'repetida y rota;');
+    });
+    prueba('Restaurar: las tarjetas quedan en el orden en que se agregaron', () => {
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }],
+        cuentas: [{ id: D2, institucion: 'santander', creado: '2026-11-02T10:00:00Z' }, { id: D1, institucion: 'cmr', creado: '2026-10-01T10:00:00Z' }, { id: D3, institucion: 'ripley' }],
+      }, contador());
+      igual(tablas.cuentas.map(c => c.institucion), ['cmr', 'santander', 'ripley']);
+    });
+    prueba('El cupo de una deuda de tarjeta es el de la tarjeta', () => {
+      const antes = datos.cuentas;
+      datos.cuentas = [{ id: 'tc', tipo: 'credito', institucion: 'cmr', cupo_total: 1000 }];
+      try {
+        igual(cupoDe({ cuenta_id: 'tc', cupo_total: null }), 1000);
+        igual(cupoDe({ cuenta_id: null, cupo_total: 300 }), 300, 'sin tarjeta;');
+        igual(usoCupo({ cuenta_id: 'tc', saldo: 900 }).estado, 'excedido');
+      } finally {
+        datos.cuentas = antes;
+      }
     });
 
     // Descuentos de las tarjetas

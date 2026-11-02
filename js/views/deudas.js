@@ -1,9 +1,9 @@
-import { datos, guardar, borrar, guardarPerfil } from '../db.js';
-import { planDeudas, deudasVigentes, deudasEnPausa, destinoDeudas, usoCupo } from '../calculos.js';
+import { datos, borrar, guardarPerfil } from '../db.js';
+import { planDeudas, deudasVigentes, deudasEnPausa, destinoDeudas, usoCupo, cupoDe } from '../calculos.js';
 import { abrirFormulario, ejecutar, barraProgreso, inputMonto, avisar } from '../ui.js';
 import { sugerirTarjeta } from '../beneficios.js';
-import { tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
-import { misTarjetas, nombreBanco, nombreTarjeta, deudaDe, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
+import { activarTarjetas3D } from '../tarjetas.js';
+import { misTarjetas, claveDe, cuentaPorId, nombreTarjeta, dibujoTarjeta, deudaDe, guardarDeuda, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
 import { clp, esc, nombreMes, porcentaje, mesActual, sumarMeses, numero, leerMonto } from '../util.js';
 
 export const titulo = 'Tu plan';
@@ -14,35 +14,40 @@ const descartados = new Set();
 
 // Tus tarjetas, como en la billetera: el dibujo y, al lado, cuánto te queda
 // disponible y cuánto debes. Tocarla abre su deuda (o la anota, si no hay).
-function filaTarjeta(id) {
-  const d = deudaDe(id);
+function filaTarjeta(c) {
+  const d = deudaDe(c);
   const cupo = d ? usoCupo(d) : null;
   let datosHTML;
-  if (!d) {
+  if (!d && c.cupo_total) {
+    datosHTML = `<span class="tarjeta-etiqueta">Disponible</span>
+      <span class="monto tarjeta-monto">${clp(c.cupo_total)}</span>
+      <span class="tarjeta-accion">Anota lo que debes</span>`;
+  } else if (!d) {
     datosHTML = `<span class="tarjeta-etiqueta">Sin deuda anotada</span><span class="tarjeta-accion">Anota lo que debes y tu cupo</span>`;
   } else if (cupo) {
     datosHTML = `<span class="tarjeta-etiqueta">Disponible</span>
       <span class="monto tarjeta-monto">${clp(Math.max(0, cupo.disponible))}</span>
-      ${barraProgreso(d.saldo, d.cupo_total, cupo.estado)}
-      <small class="estado-texto" data-estado="${cupo.estado}">Debes ${clp(d.saldo)} de ${clp(d.cupo_total)}</small>`;
+      ${barraProgreso(d.saldo, cupo.cupo, cupo.estado)}
+      <small class="estado-texto" data-estado="${cupo.estado}">Debes ${clp(d.saldo)} de ${clp(cupo.cupo)}</small>`;
   } else {
     datosHTML = `<span class="tarjeta-etiqueta">Debes</span>
       <span class="monto tarjeta-monto">${clp(d.saldo)}</span>
       <span class="tarjeta-accion">Agrega el cupo para ver tu disponible</span>`;
   }
-  return `<li><button class="fila-tarjeta" data-tarjeta="${esc(id)}" aria-label="${esc(nombreTarjeta(id))}">
-    <span class="tarjeta-marco">${tarjetaHTML(id, nombreBanco(id), { chica: true })}</span>
+  return `<li><button class="fila-tarjeta" data-tarjeta="${esc(c.id)}" aria-label="${esc(nombreTarjeta(c))}">
+    <span class="tarjeta-marco">${dibujoTarjeta(c, { chica: true })}</span>
     <span class="tarjeta-datos">${datosHTML}</span>
   </button></li>`;
 }
 
 // Deudas anotadas antes de registrar la tarjeta: se propone unirlas.
 function sugerencias(mias) {
-  const usadas = new Set(datos.deudas.map(d => d.tarjeta).filter(Boolean));
+  const usadas = new Set(datos.deudas.map(d => d.cuenta_id).filter(Boolean));
+  const claves = mias.map(claveDe);
   return datos.deudas
-    .filter(d => !d.tarjeta && !descartados.has(d.id))
-    .map(d => ({ d, id: sugerirTarjeta(d, mias) }))
-    .filter(({ id }) => id && !usadas.has(id));
+    .filter(d => !d.cuenta_id && !descartados.has(d.id))
+    .map(d => ({ d, c: mias[claves.indexOf(sugerirTarjeta(d, claves))] }))
+    .filter(({ c }) => c && !usadas.has(c.id));
 }
 
 function tarjetasHTML() {
@@ -51,9 +56,9 @@ function tarjetasHTML() {
   const calces = sugerencias(mias);
   return `<section class="tarjeta" id="tus-tarjetas">
     <div class="titulo-con-accion"><h2>Tus tarjetas</h2>${eligiendo ? '' : '<button class="boton pequeño" id="agregar-tarjeta">+ Agregar</button>'}</div>
-    ${calces.map(({ d, id }) => `<div class="calce">
-      <p>¿Tu deuda <b>${esc(d.nombre)}</b> es tu ${esc(nombreTarjeta(id))}?</p>
-      <div class="botones"><button class="boton pequeño" data-calzar="${esc(d.id)}" data-con="${esc(id)}">Sí, es esa</button><button class="boton-texto" data-descartar="${esc(d.id)}">No</button></div>
+    ${calces.map(({ d, c }) => `<div class="calce">
+      <p>¿Tu deuda <b>${esc(d.nombre)}</b> es tu ${esc(nombreTarjeta(c))}?</p>
+      <div class="botones"><button class="boton pequeño" data-calzar="${esc(d.id)}" data-con="${esc(c.id)}">Sí, es esa</button><button class="boton-texto" data-descartar="${esc(d.id)}">No</button></div>
     </div>`).join('')}
     ${mias.length ? `<ul class="lista-tarjetas">${mias.map(filaTarjeta).join('')}</ul>`
       : eligiendo ? '' : '<p class="ayuda">Agrega tus tarjetas una vez: aquí ves cuánto te queda disponible en cada una, y en Descuentos, qué te sirve hoy.</p>'}
@@ -84,7 +89,7 @@ function filaDeuda(d) {
       <span class="monto">${clp(d.saldo)}</span>
     </span>
     ${cupo && d.saldo > 0 ? `
-      ${barraProgreso(d.saldo, d.cupo_total, cupo.estado)}
+      ${barraProgreso(d.saldo, cupo.cupo, cupo.estado)}
       <small class="estado-texto" data-estado="${cupo.estado}">${cupo.estado === 'excedido' ? '⚠ ' : ''}Usas el ${Math.round(cupo.pct)}% del cupo · quedan ${clp(cupo.disponible)}</small>` : ''}
     ${d.notas ? `<small class="nota-deuda">${esc(d.notas)}</small>` : ''}
   </button></li>`;
@@ -170,13 +175,13 @@ export function render() {
   `;
 }
 
-// conTarjeta: al anotar la deuda desde una tarjeta, ya viene elegida.
+// conTarjeta: al anotar la deuda desde una tarjeta (fila de cuentas), ya viene elegida.
 async function editarDeuda(d, refrescar, conTarjeta = null) {
   const nueva = !d;
-  d = d || { estado: 'activa', tarjeta: conTarjeta, nombre: conTarjeta ? nombreTarjeta(conTarjeta, { conDigitos: false }) : undefined };
+  d = d || { estado: 'activa', cuenta_id: conTarjeta?.id ?? null, nombre: conTarjeta ? nombreTarjeta(conTarjeta, { conDigitos: false }) : undefined };
   const mias = misTarjetas();
   // Una tarjeta ya unida a otra deuda no se ofrece (cada tarjeta, una deuda).
-  const libres = mias.filter(id => id === d.tarjeta || !datos.deudas.some(x => x.tarjeta === id && x.id !== d.id));
+  const libres = mias.filter(c => c.id === d.cuenta_id || !datos.deudas.some(x => x.cuenta_id === c.id && x.id !== d.id));
   const mes = mesActual();
   const meses = Array.from({ length: 36 }, (_, i) => sumarMeses(mes, i));
   if (d.fecha_limite && !meses.includes(d.fecha_limite)) meses.unshift(d.fecha_limite);
@@ -186,13 +191,13 @@ async function editarDeuda(d, refrescar, conTarjeta = null) {
     puedeBorrar: !nueva,
     campos: [
       { nombre: 'nombre', etiqueta: 'Nombre', valor: d.nombre, requerido: true, placeholder: 'ej: Tarjeta CMR, Préstamo papá' },
-      ...(libres.length ? [{ nombre: 'tarjeta', etiqueta: '¿Es de una de tus tarjetas?', tipo: 'select', valor: d.tarjeta || '',
-        opciones: [['', 'No es de una tarjeta'], ...libres.map(id => [id, nombreTarjeta(id)])],
+      ...(libres.length ? [{ nombre: 'cuenta_id', etiqueta: '¿Es de una de tus tarjetas?', tipo: 'select', valor: d.cuenta_id || '',
+        opciones: [['', 'No es de una tarjeta'], ...libres.map(c => [c.id, nombreTarjeta(c)])],
         ayuda: 'Así la ves en Tus tarjetas con su disponible.' }] : []),
       { nombre: 'saldo', etiqueta: 'Saldo que debes hoy ($)', tipo: 'monto', valor: d.saldo, requerido: true, ayuda: 'En tarjetas: el "monto total adeudado" o "deuda total" del estado de cuenta.' },
       { nombre: 'cuota_mensual', etiqueta: 'Cuota o pago mínimo mensual ($)', tipo: 'monto', valor: d.cuota_mensual, ayuda: 'Déjalo en 0 si no tiene cuota fija (por ejemplo, un préstamo que pagas cuando puedas).' },
       { nombre: 'cae', etiqueta: 'CAE (% anual)', tipo: 'number', valor: d.cae, placeholder: 'ej: 38,5', ayuda: 'Sale en el estado de cuenta. Las casas comerciales suelen estar sobre 40%. Préstamos de familia: 0.' },
-      { nombre: 'cupo_total', etiqueta: 'Cupo total, si es tarjeta ($)', tipo: 'monto', valor: d.cupo_total, ayuda: 'Para avisarte cuando uses más del 85%.' },
+      { nombre: 'cupo_total', etiqueta: 'Cupo total, si es tarjeta ($)', tipo: 'monto', valor: cupoDe(d), ayuda: 'Para avisarte cuando uses más del 85%.' },
       { nombre: 'dia_pago', etiqueta: 'Día de pago', tipo: 'number', valor: d.dia_pago, placeholder: '1 a 31' },
       { nombre: 'fecha_limite', etiqueta: '¿Tiene que estar pagada antes de una fecha?', tipo: 'select', valor: d.fecha_limite || '', opciones: [['', 'No'], ...meses.map(m => [m, nombreMes(m)])] },
       { nombre: 'estado', etiqueta: 'Estado', tipo: 'select', valor: d.estado || 'activa', opciones: [['activa', 'Pagándose'], ['pausa', 'En pausa (acordado)']] },
@@ -206,13 +211,17 @@ async function editarDeuda(d, refrescar, conTarjeta = null) {
     saldo: Math.round(v.saldo || 0),
     cuota_mensual: Math.round(v.cuota_mensual || 0),
     cae: v.cae || 0,
-    cupo_total: v.cupo_total ? Math.round(v.cupo_total) : null,
     dia_pago: v.dia_pago ? Math.min(31, Math.max(1, Math.round(v.dia_pago))) : null,
     // Sin tarjetas para elegir no hay pregunta: la deuda queda como estaba.
-    tarjeta: v.tarjeta === undefined ? (d.tarjeta ?? null) : libres.includes(v.tarjeta) ? v.tarjeta : null,
+    cuenta_id: v.cuenta_id === undefined ? (d.cuenta_id ?? null) : libres.some(c => c.id === v.cuenta_id) ? v.cuenta_id : null,
   };
+  let cupo = v.cupo_total ? Math.round(v.cupo_total) : null;
+  // Pasar la deuda a otra tarjeta sin tocar el cupo: vale el de la tarjeta nueva
+  // (el que estaba escrito era el de la anterior).
+  const nuevaTarjeta = fila.cuenta_id !== (d.cuenta_id ?? null) ? cuentaPorId(fila.cuenta_id) : null;
+  if (nuevaTarjeta?.cupo_total && cupo === cupoDe(d)) cupo = nuevaTarjeta.cupo_total;
   const terminada = d.saldo > 0 && fila.saldo === 0;
-  ejecutar(() => guardar('deudas', fila), terminada ? `Terminaste de pagar ${fila.nombre}.` : 'Deuda guardada', refrescar, terminada ? 'logro' : 'ok');
+  ejecutar(() => guardarDeuda(fila, cupo), terminada ? `Terminaste de pagar ${fila.nombre}.` : 'Deuda guardada', refrescar, terminada ? 'logro' : 'ok');
 }
 
 export function montar(raiz, refrescar) {
@@ -220,12 +229,14 @@ export function montar(raiz, refrescar) {
   montarElegir(raiz, { refrescar, avisarError: m => avisar(m, 'error') });
   raiz.querySelector('#agregar-tarjeta')?.addEventListener('click', () => { empezarAElegir(); refrescar(); });
   raiz.querySelectorAll('[data-tarjeta]').forEach(b => b.addEventListener('click', () => {
-    const id = b.dataset.tarjeta;
-    editarDeuda(deudaDe(id), refrescar, id);
+    const c = cuentaPorId(b.dataset.tarjeta);
+    if (c) editarDeuda(deudaDe(c), refrescar, c);
   }));
   raiz.querySelectorAll('[data-calzar]').forEach(b => b.addEventListener('click', () => {
     const d = datos.deudas.find(x => x.id === b.dataset.calzar);
-    if (d) ejecutar(() => guardar('deudas', { ...d, tarjeta: b.dataset.con }), 'Listo: quedó unida a tu tarjeta.', refrescar);
+    const c = cuentaPorId(b.dataset.con);
+    // El cupo anotado en la deuda pasa a la tarjeta, si ella no tenía uno.
+    if (d && c) ejecutar(() => guardarDeuda({ ...d, cuenta_id: c.id }, c.cupo_total ?? d.cupo_total ?? null), 'Listo: quedó unida a tu tarjeta.', refrescar);
   }));
   raiz.querySelectorAll('[data-descartar]').forEach(b => b.addEventListener('click', () => { descartados.add(b.dataset.descartar); refrescar(); }));
   raiz.querySelector('#nueva-deuda').addEventListener('click', () => editarDeuda(null, refrescar));

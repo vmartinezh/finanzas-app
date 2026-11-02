@@ -25,8 +25,17 @@ export async function cargarEjemplo() {
 
   await guardarPerfil({ ingreso_mensual: 1800000, meta_ahorro: 50000, presupuesto_deudas: 335000 });
 
+  // Una tarjeta de ejemplo, con su cupo; su deuda la apunta. Si ya se cargó el
+  // ejemplo antes, la tarjeta no se repite (y cada tarjeta tiene una sola deuda).
+  let cmr = datos.cuentas.find(c => c.institucion === 'cmr' && c.terminacion === '4821');
+  if (!cmr) {
+    cmr = { id: nuevoId(), tipo: 'credito', institucion: 'cmr', producto: null, terminacion: '4821', apodo: null, cupo_total: 1500000, dia_facturacion: null, activa: true };
+    await guardarVarios('cuentas', [cmr]);
+  }
+  const cuentaCmr = datos.deudas.some(d => d.cuenta_id === cmr.id) ? null : cmr.id;
+
   const deudas = [
-    { id: nuevoId(), nombre: 'Tarjeta CMR', acreedor: 'Falabella', saldo: 1200000, cuota_mensual: 85000, cae: 45, dia_pago: 5, cupo_total: 1500000 },
+    { id: nuevoId(), nombre: 'Tarjeta CMR', acreedor: 'Falabella', saldo: 1200000, cuota_mensual: 85000, cae: 45, dia_pago: 5, cuenta_id: cuentaCmr, cupo_total: cuentaCmr ? null : 1500000 },
     { id: nuevoId(), nombre: 'Crédito de consumo', acreedor: 'Banco', saldo: 3500000, cuota_mensual: 160000, cae: 22, dia_pago: 10 },
     { id: nuevoId(), nombre: 'Línea de crédito', acreedor: 'Banco', saldo: 600000, cuota_mensual: 40000, cae: 30, dia_pago: 1 },
   ];

@@ -11,7 +11,7 @@ create table if not exists public.perfil (
   meta_ahorro bigint not null default 0,
   presupuesto_deudas bigint not null default 0, -- total al mes para deudas (cuotas + abono extra)
   revisado_mes text,                            -- último mes con revisión de fin de mes, 'YYYY-MM'
-  tarjetas text[] not null default '{}',        -- tarjetas del catálogo de descuentos (js/beneficios.js)
+  tarjetas text[] not null default '{}',        -- antes de la tabla cuentas: tus tarjetas como texto. Queda vacío (ver el paso más abajo)
   rut text check (rut ~ '^[0-9]{6,8}-[0-9K]$'),  -- opcional: tus cuentas, para no anotar lo que te transfieres a ti
   nombres_propios text[] not null default '{}' check (cardinality(nombres_propios) <= 5), -- tu nombre como lo escribe cada banco
   fecha_nacimiento date check (fecha_nacimiento >= '1900-01-01'), -- opcional: solo para la ruta del cumpleañero
@@ -49,11 +49,30 @@ create table if not exists public.deudas (
   cuota_mensual bigint not null default 0,
   cae numeric(6, 2) not null default 0,
   dia_pago smallint check (dia_pago between 1 and 31),
-  cupo_total bigint,                    -- tarjetas: cupo autorizado, para la alerta de uso
+  cupo_total bigint,                    -- cupo de una deuda sin tarjeta (línea de crédito); el de las tarjetas está en cuentas
   fecha_limite text,                    -- 'YYYY-MM': debe quedar pagada a más tardar ese mes
   estado text not null default 'activa' check (estado in ('activa', 'pausa')),
   notas text,                           -- acuerdos: "cuotas de honor", "pausa hasta resolver tarjetas"
-  tarjeta text check (tarjeta ~ '^[a-z0-9-]{1,40}(:[a-z0-9-]{1,40})?(#[0-9]{4})?$'), -- la de "Tus tarjetas" (perfil.tarjetas): 'cmr:elite#1234'
+  tarjeta text check (tarjeta ~ '^[a-z0-9-]{1,40}(:[a-z0-9-]{1,40})?(#[0-9]{4})?$'), -- antes de cuentas: 'cmr:elite#1234'. Solo se lee para el paso
+  cuenta_id uuid,                       -- la tarjeta (cuentas) de esta deuda: cada tarjeta, una deuda
+  creado timestamptz not null default now()
+);
+
+-- Tus tarjetas y, más adelante, tus cuentas del banco y el efectivo. Nunca el
+-- número completo, la fecha ni el código: del banco y del tipo de tarjeta se
+-- guarda su id del catálogo (js/beneficios.js, js/tarjetas.js) y, si la persona
+-- quiere, los últimos 4 dígitos.
+create table if not exists public.cuentas (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users on delete cascade,
+  tipo text not null default 'credito' check (tipo in ('credito', 'debito', 'corriente', 'vista', 'efectivo')),
+  institucion text check (institucion ~ '^[a-z0-9-]{1,40}$'), -- 'cmr', 'santander'
+  producto text check (producto ~ '^[a-z0-9-]{1,40}$'),       -- tipo de tarjeta dibujado: 'elite', 'platinum'
+  terminacion text check (terminacion ~ '^[0-9]{4}$'),       -- últimos 4 dígitos, opcional
+  apodo text check (char_length(apodo) <= 40),
+  cupo_total bigint check (cupo_total > 0),                  -- tarjetas de crédito
+  dia_facturacion smallint check (dia_facturacion between 1 and 31),
+  activa boolean not null default true,
   creado timestamptz not null default now()
 );
 
@@ -184,6 +203,49 @@ alter table public.perfil add column if not exists nombres_propios text[] not nu
 alter table public.perfil add column if not exists fecha_nacimiento date check (fecha_nacimiento >= '1900-01-01');
 alter table public.perfil add column if not exists ruta_cumpleanos jsonb check (jsonb_typeof(ruta_cumpleanos) = 'object' and pg_column_size(ruta_cumpleanos) < 8192);
 alter table public.movimientos add column if not exists cobro_id uuid;
+alter table public.deudas add column if not exists cuenta_id uuid;
+
+-- Tus tarjetas pasan de perfil.tarjetas (texto: 'cmr:elite#1234') a filas de
+-- cuentas, cada deuda de tarjeta apunta a la suya con cuenta_id y el cupo pasa
+-- de la deuda a la tarjeta. Es el mismo paso que pasarTarjetasACuentas
+-- (js/validar.js) hace en el modo local. Se puede correr de nuevo: una tarjeta
+-- que ya está en cuentas no se repite, y perfil.tarjetas queda vacío.
+insert into public.cuentas (user_id, tipo, institucion, producto, terminacion, creado)
+select t.user_id, 'credito', t.institucion, t.producto, t.terminacion, now() + t.orden * interval '1 millisecond'
+from (
+  select p.user_id, x.orden,
+    split_part(split_part(x.clave, '#', 1), ':', 1) as institucion,
+    nullif(split_part(split_part(x.clave, '#', 1), ':', 2), '') as producto,
+    nullif(split_part(x.clave, '#', 2), '') as terminacion
+  from public.perfil p, unnest(p.tarjetas) with ordinality as x(clave, orden)
+  where x.clave ~ '^[a-z0-9-]{1,40}(:[a-z0-9-]{1,40})?(#[0-9]{4})?$'
+) t
+where not exists (
+  select 1 from public.cuentas c
+  where c.user_id = t.user_id and c.institucion = t.institucion
+    and c.producto is not distinct from t.producto and c.terminacion is not distinct from t.terminacion);
+
+with calce as (
+  -- Cada tarjeta, una deuda: la primera que la nombra.
+  select distinct on (c.id) d.id as deuda_id, c.id as cuenta_id, d.cupo_total
+  from public.deudas d
+  join public.perfil p on p.user_id = d.user_id and cardinality(p.tarjetas) > 0
+  join public.cuentas c on c.user_id = d.user_id
+    and c.institucion || coalesce(':' || c.producto, '') || coalesce('#' || c.terminacion, '') = d.tarjeta
+  where d.cuenta_id is null
+    and not exists (select 1 from public.deudas x where x.cuenta_id = c.id)
+  order by c.id, d.creado, d.id
+), cupos as (
+  update public.cuentas c set cupo_total = calce.cupo_total
+  from calce
+  where c.id = calce.cuenta_id and c.cupo_total is null and calce.cupo_total > 0
+)
+update public.deudas d set cuenta_id = calce.cuenta_id, cupo_total = null
+from calce where d.id = calce.deuda_id;
+
+update public.perfil set tarjetas = '{}' where cardinality(tarjetas) > 0;
+
+create unique index if not exists deudas_una_por_cuenta on public.deudas (user_id, cuenta_id) where cuenta_id is not null;
 
 create index if not exists movimientos_usuario_fecha on public.movimientos (user_id, fecha desc);
 
@@ -191,7 +253,7 @@ create index if not exists movimientos_usuario_fecha on public.movimientos (user
 do $$
 declare t text;
 begin
-  foreach t in array array['perfil', 'categorias', 'eventos', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push', 'claves_ingreso'] loop
+  foreach t in array array['perfil', 'categorias', 'eventos', 'cuentas', 'deudas', 'compromisos', 'personas', 'cobros', 'movimientos', 'reglas', 'suscripciones_push', 'claves_ingreso'] loop
     execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists "solo lo propio" on public.%I', t);
     execute format(
@@ -201,7 +263,7 @@ begin
 end $$;
 
 -- Claves foráneas con dueño: una fila solo puede apuntar a categorías, eventos,
--- compromisos, deudas, personas o cobros con su mismo user_id. RLS no alcanza, porque Postgres
+-- cuentas, compromisos, deudas, personas o cobros con su mismo user_id. RLS no alcanza, porque Postgres
 -- revisa las claves foráneas sin mirar las políticas: con una clave simple,
 -- alguien podría guardar en su fila el id de un registro ajeno.
 -- Va después de RLS para que, si algo falla aquí, las políticas ya estén puestas.
@@ -216,7 +278,7 @@ begin
     raise exception 'Las claves foráneas con dueño necesitan Postgres 15 o más nuevo (esta base tiene %).', current_setting('server_version');
   end if;
 
-  foreach t in array array['categorias', 'eventos', 'compromisos', 'deudas', 'personas', 'cobros'] loop
+  foreach t in array array['categorias', 'eventos', 'cuentas', 'compromisos', 'deudas', 'personas', 'cobros'] loop
     if not exists (select 1 from pg_constraint
                    where conrelid = format('public.%I', t)::regclass and conname = t || '_id_dueno') then
       execute format('alter table public.%I add constraint %I unique (id, user_id)', t, t || '_id_dueno');
@@ -224,6 +286,7 @@ begin
   end loop;
 
   for r in select * from (values
+      ('deudas',      'cuenta_id',     'cuentas',     'set null (cuenta_id)'),
       ('compromisos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'evento_id',     'eventos',     'set null (evento_id)'),
@@ -296,6 +359,7 @@ begin
   delete from public.personas where user_id = yo;
   delete from public.compromisos where user_id = yo;
   delete from public.deudas where user_id = yo;
+  delete from public.cuentas where user_id = yo;
   delete from public.eventos where user_id = yo;
   delete from public.categorias where user_id = yo;
 
@@ -307,8 +371,15 @@ begin
   select id, yo, nombre, palabras, activo
   from jsonb_populate_recordset(null::public.eventos, coalesce(respaldo->'eventos', '[]'));
 
-  insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta)
-  select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta
+  -- Las tarjetas se muestran por fecha de creación: se respeta el orden de la lista.
+  insert into public.cuentas (id, user_id, tipo, institucion, producto, terminacion, apodo, cupo_total, dia_facturacion, activa, creado)
+  select c.id, yo, coalesce(c.tipo, 'credito'), c.institucion, c.producto, c.terminacion, c.apodo, c.cupo_total, c.dia_facturacion, coalesce(c.activa, true),
+    now() + x.orden * interval '1 millisecond'
+  from jsonb_array_elements(coalesce(respaldo->'cuentas', '[]')) with ordinality as x(fila, orden),
+    jsonb_populate_record(null::public.cuentas, x.fila) as c;
+
+  insert into public.deudas (id, user_id, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta, cuenta_id)
+  select id, yo, nombre, acreedor, saldo, cuota_mensual, cae, dia_pago, cupo_total, fecha_limite, estado, notas, tarjeta, cuenta_id
   from jsonb_populate_recordset(null::public.deudas, coalesce(respaldo->'deudas', '[]'));
 
   insert into public.compromisos (id, user_id, nombre, monto, dia_pago, categoria_id, activo, hasta_mes, pagados)

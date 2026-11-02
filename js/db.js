@@ -3,20 +3,25 @@
 //   - modo local: localStorage del navegador
 //   - modo nube:  Supabase (cada usuario ve solo sus filas, ver schema.sql)
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
-import { normalizarTabla, normalizarPerfil, prepararRespaldo, perfilDesdeRegistro, TABLAS } from './validar.js';
+import { normalizarTabla, normalizarPerfil, prepararRespaldo, perfilDesdeRegistro, pasarTarjetasACuentas, mezclar, TABLAS } from './validar.js';
 
 export { TABLAS };
 
 export const datos = {
   categorias: [], movimientos: [], compromisos: [], deudas: [], eventos: [], reglas: [], personas: [], cobros: [],
+  // Tus tarjetas (y más adelante tus cuentas): ver js/mis-tarjetas.js. Cada
+  // deuda de tarjeta apunta a la suya con deudas.cuenta_id.
+  cuentas: [],
   // presupuesto_deudas: total al mes para deudas (cuotas + abono extra).
   // revisado_mes: último mes ('YYYY-MM') con la revisión de fin de mes hecha.
-  // tarjetas: las de la persona ('cmr:elite#1234', ver separarTarjeta en js/beneficios.js).
-  // Sus deudas apuntan a ellas con deudas.tarjeta.
+  // tarjetas: de antes de la tabla cuentas; queda vacío después del paso (pasarTarjetas).
   perfil: { ingreso_mensual: 0, meta_ahorro: 0, presupuesto_deudas: 0, revisado_mes: null, tarjetas: [], rut: null, nombres_propios: [], fecha_nacimiento: null, ruta_cumpleanos: null },
 };
 
 export let modo = 'local';
+// Tablas que la nube todavía no tiene (falta correr supabase/schema.sql): se
+// ven vacías y no se puede guardar en ellas.
+const tablasQueFaltan = new Set();
 // 'lista' si se abrió la app desde el correo para recuperar la contraseña,
 // 'vencida' si ese enlace ya no sirve, null en cualquier otro caso.
 export let recuperacion = null;
@@ -66,6 +71,7 @@ export async function iniciar() {
     migrarPrefijoAnterior();
     for (const t of TABLAS) datos[t] = normalizarTabla(t, leerLocal(t, []));
     Object.assign(datos.perfil, normalizarPerfil(leerLocal('perfil', {})));
+    await pasarTarjetas();
     return 'local';
   }
 
@@ -90,6 +96,7 @@ export async function iniciar() {
     // la app abre igual y esa sección queda vacía hasta actualizar la base.
     if (r.error?.code === 'PGRST205' || r.error?.code === '42P01') {
       console.warn(`Falta la tabla ${TABLAS[i]}: corre supabase/schema.sql`);
+      tablasQueFaltan.add(TABLAS[i]);
       datos[TABLAS[i]] = [];
       return;
     }
@@ -100,7 +107,38 @@ export async function iniciar() {
   if (error) throw error;
   if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
   await pasarRegistro(session.user.user_metadata);
+  await pasarTarjetas();
   return session.user;
+}
+
+// Tarjetas guardadas como texto en el perfil (antes de la tabla cuentas, o por
+// una versión vieja de la app que siga en caché): pasan a filas de cuentas. Si
+// la nube todavía no tiene la tabla, el paso se hace solo en memoria para que
+// se vean, sin mover el cupo de las deudas, y se guarda cuando la base se actualice.
+async function pasarTarjetas() {
+  const enMemoria = tablasQueFaltan.has('cuentas');
+  const paso = pasarTarjetasACuentas({ tarjetas: datos.perfil.tarjetas, cuentas: datos.cuentas, deudas: datos.deudas }, nuevoId, { moverCupo: !enMemoria });
+  if (!paso) return;
+  if (enMemoria) {
+    for (const t of ['cuentas', 'deudas']) datos[t] = mezclar(datos[t], paso[t]);
+    return;
+  }
+  try {
+    await guardarVarios('cuentas', paso.cuentas);
+    await guardarVarios('deudas', paso.deudas);
+    await guardarPerfil({ tarjetas: [] });
+  } catch (e) {
+    // Se puede repetir: lo que ya quedó en cuentas no se duplica.
+    console.warn('No se pudieron pasar tus tarjetas a cuentas; se reintenta al volver a entrar', e);
+  }
+}
+
+// true si la nube todavía no tiene esa tabla (falta correr supabase/schema.sql).
+export const faltaTabla = tabla => modo === 'nube' && tablasQueFaltan.has(tabla);
+
+const FALTA_TABLA = 'Falta actualizar la base de datos para guardar esto (supabase/schema.sql). No se guardó nada.';
+function revisarTabla(tabla) {
+  if (modo === 'nube' && tablasQueFaltan.has(tabla)) throw new Error(FALTA_TABLA);
 }
 
 // Lo que se dio al crear la cuenta (RUT, nombre y fecha de nacimiento) pasa al
@@ -226,6 +264,7 @@ export async function borrarClaveIngreso(fuente) {
 
 // Inserta o actualiza una fila (según si su id ya existe).
 export async function guardar(tabla, fila) {
+  revisarTabla(tabla);
   if (!fila.id) fila.id = nuevoId();
   const lista = datos[tabla];
   const i = lista.findIndex(f => f.id === fila.id);
@@ -243,6 +282,7 @@ export async function guardar(tabla, fila) {
 }
 
 export async function guardarVarios(tabla, filas) {
+  revisarTabla(tabla);
   for (const f of filas) if (!f.id) f.id = nuevoId();
   const anteriores = new Map(filas.map(f => [f.id, datos[tabla].find(x => x.id === f.id) ?? null]));
   for (const f of filas) {
@@ -259,6 +299,7 @@ export async function guardarVarios(tabla, filas) {
 }
 
 export async function borrar(tabla, id) {
+  revisarTabla(tabla);
   datos[tabla] = datos[tabla].filter(f => f.id !== id);
   if (modo === 'local') {
     escribirLocal(tabla, datos[tabla]);
@@ -297,11 +338,13 @@ export async function guardarPerfil(cambios) {
 // Un cobro_id o una tarjeta vacíos tampoco: así un movimiento o una deuda se
 // pueden guardar aunque la base todavía no tenga esa columna (falta correr
 // supabase/schema.sql). Si la deuda tenía tarjeta (la columna existe), el
-// vacío sí se manda: es soltarla de la tarjeta.
+// vacío sí se manda: es soltarla de la tarjeta. Sin la tabla cuentas, la
+// columna cuenta_id tampoco existe: no se manda.
 function sinUsuario(fila, anterior = null) {
   const { user_id, creado, ...resto } = fila;
   if (resto.cobro_id == null) delete resto.cobro_id;
   if (resto.tarjeta == null && anterior?.tarjeta == null) delete resto.tarjeta;
+  if (tablasQueFaltan.has('cuentas')) delete resto.cuenta_id;
   return resto;
 }
 

@@ -1,4 +1,5 @@
 import { datos, guardar } from '../db.js';
+import { misClaves } from '../mis-tarjetas.js';
 import { disponibleDelMes, compromisosPendientes, gastoPorCategoria, estadoPresupuesto, acumuladoDiario, usoCupo, tocaRevision, cobrosDeHoy } from '../calculos.js';
 import { graficoRitmo } from '../graficos.js';
 import { ejecutar, barraProgreso, ICONO_ESTADO, contarHasta, sinMovimiento } from '../ui.js';
@@ -84,8 +85,9 @@ export function render() {
   const porCobrar = cobrosDeHoy();
   const cobranHoy = porCobrar.some(x => x.e.situacion === 'hoy');
   // Descuentos que son solo de hoy: los de todos los días no son noticia.
-  const tarjetasElegidas = (datos.perfil.tarjetas || []).length > 0;
-  const descuentosHoy = beneficiosDelDia(datos.perfil.tarjetas || [], hoyISO()).filter(b => b.dias.length);
+  const claves = misClaves();
+  const tarjetasElegidas = claves.length > 0;
+  const descuentosHoy = beneficiosDelDia(claves, hoyISO()).filter(b => b.dias.length);
   const masCara =datos.deudas.filter(x => x.saldo > 0 && x.estado !== 'pausa').sort((a, b) => (b.cae || 0) - (a.cae || 0))[0];
 
   // ¿Va al ritmo? Lo gastado contra lo que "tocaba" gastar hasta hoy.

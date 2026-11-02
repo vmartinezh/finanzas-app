@@ -166,11 +166,16 @@ export function planDeudas(deudas, presupuestoMensual = 0, estrategia = 'avalanc
   };
 }
 
+// El cupo de una deuda: el de su tarjeta (cuentas) si tiene una; si no, el
+// que se anotó en la deuda (una línea de crédito, por ejemplo).
+export const cupoDe = d => (d.cuenta_id && datos.cuentas.find(c => c.id === d.cuenta_id)?.cupo_total) || d.cupo_total || null;
+
 // Uso del cupo de una tarjeta. Sobre 85% es la señal de alerta del plan.
 export function usoCupo(d) {
-  if (!d.cupo_total) return null;
-  const pct = (d.saldo || 0) / d.cupo_total * 100;
-  return { pct, disponible: d.cupo_total - (d.saldo || 0), estado: pct >= 85 ? 'excedido' : pct >= 70 ? 'alerta' : 'ok' };
+  const cupo = cupoDe(d);
+  if (!cupo) return null;
+  const pct = (d.saldo || 0) / cupo * 100;
+  return { pct, cupo, disponible: cupo - (d.saldo || 0), estado: pct >= 85 ? 'excedido' : pct >= 70 ? 'alerta' : 'ok' };
 }
 
 // Revisión de fin de mes: de los últimos 5 días del mes hasta el 3 del siguiente.

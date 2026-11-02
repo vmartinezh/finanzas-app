@@ -67,10 +67,7 @@ function notaVieja(b) {
 function tuTarjetaPara(b) {
   if (!b.tarjeta) return null;
   const pide = separarTarjeta(b.tarjeta);
-  return misTarjetas().find(t => {
-    const mia = separarTarjeta(t);
-    return mia.banco === pide.banco && (!pide.tipo || mia.tipo === pide.tipo);
-  }) ?? null;
+  return misTarjetas().find(c => c.institucion === pide.banco && (!pide.tipo || c.producto === pide.tipo)) ?? null;
 }
 
 function filaRegalo(b, ruta, r) {

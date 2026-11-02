@@ -1,6 +1,6 @@
 // Revisión de fin de mes: el checklist del plan, con lo que la app ya sabe.
 import { datos, guardar, guardarPerfil } from '../db.js';
-import { disponibleDelMes, deudasVigentes, movimientosDelMes, usoCupo, tocaRevision, esSueldo } from '../calculos.js';
+import { disponibleDelMes, deudasVigentes, movimientosDelMes, usoCupo, cupoDe, tocaRevision, esSueldo } from '../calculos.js';
 import { abrirFormulario, ejecutar } from '../ui.js';
 import { clp, esc, nombreMes, hoyISO, mesDe } from '../util.js';
 import { editarMovimiento } from './movimientos.js';
@@ -25,7 +25,7 @@ export function render() {
   const sueldo = movs.filter(m => m.tipo === 'ingreso' && esSueldo(m)).reduce((s, m) => s + m.monto, 0);
   // Se revisan las deudas que tocan este mes: con cuota, tarjetas, o con fecha límite ya cumplida.
   const pagosDeudas = deudasVigentes()
-    .filter(x => x.cuota_mensual > 0 || x.cupo_total || (x.fecha_limite && x.fecha_limite <= mes))
+    .filter(x => x.cuota_mensual > 0 || cupoDe(x) || (x.fecha_limite && x.fecha_limite <= mes))
     .map(deuda => ({
     deuda,
     pagado: movs.filter(m => m.deuda_id === deuda.id).reduce((s, m) => s + m.monto, 0),

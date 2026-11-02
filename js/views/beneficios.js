@@ -1,7 +1,7 @@
-import { RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo, separarTarjeta } from '../beneficios.js';
+import { RUBROS, DIAS, REVISADO, beneficiosDelDia, diaSemana, textoDias, catalogoAntiguo } from '../beneficios.js';
 import { avisar, confirmar, ejecutar } from '../ui.js';
-import { TIPOS, tarjetaHTML, activarTarjetas3D } from '../tarjetas.js';
-import { misTarjetas, misTarjetasDelBanco, nombreBanco, nombreTarjeta, deudaDe, quitarTarjeta, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
+import { TIPOS, activarTarjetas3D } from '../tarjetas.js';
+import { misTarjetas, misTarjetasDelBanco, nombreDelBanco, claveDe, cuentaPorId, nombreTarjeta, dibujoTarjeta, deudaDe, quitarTarjeta, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
 import { usoCupo } from '../calculos.js';
 import { clp, esc, hoyISO, sumarDias, fechaCorta, conMontosVisibles } from '../util.js';
 
@@ -12,7 +12,7 @@ let diaElegido = null;
 
 // Con cuál de tus tarjetas sirve ("con tu CMR Elite ·1234"); si son varias del
 // mismo banco, se nombra el banco.
-const conTuTarjeta = (banco, mias) => (mias.length === 1 ? `con tu ${nombreTarjeta(mias[0])}` : nombreBanco(banco));
+const conTuTarjeta = (banco, mias) => (mias.length === 1 ? `con tu ${nombreTarjeta(mias[0])}` : nombreDelBanco(banco));
 
 // Si todas tus tarjetas de ese banco están sobre el 85% del cupo, se recuerda.
 function avisoCupo(mias) {
@@ -43,7 +43,7 @@ export function filaBeneficio(b, { conTarjeta = true } = {}) {
 }
 
 // Guardada antes de que existieran los tipos: se puede completar sin quitarla.
-const faltaTipo = id => !separarTarjeta(id).tipo && Boolean(TIPOS[separarTarjeta(id).banco]);
+const faltaTipo = c => !c.producto && Boolean(TIPOS[c.institucion]);
 
 export function render() {
   const hoy = hoyISO();
@@ -53,7 +53,7 @@ export function render() {
   const fecha = sumarDias(hoy, (dia - diaHoy + 7) % 7);
   const mias = misTarjetas();
   const eligiendo = estaEligiendo();
-  const lista = beneficiosDelDia(mias, fecha);
+  const lista = beneficiosDelDia(mias.map(claveDe), fecha);
   const delDia = lista.filter(b => b.dias.length);
   const siempre = lista.filter(b => !b.dias.length);
   const tituloDia = dia === diaHoy ? `Hoy ${DIAS[dia - 1]}` : `El ${DIAS[dia - 1]} ${fechaCorta(fecha)}`;
@@ -61,12 +61,12 @@ export function render() {
   return `
     <section class="tarjeta">
       <div class="titulo-con-accion"><h2>Mis tarjetas</h2>${eligiendo ? '' : '<button class="boton pequeño" id="agregar-tarjeta">+ Agregar</button>'}</div>
-      ${mias.length ? `<ul class="mis-tarjetas">${mias.map(id => `
+      ${mias.length ? `<ul class="mis-tarjetas">${mias.map(c => `
         <li>
-          ${tarjetaHTML(id, nombreBanco(id))}
-          <span class="mis-tarjetas-pie"><b>${esc(nombreTarjeta(id))}</b><span class="mis-tarjetas-acciones">${faltaTipo(id)
-            ? `<button class="boton-texto" data-completar="${esc(id)}">Elegir tipo</button>`
-            : `<button class="boton-texto" data-editar="${esc(id)}">Editar</button>`}<button class="boton-texto" data-quitar="${esc(id)}">Quitar</button></span></span>
+          ${dibujoTarjeta(c)}
+          <span class="mis-tarjetas-pie"><b>${esc(nombreTarjeta(c))}</b><span class="mis-tarjetas-acciones">${faltaTipo(c)
+            ? `<button class="boton-texto" data-completar="${esc(c.id)}">Elegir tipo</button>`
+            : `<button class="boton-texto" data-editar="${esc(c.id)}">Editar</button>`}<button class="boton-texto" data-quitar="${esc(c.id)}">Quitar</button></span></span>
         </li>`).join('')}</ul>`
       : eligiendo ? '' : '<p class="ayuda">Agrega las tarjetas que tienes y te muestro en qué tienes descuento cada día.</p>'}
       ${elegirHTML()}
@@ -104,9 +104,11 @@ export function montar(raiz, refrescar) {
     refrescar();
   }));
   raiz.querySelectorAll('[data-quitar]').forEach(b => b.addEventListener('click', async () => {
-    const id = b.dataset.quitar;
-    if (deudaDe(id) && !(await confirmar(`Tu deuda "${deudaDe(id).nombre}" queda anotada, pero sin tarjeta. ¿Quitar la ${nombreTarjeta(id)}?`))) return;
-    ejecutar(() => quitarTarjeta(id), null, refrescar);
+    const c = cuentaPorId(b.dataset.quitar);
+    if (!c) return;
+    const deuda = deudaDe(c);
+    if (deuda && !(await confirmar(`Tu deuda "${deuda.nombre}" queda anotada, pero sin tarjeta. ¿Quitar la ${nombreTarjeta(c)}?`))) return;
+    ejecutar(() => quitarTarjeta(c.id), null, refrescar);
   }));
   raiz.querySelectorAll('[data-dia]').forEach(b => b.addEventListener('click', () => {
     diaElegido = Number(b.dataset.dia);
