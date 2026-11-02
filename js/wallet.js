@@ -20,12 +20,12 @@ function pasosHTML() {
       <li>En tu iPhone abre <b>Atajos</b> → <b>Automatización</b> → <b>+</b>.</li>
       <li>Elige <b>Transacción</b>, marca tus tarjetas, elige <b>Ejecutar inmediatamente</b> y toca <b>Siguiente</b>.</li>
       <li>Toca <b>Nueva automatización en blanco</b> y agrega la acción <b>Obtener contenido de URL</b>.</li>
-      <li>En la URL pega la dirección: <button class="boton pequeño" data-copiar="url">Copiar la dirección</button></li>
-      <li>Toca la flecha de la acción: en <b>Método</b> elige <b>POST</b> y en <b>Cuerpo de la solicitud</b>, <b>JSON</b>. Agrega tres campos de texto:
+      <li>Copia la dirección <button class="boton pequeño" data-copiar="url">Copiar la dirección</button> y pégala tocando la palabra azul <b>URL</b>, justo al lado de "Obtener contenido de". <b>No la pegues en Encabezados</b>: esa parte queda vacía.</li>
+      <li>Toca la flecha de la acción: en <b>Método</b> elige <b>POST</b> y en <b>Solicitar cuerpo</b> (o <b>Cuerpo de la solicitud</b>), <b>JSON</b>. Agrega tres campos de texto:
         <ul class="pasos-campos">
           <li><code>clave</code>: pega tu clave <button class="boton pequeño" data-copiar="clave">Copiar la clave</button></li>
-          <li><code>comercio</code>: elige la variable <b>Entrada del atajo</b> y luego <b>Comercio</b></li>
-          <li><code>monto</code>: <b>Entrada del atajo</b> y luego <b>Monto</b> (o <b>Importe</b>)</li>
+          <li><code>comercio</code>: elige la variable <b>Comercio</b> (si no aparece, <b>Entrada del atajo</b> y luego <b>Comercio</b>)</li>
+          <li><code>monto</code>: la variable <b>Cantidad</b> (o <b>Monto</b>, o <b>Importe</b>)</li>
         </ul>
       </li>
       <li>Toca <b>OK</b>. La próxima vez que pagues con el iPhone o el reloj, la compra aparece en "Por revisar".</li>
