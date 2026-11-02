@@ -1,7 +1,7 @@
 import { iniciar, crearCuenta, entrar, datos, recuperacion, pedirRecuperacion, cambiarContraseña } from './db.js';
 import { sembrarCategorias, cargarEjemplo } from './semillas.js';
 import { activarTooltips } from './graficos.js';
-import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto } from './ui.js';
+import { avisar, anunciarMontosOcultos, sinMovimiento, activarCamposMonto, activarHoja } from './ui.js';
 import { esc, hoyISO, montosOcultos, ocultarMontos, NOMBRE_APP } from './util.js';
 import { sincronizarAvisos } from './avisos.js';
 import { iniciarCarga, terminarCarga } from './carga.js';
@@ -284,6 +284,7 @@ async function arrancar() {
 
 iniciarCarga();
 activarCamposMonto();
+activarHoja();
 activarRecarga();
 // La pantalla de carga se va cuando la app ya dibujó algo (datos, acceso o error).
 arrancar()

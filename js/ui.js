@@ -2,6 +2,57 @@ import { esc, clp, numero, leerMonto, formatearMontoEscrito, MAX_DIGITOS_MONTO, 
 
 const dialogo = () => document.getElementById('dialogo');
 
+// En el celular el diálogo es una hoja que sube desde abajo, como en iPhone: se
+// baja arrastrando la barrita de arriba (.asa, que solo se ve en el celular) y se
+// cierra si la bajas más de un tercio o la tiras rápido; si no, vuelve a su
+// lugar. Cerrar así es lo mismo que "Cancelar". Tocar el fondo no la cierra: es
+// lo que uno hace para esconder el teclado, y se perdería lo escrito.
+// Se llama una vez al partir la app (app.js).
+export function activarHoja() {
+  const dlg = dialogo();
+  let arrastre = null;
+  const limpiar = () => {
+    if (!arrastre) return;
+    try { dlg.releasePointerCapture(arrastre.pointerId); } catch { /* ya se soltó */ }
+    arrastre = null;
+    dlg.classList.remove('arrastrando');
+  };
+  dlg.addEventListener('pointerdown', e => {
+    if (!e.isPrimary || e.button !== 0 || !e.target.closest('.asa')) return;
+    // Si todavía está subiendo, la animación termina ya: si no, tapa al dedo.
+    dlg.getAnimations().forEach(a => a.finish());
+    arrastre = { pointerId: e.pointerId, y0: e.clientY, dy: 0, t: e.timeStamp, v: 0 };
+    // Con el dedo capturado, la hoja lo sigue aunque salga de la barrita.
+    try { dlg.setPointerCapture(e.pointerId); } catch { /* sin captura igual funciona */ }
+    dlg.classList.add('arrastrando');
+  });
+  dlg.addEventListener('pointermove', e => {
+    if (!arrastre || e.pointerId !== arrastre.pointerId) return;
+    const dy = Math.max(0, e.clientY - arrastre.y0);
+    const dt = e.timeStamp - arrastre.t;
+    if (dt > 0) arrastre.v = (dy - arrastre.dy) / dt;
+    Object.assign(arrastre, { dy, t: e.timeStamp });
+    dlg.style.transform = `translateY(${dy}px)`;
+  });
+  dlg.addEventListener('pointerup', e => {
+    if (!arrastre || e.pointerId !== arrastre.pointerId) return;
+    // La velocidad cuenta solo si el dedo seguía moviéndose al soltar.
+    const rapido = e.timeStamp - arrastre.t < 100 && arrastre.v > 0.6;
+    const cerrar = arrastre.dy > dlg.offsetHeight / 3 || (arrastre.dy > 30 && rapido);
+    limpiar();
+    // Al cerrar, la transición sigue desde donde quedó el dedo hasta abajo.
+    dlg.style.transform = '';
+    if (cerrar) dlg.close();
+  });
+  dlg.addEventListener('pointercancel', e => {
+    if (!arrastre || e.pointerId !== arrastre.pointerId) return;
+    limpiar();
+    dlg.style.transform = '';
+  });
+  // Si se cierra por otro lado a mitad de arrastre (atrás, Esc), queda limpia.
+  dlg.addEventListener('close', () => { limpiar(); dlg.style.transform = ''; });
+}
+
 // "Reducir movimiento" del sistema: sin desplazamientos ni conteos, solo fundidos.
 const reducirMovimiento = matchMedia('(prefers-reduced-motion: reduce)');
 export const sinMovimiento = () => reducirMovimiento.matches;

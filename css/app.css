@@ -391,9 +391,22 @@ dialog h2 { font-size: 1.2rem; }
 dialog .intro { margin: -6px 0 0; color: var(--texto-2); }
 dialog .acciones { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
 dialog .espacio { flex: 1; }
+/* La barrita para bajar la hoja (solo en el celular, ver activarHoja en ui.js).
+   Queda pegada arriba aunque el formulario sea largo y se haya desplazado. */
+.asa { display: none; }
 @media (max-width: 480px) {
   dialog { width: 100vw; max-width: 100vw; margin: auto 0 0; border-radius: 18px 18px 0 0; }
-  dialog form { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  dialog form { padding-top: 0; padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  .asa {
+    display: block; position: sticky; top: 0; z-index: 1;
+    height: 28px; background: var(--superficie); touch-action: none; cursor: grab;
+  }
+  .asa::before {
+    content: ''; position: absolute; left: 50%; top: 8px; translate: -50% 0;
+    width: 38px; height: 5px; border-radius: 3px; background: var(--texto-2); opacity: .35;
+  }
+  /* Mientras se arrastra, la hoja sigue al dedo sin retraso. */
+  dialog.arrastrando { transition: none; cursor: grabbing; }
 }
 
 .aviso {
