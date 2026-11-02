@@ -26,7 +26,7 @@
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
-    import { BENEFICIOS_CUMPLE, cumpleQueViene, rutaDelCumple, avisoCumple, rutaDelAnio } from '../js/cumpleanos.js';
+    import { BENEFICIOS_CUMPLE, TIPOS_CUMPLE, CUANDO_CUMPLE, cumpleQueViene, rutaDelCumple, avisoCumple, rutaDelAnio, filtrarRegalos } from '../js/cumpleanos.js';
 
     // Si dejaste el ojo cerrado en la app, las pruebas igual parten con los montos a la vista.
     ocultarMontos(false, false);
@@ -764,6 +764,19 @@
       igual(avisoCumple('1990-11-20', '2026-10-20', null, [...CATALOGO, conTiempo]), null, '31 días antes:');
       igual(avisoCumple('1990-11-20', '2026-10-21', null, CATALOGO), null, 'sin esa anticipación, 30 días es muy pronto:');
     });
+    prueba('Los regalos se filtran por tipo, por cuándo valen y por los que no piden inscribirse; van primero los del día y los confirmados en web', () => {
+      const lista = [
+        { id: 'a', marca: 'Zeta', tipo: 'comida', cuando: 'mes', segun: 'prensa', antes: 'Baja la app' },
+        { id: 'b', marca: 'Beta', tipo: 'cine', cuando: 'dia', segun: 'prensa', antes: null },
+        { id: 'c', marca: 'Alfa', tipo: 'comida', cuando: 'dia', segun: 'prensa', antes: null },
+        { id: 'd', marca: 'Gama', tipo: 'comida', cuando: 'mes', segun: 'web', antes: null },
+      ];
+      igual(filtrarRegalos(lista).map(b => b.id), ['c', 'b', 'd', 'a'], 'orden:');
+      igual(filtrarRegalos(lista, { tipo: 'comida' }).map(b => b.id), ['c', 'd', 'a']);
+      igual(filtrarRegalos(lista, { cuando: 'mes' }).map(b => b.id), ['d', 'a']);
+      igual(filtrarRegalos(lista, { sinInscribirse: true }).map(b => b.id), ['c', 'b', 'd']);
+      igual(filtrarRegalos(lista, { tipo: 'comida', cuando: 'mes', sinInscribirse: true }).map(b => b.id), ['d']);
+    });
     prueba('Tu ruta parte de cero cada año', () => {
       igual(rutaDelAnio({ anio: 2026, elegidos: ['cafe'], usados: ['cafe'] }, 2026), { anio: 2026, elegidos: ['cafe'], usados: ['cafe'] });
       igual(rutaDelAnio({ anio: 2025, elegidos: ['cafe'], usados: [] }, 2026), { anio: 2026, elegidos: [], usados: [] });
@@ -775,11 +788,12 @@
         const quien = `${b.marca} (${b.id}):`;
         if (!/^[a-z0-9-]{1,40}$/.test(b.id) || ids.has(b.id)) throw new Error(`${quien} id inválido o repetido`);
         ids.add(b.id);
-        if (!['dia', 'semana', 'mes'].includes(b.cuando)) throw new Error(`${quien} "cuando" inválido`);
+        if (!CUANDO_CUMPLE[b.cuando]) throw new Error(`${quien} "cuando" inválido`);
         if (!/^https:\/\//.test(b.fuente)) throw new Error(`${quien} la fuente no es https`);
         if (b.hasta !== null && !/^\d{4}-\d{2}-\d{2}$/.test(b.hasta)) throw new Error(`${quien} fecha "hasta" inválida`);
         if (!b.regalo || !b.icono || !b.donde) throw new Error(`${quien} le falta regalo, ícono o dónde`);
         if (!['web', 'prensa'].includes(b.segun)) throw new Error(`${quien} "segun" tiene que ser 'web' o 'prensa'`);
+        if (!TIPOS_CUMPLE[b.tipo]) throw new Error(`${quien} "tipo" desconocido`);
         if (b.segun === 'prensa' && !/^\d{4}-\d{2}$/.test(b.visto ?? '')) throw new Error(`${quien} lo de prensa necesita "visto" (AAAA-MM de la nota)`);
         if (b.anticipacion != null && !(Number.isInteger(b.anticipacion) && b.anticipacion > 0 && b.anticipacion <= 90)) throw new Error(`${quien} "anticipacion" son días entre 1 y 90`);
         if (b.noVale && !(b.noVale.meses ?? []).every(m => Number.isInteger(m) && m >= 1 && m <= 12)) throw new Error(`${quien} "noVale.meses" inválido`);

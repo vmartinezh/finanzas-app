@@ -846,16 +846,36 @@ dialog:not([open])::backdrop { opacity: 0; }
 }
 
 /* ── Tu cumpleaños ──────────────────────────────── */
-.regalos .regalo { display: flex; gap: 12px; align-items: flex-start; padding: 12px 2px; }
-.regalo-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.regalo-texto b { font-weight: 600; }
-.regalo-que { font-weight: 550; color: var(--acento); }
+/* Filas de una línea que se abren al tocarlas: la lista completa cabe en poco. */
+.regalos .regalo { padding: 0; }
+.regalo > details > summary {
+  list-style: none; cursor: pointer; display: flex; gap: 12px; align-items: center;
+  min-height: 56px; padding: 8px 2px;
+}
+.regalo > details > summary::-webkit-details-marker { display: none; }
+.regalo > details[open] > summary .chevron { transform: rotate(90deg); }
+.regalo-linea { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.regalo-titulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.regalo-titulo b { font-weight: 600; }
+.regalo-que { color: var(--texto-2); }
+.regalo-linea small { font-size: .78rem; color: var(--texto-3); }
+.regalo-linea small .etiqueta { margin-left: 4px; }
+/* Abierta, el regalo completo (que en la línea se cortaba) y la letra chica. */
+.regalo > details[open] .regalo-titulo { white-space: normal; }
+.regalo > details[open] .regalo-que { color: var(--acento); font-weight: 550; }
+.regalo-texto { display: flex; flex-direction: column; gap: 4px; padding: 0 2px 12px 52px; }
 .regalo-texto small { font-size: .8rem; color: var(--texto-2); }
-.regalo-texto .enlace { font-size: .85rem; margin-top: 2px; }
-.regalo-acciones { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 6px; font-size: .9rem; }
-.regalo-acciones label { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; cursor: pointer; }
-.regalo.usado .regalo-que, .regalo.usado b { text-decoration: line-through; color: var(--texto-3); }
-.lista.antes li { padding: 8px 2px; font-size: .92rem; }
+.regalo-antes { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--acento-suave); font-size: .88rem; }
+.regalo-antes.tarde { background: var(--superficie-2); color: var(--texto-2); }
+.regalo-texto .enlace { font-size: .85rem; }
+.regalo-acciones { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; font-size: .9rem; }
+.regalo-acciones label { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; }
+.regalo.usado .regalo-titulo { text-decoration: line-through; color: var(--texto-3); }
+.regalo.usado .regalo-titulo .regalo-que { color: var(--texto-3); }
+.filtros-cumple { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+#ver-mas { width: 100%; margin-top: 8px; }
+.aviso-ruta { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--acento-suave); color: var(--acento); font-size: .88rem; font-weight: 550; }
+@media (max-width: 359px) { .regalo-texto { padding-left: 2px; } }
 .regalo-texto small.origen { font-size: .75rem; font-weight: 600; }
 .regalo-texto small.origen.web { color: var(--bien); }
 .regalo-texto small.origen.prensa { color: var(--texto-3); }
