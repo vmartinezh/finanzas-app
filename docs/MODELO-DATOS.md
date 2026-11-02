@@ -1,8 +1,8 @@
 # Modelo de datos de Simplifika
 
 > Describe cómo estaban los datos, qué "datos sueltos" conviene volver
-> entidades y en qué orden migrar sin perder nada. **Fase 1 (`cuentas`) hecha el
-> 2026-11-02**; las demás siguen siendo propuesta.
+> entidades y en qué orden migrar sin perder nada. **Fases 1 (`cuentas`) y 2
+> (con qué tarjeta se pagó) hechas el 2026-11-02**; las demás siguen siendo propuesta.
 
 ## La idea en una frase
 
@@ -171,7 +171,7 @@ y migra el modo local al cargar. Además lleva pruebas y `/ecc:security-scan`.
 | Fase | Qué | Copia de datos | Riesgo |
 |---|---|---|---|
 | 1 ✓ | `cuentas` + `deudas.cuenta_id`; `cupo_total` pasa a la cuenta | `perfil.tarjetas` → una fila por tarjeta; `deudas.tarjeta` → `cuenta_id` | Medio: toca Plan, Descuentos y Cumpleaños |
-| 2 | `movimientos.cuenta_id`; Atajo y correos leen los 4 dígitos | — | Bajo |
+| 2 ✓ | `movimientos.cuenta_id`; Atajo y correos leen los 4 dígitos (`tarjetaDeCompra`); una tarjeta con compras se archiva en vez de borrarse | — | Bajo |
 | 3 | `comercios` + `movimientos.comercio_id`; `reglas` → `comercios` | Agrupa `movimientos.comercio` por texto normalizado | Medio: el clasificador cambia de fuente |
 | 4 | Pagos de compromisos como movimientos (`mes_pagado`) | Cada mes en `pagados` sin movimiento → movimiento con el monto del compromiso | Medio: cambia "puedes gastar hoy"; hay que cuidar no contar doble |
 | 5 | `beneficios_usados` | `ruta_cumpleanos.usados` → filas | Bajo |

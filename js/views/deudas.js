@@ -3,7 +3,7 @@ import { planDeudas, deudasVigentes, deudasEnPausa, destinoDeudas, usoCupo, cupo
 import { abrirFormulario, ejecutar, barraProgreso, inputMonto, avisar } from '../ui.js';
 import { sugerirTarjeta } from '../beneficios.js';
 import { activarTarjetas3D } from '../tarjetas.js';
-import { misTarjetas, claveDe, cuentaPorId, nombreTarjeta, dibujoTarjeta, deudaDe, guardarDeuda, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
+import { misTarjetas, claveDe, cuentaPorId, nombreTarjeta, dibujoTarjeta, deudaDe, guardarDeuda, gastadoEnElMes, empezarAElegir, estaEligiendo, elegirHTML, montarElegir } from '../mis-tarjetas.js';
 import { clp, esc, nombreMes, porcentaje, mesActual, sumarMeses, numero, leerMonto } from '../util.js';
 
 export const titulo = 'Tu plan';
@@ -34,6 +34,8 @@ function filaTarjeta(c) {
       <span class="monto tarjeta-monto">${clp(d.saldo)}</span>
       <span class="tarjeta-accion">Agrega el cupo para ver tu disponible</span>`;
   }
+  const gastado = gastadoEnElMes(c, mesActual());
+  if (gastado) datosHTML += `<small class="tarjeta-mes">Este mes compraste ${clp(gastado)} con ella</small>`;
   return `<li><button class="fila-tarjeta" data-tarjeta="${esc(c.id)}" aria-label="${esc(nombreTarjeta(c))}">
     <span class="tarjeta-marco">${dibujoTarjeta(c, { chica: true })}</span>
     <span class="tarjeta-datos">${datosHTML}</span>

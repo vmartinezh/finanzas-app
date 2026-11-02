@@ -200,6 +200,8 @@ const FORMAS = {
     compromiso_id: id(f.compromiso_id),
     deuda_id: id(f.deuda_id),
     cobro_id: id(f.cobro_id),
+    // Con cuál de tus tarjetas se pagó.
+    cuenta_id: id(f.cuenta_id),
     origen: opcion(f.origen, ['manual', 'correo', 'wallet']),
     estado: opcion(f.estado, ['clasificado', 'pendiente']),
   }),
@@ -239,7 +241,7 @@ const REFERENCIAS = {
   deudas: { cuenta_id: 'cuentas' },
   compromisos: { categoria_id: 'categorias' },
   cobros: { persona_id: 'personas' },
-  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros' },
+  movimientos: { categoria_id: 'categorias', evento_id: 'eventos', compromiso_id: 'compromisos', deuda_id: 'deudas', cobro_id: 'cobros', cuenta_id: 'cuentas' },
   reglas: { categoria_id: 'categorias' },
 };
 // Tablas cuya referencia es obligatoria: sin ella, la fila no se guarda.
@@ -360,7 +362,8 @@ const claveDeCuenta = c => armarTarjeta({ banco: c.institucion, tipo: c.producto
 // (después del paso, perfil.tarjetas queda vacío).
 export function pasarTarjetasACuentas({ tarjetas: claves = [], cuentas = [], deudas = [] }, crearId, { moverCupo = true } = {}) {
   if (!claves.length) return null;
-  const porClave = new Map(cuentas.map(c => [claveDeCuenta(c), c]));
+  // Solo las activas: una archivada no recibe deudas (no se vería en Tus tarjetas).
+  const porClave = new Map(cuentas.filter(c => c.activa !== false).map(c => [claveDeCuenta(c), c]));
   const cambiadas = new Map();
   for (const t of claves) {
     if (!ID_TARJETA.test(t) || porClave.has(t)) continue;

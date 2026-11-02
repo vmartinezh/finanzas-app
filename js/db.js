@@ -262,6 +262,20 @@ export async function borrarClaveIngreso(fuente) {
   if (error) throw new Error(error.message);
 }
 
+// Columnas agregadas después que la app puede mandar con valor. Si la base
+// todavía no tiene una (falta correr supabase/schema.sql), la fila se guarda
+// sin ella: mejor guardar el resto del cambio que perderlo entero.
+const COLUMNAS_NUEVAS = ['cuenta_id'];
+async function subir(tabla, filas) {
+  let { error } = await supabase.from(tabla).upsert(filas);
+  const columna = error?.code === 'PGRST204' ? COLUMNAS_NUEVAS.find(c => error.message?.includes(`'${c}'`)) : null;
+  if (columna) {
+    console.warn(`Falta la columna ${tabla}.${columna}: corre supabase/schema.sql`);
+    ({ error } = await supabase.from(tabla).upsert(filas.map(({ [columna]: _, ...f }) => f)));
+  }
+  if (error) throw error;
+}
+
 // Inserta o actualiza una fila (según si su id ya existe).
 export async function guardar(tabla, fila) {
   revisarTabla(tabla);
@@ -275,8 +289,7 @@ export async function guardar(tabla, fila) {
   if (modo === 'local') {
     escribirLocal(tabla, lista);
   } else {
-    const { error } = await supabase.from(tabla).upsert(sinUsuario(fila, anterior));
-    if (error) throw error;
+    await subir(tabla, [sinUsuario(fila, anterior)]);
   }
   return fila;
 }
@@ -293,8 +306,7 @@ export async function guardarVarios(tabla, filas) {
   if (modo === 'local') {
     escribirLocal(tabla, datos[tabla]);
   } else if (filas.length) {
-    const { error } = await supabase.from(tabla).upsert(filas.map(f => sinUsuario(f, anteriores.get(f.id))));
-    if (error) throw error;
+    await subir(tabla, filas.map(f => sinUsuario(f, anteriores.get(f.id))));
   }
 }
 
@@ -344,7 +356,9 @@ function sinUsuario(fila, anterior = null) {
   const { user_id, creado, ...resto } = fila;
   if (resto.cobro_id == null) delete resto.cobro_id;
   if (resto.tarjeta == null && anterior?.tarjeta == null) delete resto.tarjeta;
-  if (tablasQueFaltan.has('cuentas')) delete resto.cuenta_id;
+  // Igual que la tarjeta: un cuenta_id vacío no se manda (la base puede no tener
+  // movimientos.cuenta_id todavía), salvo que sea para soltar uno que había.
+  if (tablasQueFaltan.has('cuentas') || (resto.cuenta_id == null && anterior?.cuenta_id == null)) delete resto.cuenta_id;
   return resto;
 }
 

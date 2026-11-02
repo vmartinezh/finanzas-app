@@ -9,6 +9,8 @@
 // tope: descuento máximo en pesos, si el banco lo informa.
 // hasta: último día de vigencia ('YYYY-MM-DD'); null si el banco no la publica.
 import { normalizar } from './util.js';
+// El mismo reconocimiento de bancos que usa el servidor con los avisos de compra.
+import { bancoPorNombre } from '../supabase/functions/recibir-compra/bancos.js';
 
 export const REVISADO = '2026-11-01';
 
@@ -178,21 +180,6 @@ export function reemplazarTarjeta(lista, vieja, nueva) {
   return lista.map(t => (t === vieja ? nueva : t));
 }
 
-// Cómo se nombra cada banco en una deuda ("Tarjeta Falabella", "Bco. Chile").
-// Lider Bci va antes que Bci: "Lider Bci" no es una tarjeta Bci.
-const NOMBRES_BANCO = [
-  ['lider-bci', /\blider\b/],
-  ['cmr', /\b(cmr|falabella)\b/],
-  ['santander', /\bsantander\b/],
-  ['banco-de-chile', /\b(banco de chile|bco\.? chile|edwards)\b/],
-  ['bancoestado', /\b(banco ?estado|cuenta ?rut)\b/],
-  ['scotiabank', /\bscotia/],
-  ['cencosud', /\b(cencosud|jumbo|paris)\b/],
-  ['ripley', /\bripley\b/],
-  ['itau', /\bitau\b/],
-  ['bci', /\bbci\b/],
-];
-
 // Para unir una deuda anotada con una de tus tarjetas: primero por los 4
 // dígitos que aparezcan en su nombre; si no, por el banco, solo si tienes una
 // sola tarjeta de ese banco (con dos, no adivina). null si no hay calce.
@@ -203,7 +190,7 @@ export function sugerirTarjeta(deuda, mias) {
     return terminacion && new RegExp(`(?<!\\d)${terminacion}(?!\\d)`).test(texto);
   });
   if (porDigitos.length === 1) return porDigitos[0];
-  const banco = NOMBRES_BANCO.find(([, patron]) => patron.test(texto))?.[0];
+  const banco = bancoPorNombre(texto);
   const delBanco = banco ? mias.filter(t => separarTarjeta(t).banco === banco) : [];
   return delBanco.length === 1 ? delBanco[0] : null;
 }

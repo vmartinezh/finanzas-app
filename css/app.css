@@ -648,6 +648,7 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 .tarjeta-etiqueta { font-size: .78rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--texto-3); }
 .tarjeta-monto { font-size: 1.35rem; font-weight: 750; letter-spacing: -.02em; }
 .tarjeta-accion { font-size: .85rem; color: var(--acento); }
+.tarjeta-mes { font-size: .8rem; color: var(--texto-2); }
 .tarjeta-datos .estado-texto { font-size: .8rem; }
 .calce { padding: 10px 12px; border-radius: 14px; background: var(--acento-suave); display: flex; flex-direction: column; gap: 6px; }
 .calce p { margin: 0; font-size: .92rem; }

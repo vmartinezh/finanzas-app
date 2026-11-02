@@ -204,6 +204,9 @@ alter table public.perfil add column if not exists fecha_nacimiento date check (
 alter table public.perfil add column if not exists ruta_cumpleanos jsonb check (jsonb_typeof(ruta_cumpleanos) = 'object' and pg_column_size(ruta_cumpleanos) < 8192);
 alter table public.movimientos add column if not exists cobro_id uuid;
 alter table public.deudas add column if not exists cuenta_id uuid;
+-- Con cuál de tus tarjetas (o cuentas) se pagó: lo llenan los avisos del banco
+-- (los 4 dígitos), el Atajo de Apple Pay o tú al revisar.
+alter table public.movimientos add column if not exists cuenta_id uuid;
 
 -- Tus tarjetas pasan de perfil.tarjetas (texto: 'cmr:elite#1234') a filas de
 -- cuentas, cada deuda de tarjeta apunta a la suya con cuenta_id y el cupo pasa
@@ -287,6 +290,7 @@ begin
 
   for r in select * from (values
       ('deudas',      'cuenta_id',     'cuentas',     'set null (cuenta_id)'),
+      ('movimientos', 'cuenta_id',     'cuentas',     'set null (cuenta_id)'),
       ('compromisos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'categoria_id',  'categorias',  'set null (categoria_id)'),
       ('movimientos', 'evento_id',     'eventos',     'set null (evento_id)'),
@@ -330,6 +334,7 @@ create index if not exists compromisos_categoria on public.compromisos (user_id,
 create index if not exists reglas_categoria on public.reglas (user_id, categoria_id);
 create index if not exists movimientos_cobro on public.movimientos (user_id, cobro_id);
 create index if not exists cobros_persona on public.cobros (user_id, persona_id);
+create index if not exists movimientos_cuenta on public.movimientos (user_id, cuenta_id);
 
 -- Restaurar un respaldo: reemplaza todos los datos de la persona por los del
 -- archivo en una sola transacción, así que si algo falla no se borra nada.
@@ -394,8 +399,8 @@ begin
   select id, yo, persona_id, concepto, monto_total, cuotas, primer_vencimiento, estado
   from jsonb_populate_recordset(null::public.cobros, coalesce(respaldo->'cobros', '[]'));
 
-  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, origen, estado, id_externo)
-  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, origen, estado, id_externo
+  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, origen, estado, id_externo)
+  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, origen, estado, id_externo
   from jsonb_populate_recordset(null::public.movimientos, coalesce(respaldo->'movimientos', '[]'));
 
   insert into public.reglas (id, user_id, patron, categoria_id)

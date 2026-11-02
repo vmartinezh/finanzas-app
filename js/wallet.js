@@ -37,11 +37,12 @@ function pasosHTML() {
       <li>Elige <b>Transacción</b>, marca tus tarjetas, elige <b>Ejecutar inmediatamente</b> y toca <b>Siguiente</b>.</li>
       <li>Toca <b>Nueva automatización en blanco</b> y agrega la acción <b>Obtener contenido de URL</b>.</li>
       <li>Copia la dirección <button class="boton pequeño" data-copiar="url">Copiar la dirección</button> y pégala tocando la palabra azul <b>URL</b>, justo al lado de "Obtener contenido de". <b>No la pegues en Encabezados</b>: esa parte queda vacía.</li>
-      <li>Toca la flecha de la acción: en <b>Método</b> elige <b>POST</b> y en <b>Solicitar cuerpo</b> (o <b>Cuerpo de la solicitud</b>), <b>JSON</b>. Agrega tres campos de texto:
+      <li>Toca la flecha de la acción: en <b>Método</b> elige <b>POST</b> y en <b>Solicitar cuerpo</b> (o <b>Cuerpo de la solicitud</b>), <b>JSON</b>. Agrega cuatro campos de texto:
         <ul class="pasos-campos">
           <li><code>clave</code>: pega tu clave <button class="boton pequeño" data-copiar="clave">Copiar la clave</button></li>
           <li><code>comercio</code>: elige la variable <b>Comercio</b> (si no aparece, <b>Entrada del atajo</b> y luego <b>Comercio</b>)</li>
           <li><code>monto</code>: la variable <b>Cantidad</b> (o <b>Monto</b>, o <b>Importe</b>)</li>
+          <li><code>tarjeta</code>: la variable <b>Tarjeta o pase</b>. Así la compra queda con la tarjeta que usaste (de Tus tarjetas).</li>
         </ul>
       </li>
       <li>Toca <b>OK</b>. La próxima vez que pagues con el iPhone o el reloj, la compra aparece en "Por revisar".</li>
@@ -53,7 +54,7 @@ export function walletHTML() {
   if (!COMPRAS_SOLAS) return '';
   return `<section class="tarjeta" id="wallet-gastos">
     <h2>Compras con Apple Pay</h2>
-    <p class="ayuda">Si pagas con el iPhone o el Apple Watch, la compra llega sola a "Por revisar". Lo hace un Atajo en tu iPhone (iOS 17 o más): Simplifika solo recibe el comercio y el monto. Las compras con la tarjeta física no pasan por aquí.</p>
+    <p class="ayuda">Si pagas con el iPhone o el Apple Watch, la compra llega sola a "Por revisar". Lo hace un Atajo en tu iPhone (iOS 17 o más): Simplifika solo recibe el comercio, el monto y el nombre de la tarjeta. Las compras con la tarjeta física no pasan por aquí.</p>
     <div id="wallet-estado">${modo === 'nube' ? '<p class="nota">Revisando…</p>'
       : '<p class="nota">Necesitas usar la app con cuenta (en la nube): las compras llegan a tu cuenta, no a este navegador.</p>'}</div>
   </section>`;

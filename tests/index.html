@@ -24,6 +24,7 @@
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo, pasarTarjetasACuentas } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
+    import { tarjetaDeCompra, bancoPorNombre, bancoPorRemitente, digitosDelNombre } from '../supabase/functions/recibir-compra/bancos.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
     import { TIPOS } from '../js/tarjetas.js';
     import { BENEFICIOS_CUMPLE, TIPOS_CUMPLE, CUANDO_CUMPLE, cumpleQueViene, rutaDelCumple, avisoCumple, rutaDelAnio, filtrarRegalos } from '../js/cumpleanos.js';
@@ -682,6 +683,49 @@
         cuentas: [{ id: D2, institucion: 'santander', creado: '2026-11-02T10:00:00Z' }, { id: D1, institucion: 'cmr', creado: '2026-10-01T10:00:00Z' }, { id: D3, institucion: 'ripley' }],
       }, contador());
       igual(tablas.cuentas.map(c => c.institucion), ['cmr', 'santander', 'ripley']);
+    });
+    // Con qué tarjeta se pagó (fase 2)
+    const MIAS = [
+      { id: 'cmr', institucion: 'cmr', terminacion: '1234' },
+      { id: 'san1', institucion: 'santander', terminacion: '4821' },
+      { id: 'san2', institucion: 'santander', terminacion: null },
+      { id: 'chile', institucion: 'banco-de-chile', terminacion: '4821' },
+    ];
+    prueba('Tarjeta de una compra: los 4 dígitos del correo mandan', () => {
+      igual(tarjetaDeCompra(MIAS, { digitos: '1234', banco: bancoPorRemitente('avisos@santander.cl') }), 'cmr', 'aunque el remitente sea otro banco;');
+      igual(tarjetaDeCompra(MIAS, { digitos: '9999', banco: bancoPorRemitente('avisos@cmr.cl') }), null, 'dígitos que no tienes:');
+      igual(tarjetaDeCompra(MIAS, { digitos: '7777', banco: bancoPorRemitente('avisos@santander.cl') }), 'san2', 'la Santander anotada sin dígitos:');
+    });
+    prueba('Tarjeta de una compra: dos con los mismos dígitos, decide el banco', () => {
+      igual(tarjetaDeCompra(MIAS, { digitos: '4821', banco: bancoPorRemitente('notificaciones@bancochile.cl') }), 'chile');
+      igual(tarjetaDeCompra(MIAS, { digitos: '4821', banco: bancoPorRemitente('avisos@santander.cl') }), 'san1');
+      igual(tarjetaDeCompra(MIAS, { digitos: '4821', banco: bancoPorRemitente('avisos@ripley.cl') }), null, 'sin saber cuál:');
+    });
+    prueba('Tarjeta de una compra con Apple Pay: por el nombre, solo si tienes una de ese banco', () => {
+      igual(tarjetaDeCompra(MIAS, { banco: bancoPorNombre('CMR Mastercard') }), 'cmr');
+      igual(tarjetaDeCompra(MIAS, { banco: bancoPorNombre('Santander LATAM') }), null, 'dos Santander:');
+      igual(tarjetaDeCompra(MIAS, { banco: bancoPorNombre('') }), null);
+      igual(tarjetaDeCompra([], { digitos: '1234', banco: 'cmr' }), null, 'sin tarjetas:');
+    });
+    prueba('Bancos por nombre: Lider Bci no es Bci, y "bancochile" es Banco de Chile', () => {
+      igual([bancoPorNombre('Tarjeta Lider BCI'), bancoPorNombre('BCI Visa'), bancoPorNombre('aviso@bancochile.cl'), bancoPorNombre('Falabella')], ['lider-bci', 'bci', 'banco-de-chile', 'cmr']);
+    });
+    prueba('Banco del remitente: los nombres van pegados en el dominio', () => {
+      igual(['notificaciones@cmrfalabella.com', 'Avisos <avisos@bancoripley.cl>', 'x@tarjetacencosud.cl', 'aviso@bancoedwards.cl', 'hola@gmail.com', ''].map(bancoPorRemitente),
+        ['cmr', 'ripley', 'cencosud', 'banco-de-chile', null, null]);
+    });
+    prueba('Dígitos en el nombre de Wallet: solo si vienen enmascarados', () => {
+      igual(['Visa •••• 1234', 'CMR *5678', 'Débito ..4821', 'Tarjeta XX9012', 'Santander 2024', 'Mi tarjeta', null].map(digitosDelNombre),
+        ['1234', '5678', '4821', '9012', null, null, null]);
+    });
+    prueba('Restaurar: la tarjeta de cada gasto sigue a su id nuevo', () => {
+      const C = 'cccccccc-cccc-4ccc-8ccc-000000000009';
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Súper' }], cuentas: [{ id: C, tipo: 'credito', institucion: 'cmr' }],
+        movimientos: [{ id: D1, fecha: '2026-11-01', monto: 5, cuenta_id: C }, { id: D2, fecha: '2026-11-01', monto: 6, cuenta_id: D3 }],
+      }, contador());
+      igual(tablas.movimientos.map(m => m.cuenta_id), [tablas.cuentas[0].id, null]);
+      igual(normalizarFila('movimientos', { id: ID, fecha: '2026-11-01', monto: 1, cuenta_id: ATAQUE }).cuenta_id, null);
     });
     prueba('El cupo de una deuda de tarjeta es el de la tarjeta', () => {
       const antes = datos.cuentas;

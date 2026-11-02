@@ -4,6 +4,7 @@ import { cobrosParaTransferencia, estadoCobro, personaDeTransferencia } from '..
 import { normalizarPerfil } from '../validar.js';
 import { esMismoNombre } from '../../supabase/functions/recibir-compra/cuentas.js';
 import { abrirFormulario, avisar, confirmar, ejecutar } from '../ui.js';
+import { misTarjetas, cuentaPorId, nombreTarjeta, nombreCorto } from '../mis-tarjetas.js';
 import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
 export const titulo = 'Gastos';
@@ -54,11 +55,13 @@ export function render() {
 export function filaMovimiento(m, accion = '') {
   const cat = datos.categorias.find(c => c.id === m.categoria_id);
   const evento = datos.eventos.find(e => e.id === m.evento_id);
+  const tarjeta = m.cuenta_id ? cuentaPorId(m.cuenta_id) : null;
   const nombre = m.descripcion || m.comercio || cat?.nombre || 'Sin descripción';
   const detalle = [
     m.estado === 'pendiente' ? '<span class="etiqueta pendiente">Por revisar</span>' : esc(cat?.nombre || 'Sin categoría'),
     m.comercio && m.descripcion ? esc(m.comercio) : '',
     evento ? `<span class="etiqueta evento">${esc(evento.nombre)}</span>` : '',
+    tarjeta ? esc(nombreCorto(tarjeta)) : '',
     // Llegó solo (fase 2): del aviso del banco o del Atajo de Wallet.
     { correo: 'del correo', wallet: 'de Apple Pay' }[m.origen] || '',
   ].filter(Boolean).join(' · ');
@@ -126,9 +129,11 @@ async function sacarPropia(mov, recordar, listo, refrescar) {
 export async function darContexto(mov, refrescar) {
   if (mov.tipo === 'ingreso') return darContextoIngreso(mov, refrescar);
   const transferencia = esTransferencia(mov);
+  // Con qué tarjeta fue, si el aviso lo dijo (se corrige en el formulario completo).
+  const tarjeta = mov.cuenta_id ? cuentaPorId(mov.cuenta_id) : null;
   const valores = await abrirFormulario({
     titulo: transferencia ? '¿Para qué fue esta transferencia?' : '¿Qué fue esta compra?',
-    intro: `<b>${esc(clpVisible(mov.monto))}</b> ${transferencia ? '·' : 'en'} <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}`,
+    intro: `<b>${esc(clpVisible(mov.monto))}</b> ${transferencia ? '·' : 'en'} <b>${esc(mov.comercio || 'comercio desconocido')}</b> · ${esc(fechaCorta(mov.fecha))}${tarjeta ? ` · con tu ${esc(nombreCorto(tarjeta))}` : ''}`,
     campos: [
       { nombre: 'descripcion', etiqueta: 'Cuéntame en tus palabras', tipo: 'textarea', placeholder: transferencia ? 'ej: mi parte del asado' : 'ej: uber al aeropuerto para lo del matri', requerido: !transferencia },
       ...(transferencia ? [{ nombre: 'mias', etiqueta: 'Me la pasé yo, entre mis cuentas', tipo: 'checkbox', ayuda: 'No es un gasto: la saco de la lista.' }, ...campoRecordar(mov)] : []),
@@ -202,6 +207,9 @@ export async function editarMovimiento(mov, refrescar) {
     ...datos.compromisos.filter(c => c.activo !== false).map(c => ['c:' + c.id, `Pago fijo: ${c.nombre}`]),
     ...datos.deudas.filter(d => d.saldo > 0 || d.id === m.deuda_id).map(d => ['d:' + d.id, `Pago de deuda: ${d.nombre}`]),
   ];
+  // Tus tarjetas, y la de este gasto aunque la hayas quitado (quedó archivada).
+  const usada = m.cuenta_id ? cuentaPorId(m.cuenta_id) : null;
+  const tarjetas = [...misTarjetas(), ...(usada && usada.activa === false ? [usada] : [])];
 
   const valores = await abrirFormulario({
     titulo: nuevo ? 'Nuevo movimiento' : 'Editar movimiento',
@@ -213,6 +221,8 @@ export async function editarMovimiento(mov, refrescar) {
       { nombre: 'categoria_id', etiqueta: 'Categoría', tipo: 'select', valor: m.categoria_id || '', opciones: opcionesCat },
       { nombre: 'fecha', etiqueta: 'Fecha', tipo: 'date', valor: m.fecha, requerido: true },
       { nombre: 'comercio', etiqueta: 'Comercio (opcional)', tipo: 'text', valor: m.comercio },
+      ...(tarjetas.length ? [{ nombre: 'cuenta_id', etiqueta: '¿Con qué tarjeta?', tipo: 'select', valor: m.cuenta_id || '',
+        opciones: [['', 'Otra, o no fue con tarjeta'], ...tarjetas.map(c => [c.id, nombreTarjeta(c)])] }] : []),
       { nombre: 'evento_id', etiqueta: 'Evento (opcional)', tipo: 'select', valor: m.evento_id || '', opciones: [['', 'Ninguno'], ...datos.eventos.filter(e => e.activo !== false || e.id === m.evento_id).map(e => [e.id, e.nombre])] },
       { nombre: 'pago', etiqueta: '¿Es un pago planificado?', tipo: 'select', valor: m.compromiso_id ? 'c:' + m.compromiso_id : m.deuda_id ? 'd:' + m.deuda_id : '', opciones: opcionesPago, ayuda: 'Los pagos fijos y de deudas ya están descontados del disponible, así que no se cuentan dos veces.' },
     ],
@@ -227,6 +237,8 @@ export async function editarMovimiento(mov, refrescar) {
     monto: Math.round(resto.monto || 0),
     compromiso_id: pago?.startsWith('c:') ? pago.slice(2) : null,
     deuda_id: pago?.startsWith('d:') ? pago.slice(2) : null,
+    // Sin tarjetas para elegir no hay pregunta: queda como estaba.
+    cuenta_id: resto.cuenta_id === undefined ? (m.cuenta_id ?? null) : tarjetas.some(c => c.id === resto.cuenta_id) ? resto.cuenta_id : null,
     origen: m.origen || 'manual',
   };
 

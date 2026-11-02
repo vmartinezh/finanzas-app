@@ -12,6 +12,7 @@
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los pone Supabase.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { leerCorreoDeCompra, leerPagoWallet } from './lectores.js';
+import { tarjetaDeCompra, bancoPorNombre, bancoPorRemitente, digitosDelNombre } from './bancos.js';
 
 const CLAVE = /^[A-Za-z0-9_-]{40,60}$/;
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,13 +31,17 @@ const textoCorto = (v: unknown, max: number) => (typeof v === 'string' && v.leng
 // del pago, así que es la fecha del gasto.
 const ahoraEnChile = () => new Date().toLocaleString('sv-SE', { timeZone: 'America/Santiago' }).slice(0, 16);
 
-type Movimiento = { tipo: string; monto: number; comercio: string | null; fecha: string; lector: string };
+type Movimiento = { tipo: string; monto: number; comercio: string | null; fecha: string; lector: string; tarjeta?: string | null };
 
 // Del cuerpo recibido saca el movimiento y su id externo (para no anotarlo dos
 // veces), o un error si faltan datos.
 type Propios = { rut: string | null; nombres: string[] } | null;
 
-function leer(fuente: string, cuerpo: Record<string, unknown>, propios: Propios): { movimiento: Movimiento | null; idExterno: string | null } | { error: string } {
+// pista: con qué reconocer la tarjeta de la compra (los 4 dígitos y el banco),
+// o null si no corresponde buscarla.
+type Pista = { digitos: string | null; banco: string | null } | null;
+
+function leer(fuente: string, cuerpo: Record<string, unknown>, propios: Propios): { movimiento: Movimiento | null; idExterno: string | null; pista: Pista } | { error: string } {
   if (fuente === 'wallet') {
     // Si el monto llega como número, solo vale un entero (el peso no tiene centavos).
     const monto = typeof cuerpo.monto === 'number'
@@ -47,7 +52,10 @@ function leer(fuente: string, cuerpo: Record<string, unknown>, propios: Propios)
     const movimiento = leerPagoWallet({ comercio: typeof cuerpo.comercio === 'string' ? cuerpo.comercio.slice(0, 200) : '', monto, fecha: ahora.slice(0, 10) });
     // iOS a veces corre la automatización dos veces por un pago: el mismo monto
     // en el mismo comercio y el mismo minuto se anota una vez.
-    return { movimiento, idExterno: movimiento ? `wallet:${ahora}:${movimiento.monto}:${movimiento.comercio ?? ''}`.slice(0, 200) : null };
+    // El nombre de la tarjeta en Wallet ("CMR Mastercard", a veces "Visa •••• 1234").
+    const tarjeta = typeof cuerpo.tarjeta === 'string' ? cuerpo.tarjeta.slice(0, 100) : '';
+    const pista = tarjeta ? { digitos: digitosDelNombre(tarjeta), banco: bancoPorNombre(tarjeta) } : null;
+    return { movimiento, pista, idExterno: movimiento ? `wallet:${ahora}:${movimiento.monto}:${movimiento.comercio ?? ''}`.slice(0, 200) : null };
   }
   const id = textoCorto(cuerpo.id, 200);
   const remitente = textoCorto(cuerpo.remitente, 300);
@@ -55,7 +63,24 @@ function leer(fuente: string, cuerpo: Record<string, unknown>, propios: Propios)
   const texto = textoCorto(cuerpo.texto, 50_000) ?? '';
   const fecha = textoCorto(cuerpo.fecha, 10);
   if (!id || !remitente || !fecha || !FECHA.test(fecha)) return { error: 'Faltan datos' };
-  return { movimiento: leerCorreoDeCompra({ remitente, asunto, texto, fecha, propios }), idExterno: `gmail:${id}` };
+  const movimiento = leerCorreoDeCompra({ remitente, asunto, texto, fecha, propios });
+  // Solo una compra con los 4 dígitos ("terminada en 1234") dice con qué tarjeta
+  // fue: una transferencia o un aviso sin dígitos no se cuelga de una tarjeta.
+  const digitos = movimiento?.tipo === 'gasto' ? movimiento.tarjeta ?? null : null;
+  return { movimiento, pista: digitos ? { digitos, banco: bancoPorRemitente(remitente) } : null, idExterno: `gmail:${id}` };
+}
+
+// Con cuál de tus tarjetas se pagó (Tus tarjetas, tabla cuentas), o null. Si la
+// base todavía no tiene la tabla, la compra se anota igual, sin tarjeta.
+async function tarjetaDe(supabase: ReturnType<typeof createClient>, userId: string, pista: Pista) {
+  if (!pista || (!pista.digitos && !pista.banco)) return null;
+  const { data, error } = await supabase.from('cuentas').select('id, institucion, terminacion')
+    .eq('user_id', userId).eq('activa', true).in('tipo', ['credito', 'debito']);
+  if (error) {
+    console.error('cuentas:', error.message);
+    return null;
+  }
+  return tarjetaDeCompra(data ?? [], pista);
 }
 
 Deno.serve(async req => {
@@ -90,7 +115,7 @@ Deno.serve(async req => {
 
   const leido = leer(dueno.fuente, cuerpo, propios);
   if ('error' in leido) return responder({ error: leido.error }, 400);
-  const { movimiento, idExterno } = leido;
+  const { movimiento, idExterno, pista } = leido;
   await supabase.from('claves_ingreso').update({ ultimo_uso: new Date().toISOString() })
     .eq('user_id', dueno.user_id).eq('fuente', dueno.fuente);
   if (!movimiento) return responder({ anotado: false, motivo: 'no es una compra ni una transferencia en pesos, o es entre tus cuentas' });
@@ -106,8 +131,15 @@ Deno.serve(async req => {
     estado: 'pendiente',
     id_externo: idExterno,
   };
+  const cuentaId = await tarjetaDe(supabase, dueno.user_id, pista);
   // El mismo aviso dos veces queda una sola vez (unique user_id + id_externo).
-  const { error } = await supabase.from('movimientos').upsert(fila, { onConflict: 'user_id,id_externo', ignoreDuplicates: true });
+  const anotar = (f: Record<string, unknown>) => supabase.from('movimientos').upsert(f, { onConflict: 'user_id,id_externo', ignoreDuplicates: true });
+  let { error } = await anotar(cuentaId ? { ...fila, cuenta_id: cuentaId } : fila);
+  // Si la base todavía no tiene movimientos.cuenta_id, la compra se anota sin tarjeta: no se pierde.
+  if (error && cuentaId) {
+    console.error('con tarjeta:', error.message);
+    ({ error } = await anotar(fila));
+  }
   if (error) return responder({ error: error.message }, 500);
-  return responder({ anotado: true, lector: movimiento.lector });
+  return responder({ anotado: true, lector: movimiento.lector, con_tarjeta: Boolean(cuentaId) });
 });

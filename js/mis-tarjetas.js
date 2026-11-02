@@ -7,7 +7,7 @@
 // el banco (institucion) y el tipo de tarjeta (producto) del catálogo. Su deuda
 // la apunta con deudas.cuenta_id y su cupo vive en la tarjeta. Como la deuda
 // apunta al id, cambiar el tipo o los dígitos de la tarjeta no toca la deuda.
-import { datos, guardar, guardarVarios, borrar, faltaTabla } from './db.js';
+import { datos, guardar, guardarVarios, faltaTabla } from './db.js';
 import { TARJETAS, armarTarjeta, agregarTarjeta } from './beneficios.js';
 import { TIPOS, tipoDe, tarjetaHTML } from './tarjetas.js';
 import { esc } from './util.js';
@@ -54,17 +54,30 @@ export async function guardarTarjeta({ banco, tipo = null, terminacion = null },
   if (lista === claves) return mias[claves.indexOf(clave)];
   const completada = claves.findIndex((t, i) => t !== lista[i]);
   if (completada >= 0) return guardar('cuentas', { ...mias[completada], ...campos });
+  // La habías quitado (quedó archivada): vuelve con sus compras.
+  const archivada = datos.cuentas.find(c => c.activa === false && claveDe(c) === clave);
+  if (archivada) return guardar('cuentas', { ...archivada, activa: true });
   return guardar('cuentas', { tipo: 'credito', ...campos, apodo: null, cupo_total: null, dia_facturacion: null, activa: true });
 }
 
 // Quitar una tarjeta no borra su deuda: queda anotada, sin tarjeta, y se lleva
-// el cupo para no perder la alerta de uso.
+// el cupo para no perder la alerta de uso. La tarjeta se archiva, no se borra:
+// sus compras (también las que lleguen solas mientras la app está abierta)
+// siguen diciendo con cuál fueron, y si la vuelves a agregar, vuelve con ellas.
 export async function quitarTarjeta(id) {
   const cuenta = cuentaPorId(id);
   const deudas = datos.deudas.filter(d => d.cuenta_id === id);
   if (deudas.length) await guardarVarios('deudas', deudas.map(d => ({ ...d, cuenta_id: null, cupo_total: d.cupo_total ?? cuenta?.cupo_total ?? null })));
-  await borrar('cuentas', id);
+  await guardar('cuentas', { ...cuenta, activa: false, cupo_total: null });
 }
+
+// "CMR Falabella ·1234": corto, para la fila de un gasto.
+export const nombreCorto = c => `${nombreBanco(c)}${c.terminacion ? ' ·' + c.terminacion : ''}`;
+
+// Lo que llevas comprado este mes con esa tarjeta.
+export const gastadoEnElMes = (c, mes) => datos.movimientos
+  .filter(m => m.cuenta_id === c.id && m.tipo === 'gasto' && m.fecha?.startsWith(mes))
+  .reduce((s, m) => s + m.monto, 0);
 
 // Guarda una deuda con su cupo: si la deuda es de una tarjeta, el cupo se
 // guarda en la tarjeta; si no, en la deuda. Si la nube todavía no tiene la
