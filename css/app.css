@@ -605,6 +605,16 @@ body[data-ruta="inicio"] .barra-superior h1 { text-transform: lowercase; }
 .tarjeta-3d:has(.t-banda) .t-chip { right: 40%; }
 .tarjeta-3d:has(.t-banda) .t-sin-contacto { color: #fff; }
 
+/* Santander en horizontal: el tipo arriba a la derecha, el chip y el número sobre el arte, el banco en la franja. */
+.tarjeta-3d[data-forma="horizontal"]:has(.t-banda) .t-tipo { left: auto; right: 7%; top: 9%; text-align: right; font-size: calc(var(--alto) * .07); max-width: 60%; }
+.tarjeta-3d[data-forma="horizontal"]:has(.t-banda) .t-chip { top: 24%; }
+.tarjeta-3d[data-forma="horizontal"]:has(.t-banda) .t-sin-contacto { top: 26%; }
+.tarjeta-3d[data-forma="horizontal"]:has(.t-banda) .t-numero { top: 45%; bottom: auto; }
+.tarjeta-3d[data-forma="horizontal"]:has(.t-banda) .t-banco { left: 7%; bottom: 9%; font-size: calc(var(--alto) * .085); }
+/* Fan en horizontal: el FAN FAN FAN a la derecha, sin tapar el número. */
+.tarjeta-3d[data-forma="horizontal"]:has(.t-fan) .t-fan { left: auto; right: 7%; top: 27%; text-align: right; font-size: calc(var(--alto) * .075); }
+.tarjeta-3d[data-forma="horizontal"]:has(.t-fan) .t-numero { top: auto; bottom: 11%; }
+
 /* Banco de Chile: el nombre con serifas, arriba (sin su logo); el chip, más abajo. */
 .tarjeta-3d[data-emisor="banco-de-chile"] .t-banco { font-family: Georgia, 'Times New Roman', serif; top: 7%; font-size: calc(var(--alto) * .055); }
 .tarjeta-3d[data-emisor="banco-de-chile"][data-forma="vertical"] .t-chip { top: 17%; }

@@ -148,7 +148,9 @@ export function tarjetaHTML(id, nombreBanco, { chica = false } = {}) {
   const conBanda = Boolean(t.banda);
   // En la tarjeta, el tipo sin la red que ya está escrita aparte: "Visa Infinite" → "Infinite".
   const tipoEnTarjeta = t.red ? t.nombre.replace(/^(?:Visa|Mastercard)\s*/i, '').trim() : t.nombre;
-  return `<div class="tarjeta-3d${chica ? ' chica' : ''}" data-forma="${t.forma}" data-emisor="${esc(banco)}"${t.borde ? ` data-borde` : ''}
+  // Todas se dibujan horizontales, como en una billetera, para que se vean
+  // parejas una al lado de otra. El catálogo guarda la forma real (t.forma).
+  return `<div class="tarjeta-3d${chica ? ' chica' : ''}" data-forma="horizontal" data-emisor="${esc(banco)}"${t.borde ? ` data-borde` : ''}
       style="--fondo: ${t.fondo ?? t.banda}; --tinta: ${t.tinta}; ${t.banda ? `--banda: ${t.banda};` : ''} ${t.borde ? `--borde: ${t.borde};` : ''}"
       role="img" aria-label="${esc(`${nombreBanco}${t.nombre ? ' ' + t.nombre : ''}${terminacion ? `, terminada en ${terminacion}` : ''}`)}">
     <div class="t-cara">
