@@ -3,16 +3,32 @@
 // comercio y el monto a la función recibir-compra, con una clave propia (no la
 // del correo: renovar una no apaga la otra).
 import { modo, estadoClaveIngreso, crearClaveIngreso, borrarClaveIngreso } from './db.js';
-import { SUPABASE_URL, COMPRAS_SOLAS } from './config.js';
+import { SUPABASE_URL, COMPRAS_SOLAS, ATAJO_ICLOUD } from './config.js';
+import { linkDeAtajo } from './validar.js';
 import { avisar, confirmar } from './ui.js';
 import { esc, fechaCorta, hoyISO } from './util.js';
 
 const URL_FUNCION = `${SUPABASE_URL}/functions/v1/recibir-compra`;
+const LINK_ATAJO = linkDeAtajo(ATAJO_ICLOUD);
 
 const haceCuanto = iso => {
   const dia = new Date(iso).toLocaleDateString('sv-SE');
   return dia === hoyISO() ? 'hoy' : `el ${fechaCorta(dia)}`;
 };
+
+// Con el Atajo ya armado: copiar la clave, instalarlo (te pide la clave) y
+// crear la automatización que lo ejecuta al pagar.
+function pasosConLinkHTML() {
+  return `
+    <ol class="pasos">
+      <li><button class="boton primario" data-copiar="clave">Copiar mi clave</button></li>
+      <li><a class="boton secundario" href="${esc(LINK_ATAJO)}" target="_blank" rel="noopener">Instalar el Atajo</a>
+        <small class="ayuda-paso">Toca <b>Agregar atajo</b> y, cuando te pida la clave, pégala.</small></li>
+      <li>En <b>Atajos</b> → <b>Automatización</b> → <b>+</b>, elige <b>Transacción</b>, marca tus tarjetas, elige <b>Ejecutar inmediatamente</b> y toca <b>Siguiente</b>. Elige el atajo <b>Simplifika</b>.</li>
+      <li>Listo: la próxima vez que pagues con el iPhone o el reloj, la compra aparece en "Por revisar".</li>
+    </ol>
+    <details class="desglose"><summary>Prefiero armarlo yo</summary>${pasosHTML()}</details>`;
+}
 
 function pasosHTML() {
   return `
@@ -63,7 +79,7 @@ export async function montarWallet(raiz) {
     }
     caja.innerHTML = `
       <p>Clave creada ${haceCuanto(estado.creada)}. ${estado.ultimo_uso ? `Última compra recibida ${haceCuanto(estado.ultimo_uso)}.` : 'Todavía no llega ninguna compra.'}</p>
-      ${claveLista ? pasosHTML() : ''}
+      ${claveLista ? (LINK_ATAJO ? pasosConLinkHTML() : pasosHTML()) : ''}
       <div class="botones">
         <button class="boton secundario" id="renovar-wallet">Crear una clave nueva</button>
         <button class="boton peligro" id="desconectar-wallet">Desconectar</button>

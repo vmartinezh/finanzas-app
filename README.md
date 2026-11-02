@@ -104,6 +104,19 @@ Hazlo **en este orden** (la función nueva necesita la columna `fuente`):
 4. Cada persona entra a *Ajustes*: en "Gastos desde tu correo" toca "Conectar mi correo"; en "Compras con Apple Pay" toca "Crear mi clave para el Atajo" y sigue los pasos en su iPhone.
 5. Cuando cambie un lector (`lectores.js`), vuelve a publicar la función: el script y el Atajo de cada persona no cambian.
 
+#### Atajo de Apple Pay con link
+
+Con un link, nadie arma el Atajo a mano: lo instala, pega su clave cuando el iPhone se la pide y crea la automatización. Se arma una vez, en un iPhone:
+
+1. En *Atajos → Atajos → +*, crea un atajo llamado **Simplifika**. Si el editor muestra "Recibir … como entrada", elige **Transacciones** (o deja "cualquier entrada").
+2. Agrega **Texto** y escribe cualquier cosa (por ejemplo `pega-aquí-tu-clave`): ese será el lugar de la clave.
+3. Agrega **Obtener contenido de URL**. Toca la palabra azul **URL** y pega la dirección de `recibir-compra` (`https://<proyecto>.supabase.co/functions/v1/recibir-compra`). En la flecha: *Método* **POST**, *Solicitar cuerpo* **JSON**, con tres campos de texto: `clave` = la variable **Texto** del paso 2; `comercio` = **Entrada del atajo → Comercio**; `monto` = **Entrada del atajo → Cantidad**.
+4. En el ⓘ del atajo → *Configuración* (o *Preguntas de importación*), agrega una pregunta sobre el **Texto** del paso 2: "Pega tu clave de Simplifika (Ajustes → Compras con Apple Pay)". Al compartir, ese texto se borra y cada persona pone el suyo.
+5. **Prueba antes de compartir:** crea la automatización *Transacción → Ejecutar inmediatamente → el atajo Simplifika* y paga algo. Si llega a "Por revisar" con comercio y monto, sirve. Si llega sin monto o el Atajo falla, la automatización no le pasa la transacción al atajo: avísale a quien mantiene la app.
+6. *Compartir → Copiar enlace iCloud* y pega el link en `ATAJO_ICLOUD` de `js/config.js`. El link no lleva tu clave (la borra la pregunta de importación), pero revisa que el paso 2 diga el texto de ejemplo antes de compartir.
+
+Con `ATAJO_ICLOUD` puesto, Ajustes muestra "Copiar mi clave → Instalar el Atajo → crear la automatización"; las instrucciones a mano quedan en "Prefiero armarlo yo".
+
 ## Probar en tu computador
 
 No necesita instalar nada para compilar: es HTML, CSS y JavaScript puro. Solo hay que servir la carpeta con cualquier servidor estático, por ejemplo:

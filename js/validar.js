@@ -68,6 +68,12 @@ function nombresPropios(v) {
   return limpios.slice(0, 5);
 }
 
+// Solo un link de Atajos de iCloud (https://www.icloud.com/shortcuts/<id>):
+// cualquier otra cosa en la configuración se ignora.
+export function linkDeAtajo(url) {
+  return typeof url === 'string' && /^https:\/\/www\.icloud\.com\/shortcuts\/[0-9a-f]{32}\/?$/.test(url.trim()) ? url.trim() : null;
+}
+
 // Los usan Crear cuenta y Ajustes, para que digan lo mismo.
 export const MENSAJE_RUT = 'Ese RUT no parece válido: revisa los números y el dígito verificador.';
 export const MENSAJE_NOMBRE = 'Escribe tu nombre completo, con nombre y apellido, solo con letras.';

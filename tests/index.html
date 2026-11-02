@@ -21,7 +21,7 @@
     import { clasificar } from '../js/clasificador.js';
     import { planDeudas, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
-    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro } from '../js/validar.js';
+    import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, agregarTarjeta } from '../js/beneficios.js';
     import { leerCorreoDeCompra, esDeBanco, montoEscrito, leerPagoWallet } from '../supabase/functions/recibir-compra/lectores.js';
     import { normalizarRut, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
@@ -776,6 +776,16 @@
       igual(filtrarRegalos(lista, { cuando: 'mes' }).map(b => b.id), ['d', 'a']);
       igual(filtrarRegalos(lista, { sinInscribirse: true }).map(b => b.id), ['c', 'b', 'd']);
       igual(filtrarRegalos(lista, { tipo: 'comida', cuando: 'mes', sinInscribirse: true }).map(b => b.id), ['d']);
+    });
+    prueba('Solo se acepta un link de Atajos de iCloud para instalar el Atajo', () => {
+      const id = '0123456789abcdef0123456789abcdef';
+      igual(linkDeAtajo(`https://www.icloud.com/shortcuts/${id}`), `https://www.icloud.com/shortcuts/${id}`);
+      igual(linkDeAtajo(` https://www.icloud.com/shortcuts/${id}/ `), `https://www.icloud.com/shortcuts/${id}/`, 'con espacios y barra:');
+      igual(linkDeAtajo(''), null, 'vacío:');
+      igual(linkDeAtajo(`http://www.icloud.com/shortcuts/${id}`), null, 'sin https:');
+      igual(linkDeAtajo(`https://icloud.com.malo.cl/shortcuts/${id}`), null, 'otro dominio:');
+      igual(linkDeAtajo(`javascript:alert(1)//https://www.icloud.com/shortcuts/${id}`), null);
+      igual(linkDeAtajo(null), null);
     });
     prueba('Tu ruta parte de cero cada año', () => {
       igual(rutaDelAnio({ anio: 2026, elegidos: ['cafe'], usados: ['cafe'] }, 2026), { anio: 2026, elegidos: ['cafe'], usados: ['cafe'] });

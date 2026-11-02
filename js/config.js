@@ -17,3 +17,9 @@ export const VAPID_PUBLIC_KEY = 'BKS8iBctYQyXekTeVOm3Flxn2obAmHrpUIsiNai6nZ0GR_J
 // publicaste la función recibir-compra (ver README): antes, Ajustes no muestra
 // esas secciones.
 export const COMPRAS_SOLAS = true;
+
+// Link de iCloud del Atajo "Simplifika" ya armado (Compartir → Copiar enlace),
+// con una pregunta de importación para la clave. Con el link, Ajustes muestra
+// "Instalar el Atajo" en vez de armarlo a mano. Vacío = instrucciones a mano.
+// Cómo armarlo: README, "Atajo de Apple Pay con link".
+export const ATAJO_ICLOUD = '';
