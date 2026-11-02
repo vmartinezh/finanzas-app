@@ -1,5 +1,6 @@
 import { datos } from './db.js';
 import { mesDe, mesActual, diasDelMes, hoyISO, sumarMeses, sumarMesesFecha, normalizar } from './util.js';
+import { pagosDelMes } from './pagos.js';
 
 export const movimientosDelMes = (mes = mesActual()) =>
   datos.movimientos.filter(m => mesDe(m.fecha) === mes);
@@ -17,6 +18,25 @@ export const deudasVigentes = () => datos.deudas.filter(d => (d.saldo || 0) > 0 
 export const deudasEnPausa = () => datos.deudas.filter(d => (d.saldo || 0) > 0 && d.estado === 'pausa');
 
 export const esSueldo = m => normalizar(datos.categorias.find(c => c.id === m.categoria_id)?.nombre) === 'sueldo';
+
+// ¿Está pagado ese mes? Lo dice el movimiento del pago. pagados es de antes y se
+// lee solo mientras no se haya podido pasar a movimientos (ver pasarAPagos).
+export const estaPagado = (c, mes) =>
+  pagosDelMes(datos.movimientos, mes, c.id).length > 0 || (c.pagados || []).includes(mes);
+
+// Cuánto pagaste ese mes de un compromiso (puede ser distinto de lo planeado).
+export const pagadoDelMes = (c, mes) => pagosDelMes(datos.movimientos, mes, c.id).reduce((s, m) => s + m.monto, 0);
+
+// Lo que se va en pagos fijos ese mes: lo que pagaste de verdad en los que ya
+// pagaste (contado en el mes que pagan, no en el de su fecha) y lo planeado en
+// los que faltan. Así "puedes gastar hoy" cuadra con lo que salió de tu cuenta.
+export function fijosDelMes(mes = mesActual()) {
+  const pagado = pagosDelMes(datos.movimientos, mes).reduce((s, m) => s + m.monto, 0);
+  const porPagar = compromisosActivos(mes)
+    .filter(c => !pagosDelMes(datos.movimientos, mes, c.id).length)
+    .reduce((s, c) => s + (c.monto || 0), 0);
+  return pagado + porPagar;
+}
 
 // Lo que se destina a deudas al mes: el total que fijaste, pero nunca menos que
 // la suma de las cuotas mínimas. Cuando una deuda se termina, su cuota pasa a
@@ -41,7 +61,7 @@ export function disponibleDelMes(mes = mesActual()) {
   const cobrado = ingresos.filter(m => m.cobro_id && !esSueldo(m)).reduce((s, m) => s + m.monto, 0);
   const ingresosExtra = ingresos.filter(m => !esSueldo(m) && !m.cobro_id).reduce((s, m) => s + m.monto, 0);
   const ingreso = Math.max(p.ingreso_mensual || 0, sueldoRegistrado);
-  const fijos = compromisosActivos(mes).reduce((s, c) => s + (c.monto || 0), 0);
+  const fijos = fijosDelMes(mes);
   const { cuotas, total: aDeudas } = destinoDeudas();
   const extraDeudas = aDeudas - cuotas;
   const ahorro = p.meta_ahorro || 0;
@@ -57,10 +77,13 @@ export function disponibleDelMes(mes = mesActual()) {
   return { ingreso, ingresosExtra, cobrado, fijos, cuotas, extraDeudas, aDeudas, ahorro, paraVariable, gastado, restante, diasRestantes, porDia, totalDias };
 }
 
-export function gastoPorCategoria(mes = mesActual(), { sinEventos = false } = {}) {
+// soloVariable: sin pagos fijos ni cuotas de deudas, que ya están planeados.
+// Es lo que cuenta contra el tope de una categoría (el arriendo no gasta "Hogar").
+export function gastoPorCategoria(mes = mesActual(), { sinEventos = false, soloVariable = false } = {}) {
   const totales = new Map();
   for (const m of movimientosDelMes(mes)) {
     if (m.tipo !== 'gasto') continue;
+    if (soloVariable && !esGastoVariable(m)) continue;
     if (sinEventos && m.evento_id) continue;
     const clave = m.categoria_id || 'sin';
     totales.set(clave, (totales.get(clave) || 0) + m.monto);
@@ -92,10 +115,10 @@ export function estadoPresupuesto(gastado, tope) {
   return 'ok';
 }
 
-// Compromisos que vencen este mes y aún no están marcados como pagados.
+// Compromisos que vencen este mes y aún no están pagados.
 export function compromisosPendientes(mes = mesActual()) {
   return compromisosActivos(mes)
-    .filter(c => !(c.pagados || []).includes(mes))
+    .filter(c => !estaPagado(c, mes))
     .sort((a, b) => (a.dia_pago || 0) - (b.dia_pago || 0));
 }
 

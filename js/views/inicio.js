@@ -7,6 +7,7 @@ import { clp, esc, mesActual, nombreMes, hoyISO, porcentaje, montosOcultos, NOMB
 import { filaMovimiento, montarFilas, esTransferencia } from './movimientos.js';
 import { clasificar, aprender } from '../clasificador.js';
 import { conComercio } from '../mis-comercios.js';
+import { marcarPagado } from '../mis-pagos.js';
 import { filaBeneficio } from './beneficios.js';
 import { registrarPago } from './cobros.js';
 import { beneficiosDelDia, diaSemana, DIAS } from '../beneficios.js';
@@ -74,7 +75,7 @@ export function render() {
   const hoy = Number(hoyISO().slice(8));
   const sinConfigurar = !datos.perfil.ingreso_mensual;
 
-  const gastos = gastoPorCategoria(mes);
+  const gastos = gastoPorCategoria(mes, { soloVariable: true });
   const alertas = datos.categorias
     .filter(c => c.tope_mensual > 0)
     .map(c => ({ c, gastado: gastos.get(c.id) || 0 }))
@@ -262,6 +263,7 @@ export function montar(raiz, refrescar) {
   raiz.querySelectorAll('[data-pagar-cobro]').forEach(b => b.addEventListener('click', () => registrarPago(datos.cobros.find(c => c.id === b.dataset.pagarCobro), refrescar)));
   raiz.querySelectorAll('[data-pagar]').forEach(b => b.addEventListener('click', () => {
     const c = datos.compromisos.find(x => x.id === b.dataset.pagar);
-    ejecutar(() => guardar('compromisos', { ...c, pagados: [...(c.pagados || []), mesActual()] }), `${c.nombre}: marcado como pagado`, refrescar);
+    b.disabled = true;
+    ejecutar(() => marcarPagado(c, mesActual()), `${c.nombre}: pagado. Si fue otro monto, cámbialo en Gastos`, refrescar);
   }));
 }

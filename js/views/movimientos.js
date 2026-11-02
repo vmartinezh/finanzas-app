@@ -8,6 +8,7 @@ import { misTarjetas, misClaves, cuentaPorId, nombreTarjeta, nombreCorto, nombre
 import { hayComercios, comercioPorId, conComercio, juntarComercios } from '../mis-comercios.js';
 import { esTransferencia as esTransferenciaTexto } from '../comercios.js';
 import { descuentosEn, textoDias } from '../beneficios.js';
+import { pagosDelMes, esPagoAnotado } from '../pagos.js';
 import { clp, clpVisible, esc, hoyISO, mesActual, mesDe, nombreMes, sumarMeses, fechaCorta } from '../util.js';
 
 export const titulo = 'Gastos';
@@ -207,9 +208,15 @@ export async function editarMovimiento(mov, refrescar) {
   ];
   const opcionesPago = [
     ['', 'No, es un gasto del día a día'],
-    ...datos.compromisos.filter(c => c.activo !== false).map(c => ['c:' + c.id, `Pago fijo: ${c.nombre}`]),
+    ...datos.compromisos.filter(c => c.activo !== false || c.id === m.compromiso_id).map(c => ['c:' + c.id, `Pago fijo: ${c.nombre}`]),
     ...datos.deudas.filter(d => d.saldo > 0 || d.id === m.deuda_id).map(d => ['d:' + d.id, `Pago de deuda: ${d.nombre}`]),
   ];
+  // ¿Qué mes paga? El de su fecha, o el anterior o el siguiente (el arriendo de
+  // noviembre pagado el 30 de octubre).
+  const mesBase = mesDe(m.fecha || hoyISO());
+  const mesDelPago = m.mes_pagado || mesBase;
+  const opcionesMes = [...new Set([sumarMeses(mesBase, -1), mesBase, sumarMeses(mesBase, 1), mesDelPago])].sort()
+    .map(x => [x, nombreMes(x)]);
   // Tus tarjetas, y la de este gasto aunque la hayas quitado (quedó archivada).
   const usada = m.cuenta_id ? cuentaPorId(m.cuenta_id) : null;
   const tarjetas = [...misTarjetas(), ...(usada && usada.activa === false ? [usada] : [])];
@@ -237,23 +244,40 @@ export async function editarMovimiento(mov, refrescar) {
         opciones: [['', 'Otra, o no fue con tarjeta'], ...tarjetas.map(c => [c.id, nombreTarjeta(c)])] }] : []),
       { nombre: 'evento_id', etiqueta: 'Evento (opcional)', tipo: 'select', valor: m.evento_id || '', opciones: [['', 'Ninguno'], ...datos.eventos.filter(e => e.activo !== false || e.id === m.evento_id).map(e => [e.id, e.nombre])] },
       { nombre: 'pago', etiqueta: '¿Es un pago planificado?', tipo: 'select', valor: m.compromiso_id ? 'c:' + m.compromiso_id : m.deuda_id ? 'd:' + m.deuda_id : '', opciones: opcionesPago, ayuda: 'Los pagos fijos y de deudas ya están descontados del disponible, así que no se cuentan dos veces.' },
+      ...(datos.compromisos.length ? [{ nombre: 'mes_pagado', etiqueta: 'Si es un pago fijo, ¿de qué mes?', tipo: 'select', valor: mesDelPago, opciones: opcionesMes }] : []),
     ],
   });
 
   if (!valores) return;
   if (valores === 'borrar') return ejecutar(() => borrar('movimientos', m.id), 'Movimiento borrado', refrescar);
 
-  const { pago, mismo, ...resto } = valores;
+  const { pago, mismo, mes_pagado: mesElegido, ...resto } = valores;
   const juntarCon = mismo && comercio ? comercioPorId(mismo) : null;
   const fila = {
     ...m, ...resto,
     monto: Math.round(resto.monto || 0),
     compromiso_id: pago?.startsWith('c:') ? pago.slice(2) : null,
     deuda_id: pago?.startsWith('d:') ? pago.slice(2) : null,
+    mes_pagado: null,
     // Sin tarjetas para elegir no hay pregunta: queda como estaba.
     cuenta_id: resto.cuenta_id === undefined ? (m.cuenta_id ?? null) : tarjetas.some(c => c.id === resto.cuenta_id) ? resto.cuenta_id : null,
     origen: m.origen || 'manual',
   };
+
+  // El mes que paga: el que elegiste. Si no lo tocaste y seguía a la fecha, sigue a
+  // la fecha nueva; si era otro a propósito (pago adelantado), se queda.
+  if (fila.compromiso_id) {
+    const seguiaLaFecha = mesDelPago === mesBase;
+    fila.mes_pagado = mesElegido && (mesElegido !== mesDelPago || !seguiaLaFecha) ? mesElegido : mesDe(fila.fecha);
+  }
+  // Un pago anotado por la app que ya no paga lo mismo deja de serlo: así
+  // "Deshacer" no lo borra.
+  if (esPagoAnotado(m) && (fila.compromiso_id !== m.compromiso_id || fila.mes_pagado !== m.mes_pagado)) fila.id_externo = null;
+  // Una compra real que paga un mes reemplaza al pago anotado con "Pagado" ese
+  // mes: si no, ese mes contaría dos veces.
+  const reemplazados = fila.compromiso_id && !esPagoAnotado(fila)
+    ? pagosDelMes(datos.movimientos, fila.mes_pagado, fila.compromiso_id).filter(x => x.id !== fila.id && esPagoAnotado(x))
+    : [];
 
   let mensaje = nuevo ? 'Movimiento guardado' : 'Cambios guardados';
   if (!fila.categoria_id && fila.tipo === 'gasto') {
@@ -276,12 +300,7 @@ export async function editarMovimiento(mov, refrescar) {
     else if (fila.comercio && fila.categoria_id) await aprender(fila.comercio, fila.categoria_id);
     await guardar('movimientos', await conComercio(fila));
 
-    // Un pago nuevo de compromiso lo marca como pagado ese mes.
-    if (fila.compromiso_id && (nuevo || fila.compromiso_id !== m.compromiso_id)) {
-      const c = datos.compromisos.find(x => x.id === fila.compromiso_id);
-      const mes = mesDe(fila.fecha);
-      if (c && !(c.pagados || []).includes(mes)) await guardar('compromisos', { ...c, pagados: [...(c.pagados || []), mes] });
-    }
+    for (const x of reemplazados) await borrar('movimientos', x.id);
     // Un pago nuevo de deuda baja el saldo (después lo puedes ajustar con la cartola).
     if (fila.deuda_id && (nuevo || fila.deuda_id !== m.deuda_id)) {
       const d = datos.deudas.find(x => x.id === fila.deuda_id);

@@ -222,6 +222,11 @@ alter table public.movimientos add column if not exists cuenta_id uuid;
 -- El comercio del gasto (tabla comercios). El texto como llegó queda en comercio.
 -- Los gastos anteriores los enlaza la app al abrir (js/comercios.js: pasarAComercios).
 alter table public.movimientos add column if not exists comercio_id uuid;
+-- El mes que paga un pago fijo (compromiso_id), 'YYYY-MM': puede ser otro que el
+-- de la fecha (el arriendo de noviembre pagado el 30 de octubre). El pago de un
+-- mes es este movimiento; compromisos.pagados es de antes y la app lo pasa a
+-- movimientos al abrir (js/pagos.js: pasarAPagos).
+alter table public.movimientos add column if not exists mes_pagado text check (mes_pagado ~ '^[0-9]{4}-(0[1-9]|1[0-2])$');
 
 -- Tus tarjetas pasan de perfil.tarjetas (texto: 'cmr:elite#1234') a filas de
 -- cuentas, cada deuda de tarjeta apunta a la suya con cuenta_id y el cupo pasa
@@ -423,8 +428,8 @@ begin
   select id, yo, persona_id, concepto, monto_total, cuotas, primer_vencimiento, estado
   from jsonb_populate_recordset(null::public.cobros, coalesce(respaldo->'cobros', '[]'));
 
-  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, origen, estado, id_externo)
-  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, origen, estado, id_externo
+  insert into public.movimientos (id, user_id, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, mes_pagado, origen, estado, id_externo)
+  select id, yo, fecha, monto, tipo, descripcion, comercio, categoria_id, evento_id, compromiso_id, deuda_id, cobro_id, cuenta_id, comercio_id, mes_pagado, origen, estado, id_externo
   from jsonb_populate_recordset(null::public.movimientos, coalesce(respaldo->'movimientos', '[]'));
 
   insert into public.reglas (id, user_id, patron, categoria_id)

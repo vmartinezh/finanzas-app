@@ -1,7 +1,8 @@
-import { datos, guardar, borrar } from '../db.js';
-import { compromisosActivos, deudasVigentes } from '../calculos.js';
-import { abrirFormulario, ejecutar } from '../ui.js';
-import { clp, esc, mesActual, nombreMes, sumarMeses, hoyISO } from '../util.js';
+import { datos, guardar } from '../db.js';
+import { compromisosActivos, deudasVigentes, estaPagado, pagadoDelMes } from '../calculos.js';
+import { marcarPagado, deshacerPago, pagosReales, borrarCompromiso } from '../mis-pagos.js';
+import { abrirFormulario, ejecutar, confirmar } from '../ui.js';
+import { clp, clpVisible, esc, mesActual, nombreMes, sumarMeses, hoyISO, fechaCorta } from '../util.js';
 
 export const titulo = 'Pagos fijos';
 
@@ -32,11 +33,12 @@ export function render() {
       <p class="ayuda">Arriendo, cuentas, suscripciones y compras en cuotas. Todo lo que pagas sí o sí cada mes.</p>
       ${lista.length ? `<ul class="lista">${lista.map(c => {
         const vigente = activos.includes(c);
-        const pagado = (c.pagados || []).includes(mes);
+        const pagado = estaPagado(c, mes);
+        const real = pagado ? pagadoDelMes(c, mes) : 0;
         const atrasado = vigente && !pagado && c.dia_pago && c.dia_pago < hoy;
         const quedan = cuotasQueQuedan(c, mes);
         const estado = !vigente ? '<span class="etiqueta">Terminado</span>'
-          : pagado ? '<span class="etiqueta pagada">✓ Pagado</span>'
+          : pagado ? `<span class="etiqueta pagada">✓ Pagado</span>${real && real !== c.monto ? ` · pagaste ${clp(real)}` : ''}`
           : atrasado ? '<span class="etiqueta atrasado">Atrasado</span>'
           : '<span class="etiqueta">Por pagar</span>';
         return `<li class="fila fila-estatica ${vigente ? '' : 'apagada'}">
@@ -77,11 +79,11 @@ async function editar(c, refrescar) {
       { nombre: 'dia_pago', etiqueta: 'Día de pago', tipo: 'number', valor: c.dia_pago, placeholder: '1 a 31' },
       { nombre: 'cuotas', etiqueta: 'Cuotas que quedan (incluida la de este mes)', tipo: 'number', valor: quedan > 0 ? quedan : '', ayuda: 'Déjalo vacío si es un pago de todos los meses, como el arriendo.' },
       { nombre: 'categoria_id', etiqueta: 'Categoría', tipo: 'select', valor: c.categoria_id || '', opciones: [['', 'Sin categoría'], ...datos.categorias.filter(x => x.tipo !== 'ingreso').map(x => [x.id, `${x.icono} ${x.nombre}`])] },
-      { nombre: 'activo', etiqueta: 'Activo', tipo: 'checkbox', valor: c.activo !== false },
+      { nombre: 'activo', etiqueta: 'Activo', tipo: 'checkbox', valor: c.activo !== false, ...(nuevo ? {} : { ayuda: 'Si ya no lo pagas, desactívalo en vez de borrarlo: así guardas su historial de pagos.' }) },
     ],
   });
   if (!v) return;
-  if (v === 'borrar') return ejecutar(() => borrar('compromisos', c.id), 'Pago fijo borrado', refrescar);
+  if (v === 'borrar') return ejecutar(() => borrarCompromiso(c), 'Pago fijo borrado', refrescar);
   const { cuotas, ...resto } = v;
   const fila = {
     ...c, ...resto,
@@ -95,11 +97,14 @@ async function editar(c, refrescar) {
 export function montar(raiz, refrescar) {
   raiz.querySelector('#nuevo-compromiso').addEventListener('click', () => editar(null, refrescar));
   raiz.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => editar(datos.compromisos.find(c => c.id === b.dataset.editar), refrescar)));
-  raiz.querySelectorAll('[data-alternar]').forEach(b => b.addEventListener('click', () => {
+  raiz.querySelectorAll('[data-alternar]').forEach(b => b.addEventListener('click', async () => {
     const c = datos.compromisos.find(x => x.id === b.dataset.alternar);
     const mes = mesActual();
-    const pagados = c.pagados || [];
-    const nuevos = pagados.includes(mes) ? pagados.filter(m => m !== mes) : [...pagados, mes];
-    ejecutar(() => guardar('compromisos', { ...c, pagados: nuevos }), null, refrescar);
+    // Si lo pagó una compra real, deshacer es decir "esa compra no era esto":
+    // pasa a gasto del día a día. Se pregunta para no contarla dos veces.
+    const reales = estaPagado(c, mes) ? pagosReales(c, mes) : [];
+    if (reales.length && !(await confirmar(`${c.nombre} quedó pagado con ${reales.map(m => `${clpVisible(m.monto)} del ${fechaCorta(m.fecha)}`).join(' y ')}. Si eso no era ${c.nombre}, pasa a ser un gasto del día a día. ¿Seguir?`))) return;
+    b.disabled = true;
+    ejecutar(() => (estaPagado(c, mes) ? deshacerPago(c, mes) : marcarPagado(c, mes)), null, refrescar);
   }));
 }

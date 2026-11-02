@@ -1,4 +1,4 @@
-import { datos, guardarVarios, guardarPerfil, nuevoId, pasarComercios } from './db.js';
+import { datos, guardarVarios, guardarPerfil, nuevoId, pasarComercios, pasarPagos } from './db.js';
 import { mesActual, hoyISO, diasDelMes, sumarDias } from './util.js';
 
 const CATEGORIAS_BASE = [
@@ -94,5 +94,6 @@ export async function cargarEjemplo() {
     { id: nuevoId(), fecha: fecha(2), monto: 40500, tipo: 'ingreso', comercio: '', descripcion: 'Pago de Matías · Zapatillas de Brasil', categoria_id: null, cobro_id: zapatillas.id, origen: 'manual', estado: 'clasificado' },
   ]);
   // Cada gasto, con su comercio (Jumbo, Starbucks…).
+  await pasarPagos();
   await pasarComercios();
 }

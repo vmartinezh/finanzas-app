@@ -5,6 +5,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { normalizarTabla, normalizarPerfil, prepararRespaldo, perfilDesdeRegistro, pasarTarjetasACuentas, mezclar, TABLAS } from './validar.js';
 import { pasarAComercios } from './comercios.js';
+import { pasarAPagos } from './pagos.js';
 
 export { TABLAS };
 
@@ -75,6 +76,7 @@ export async function iniciar() {
     for (const t of TABLAS) datos[t] = normalizarTabla(t, leerLocal(t, []));
     Object.assign(datos.perfil, normalizarPerfil(leerLocal('perfil', {})));
     await pasarTarjetas();
+    await pasarPagos();
     await pasarComercios();
     return 'local';
   }
@@ -112,6 +114,7 @@ export async function iniciar() {
   if (perfil) Object.assign(datos.perfil, normalizarPerfil(perfil));
   await pasarRegistro(session.user.user_metadata);
   await pasarTarjetas();
+  await pasarPagos();
   await pasarComercios();
   return session.user;
 }
@@ -156,6 +159,31 @@ export async function pasarComercios() {
     Object.assign(datos, antes);
     // Se puede repetir: lo que ya quedó enlazado no se vuelve a crear.
     console.warn('No se pudieron enlazar tus gastos a sus comercios; se reintenta al volver a entrar', e);
+  }
+}
+
+// Los meses marcados en compromisos.pagados (de antes, o de una versión vieja
+// de la app que siga en caché) pasan a movimientos de pago. Primero los
+// movimientos y después se vacía pagados: si algo falla a medias, la próxima
+// carga ve que el mes ya tiene su pago y solo termina de vaciar.
+export async function pasarPagos() {
+  const paso = pasarAPagos(datos, nuevoId);
+  if (!paso) return;
+  // Si la nube falla, se revierte en memoria solo lo que no se subió.
+  const avisar = e => console.warn('No se pudieron pasar tus pagos fijos a movimientos; se reintenta al volver a entrar', e);
+  const movimientos = [...datos.movimientos];
+  try {
+    await guardarVarios('movimientos', paso.movimientos);
+  } catch (e) {
+    datos.movimientos = movimientos;
+    return avisar(e);
+  }
+  const compromisos = [...datos.compromisos];
+  try {
+    await guardarVarios('compromisos', paso.compromisos);
+  } catch (e) {
+    datos.compromisos = compromisos;
+    avisar(e);
   }
 }
 
@@ -291,7 +319,7 @@ export async function borrarClaveIngreso(fuente) {
 // Columnas agregadas después que la app puede mandar con valor. Si la base
 // todavía no tiene una (falta correr supabase/schema.sql), la fila se guarda
 // sin ella: mejor guardar el resto del cambio que perderlo entero.
-const COLUMNAS_NUEVAS = ['cuenta_id', 'comercio_id'];
+const COLUMNAS_NUEVAS = ['cuenta_id', 'comercio_id', 'mes_pagado'];
 async function subir(tabla, filas) {
   let { error } = await supabase.from(tabla).upsert(filas);
   const columna = error?.code === 'PGRST204' ? COLUMNAS_NUEVAS.find(c => error.message?.includes(`'${c}'`)) : null;
@@ -386,6 +414,7 @@ function sinUsuario(fila, anterior = null) {
   // movimientos.cuenta_id todavía), salvo que sea para soltar uno que había.
   if (tablasQueFaltan.has('cuentas') || (resto.cuenta_id == null && anterior?.cuenta_id == null)) delete resto.cuenta_id;
   if (tablasQueFaltan.has('comercios') || (resto.comercio_id == null && anterior?.comercio_id == null)) delete resto.comercio_id;
+  if (resto.mes_pagado == null && anterior?.mes_pagado == null) delete resto.mes_pagado;
   return resto;
 }
 

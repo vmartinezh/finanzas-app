@@ -20,7 +20,8 @@
     import { datos } from '../js/db.js';
     import { clasificar } from '../js/clasificador.js';
     import { claveComercio, claveExacta, nombreDeClave, pasarAComercios, sinPatronesRepetidos, esTransferencia } from '../js/comercios.js';
-    import { planDeudas, gastoPorComercio, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cupoDe, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
+    import { pasarAPagos, pagosDelMes, fechaDePago } from '../js/pagos.js';
+    import { planDeudas, gastoPorComercio, gastoPorCategoria, fijosDelMes, compromisosPendientes, estaPagado, pagadoDelMes, disponibleDelMes, estadoPresupuesto, destinoDeudas, usoCupo, cupoDe, cuotasDeCobro, estadoCobro, resumenMeDeben, cobrosDeHoy, cobrosParaTransferencia, personaDeTransferencia, dividirGasto } from '../js/calculos.js';
     import { leerMonto, sumarMeses, sumarMesesFecha, mesActual, esc, base64urlABytes, clp, clpCorto, clpVisible, conMontosVisibles, MONTO_OCULTO, ocultarMontos, formatearMontoEscrito } from '../js/util.js';
     import { normalizarFila, normalizarTabla, normalizarPerfil, prepararRespaldo, datosDeRegistro, perfilDesdeRegistro, linkDeAtajo, pasarTarjetasACuentas } from '../js/validar.js';
     import { BENEFICIOS, TARJETAS, RUBROS, beneficiosDelDia, diaSemana, textoDias, separarTarjeta, armarTarjeta, agregarTarjeta, reemplazarTarjeta, sugerirTarjeta, descuentosEn } from '../js/beneficios.js';
@@ -837,6 +838,92 @@
       } finally {
         datos.movimientos = antes;
       }
+    });
+    // Fase 4: el pago de un mes es un movimiento (js/pagos.js).
+    const conDatos = (tablas, fn) => {
+      const antes = Object.fromEntries(Object.keys(tablas).map(t => [t, datos[t]]));
+      Object.assign(datos, tablas);
+      try { fn(); } finally { Object.assign(datos, antes); }
+    };
+    prueba('Pagos: cada mes de pagados sin pago pasa a un movimiento, y pagados queda vacío', () => {
+      const c = { id: 'c1', nombre: 'Arriendo', monto: 450000, dia_pago: 31, categoria_id: 'hogar', pagados: ['2026-02', '2026-03'] };
+      const ya = { id: 'm1', fecha: '2026-03-05', monto: 455000, tipo: 'gasto', compromiso_id: 'c1' };
+      const paso = pasarAPagos({ compromisos: [c], movimientos: [ya] }, contador());
+      igual(paso.compromisos, [{ ...c, pagados: [] }]);
+      igual(paso.movimientos.length, 1, 'marzo ya tenía su pago;');
+      const p = paso.movimientos[0];
+      igual([p.fecha, p.monto, p.mes_pagado, p.compromiso_id, p.categoria_id, p.descripcion, p.id_externo],
+        ['2026-02-28', 450000, '2026-02', 'c1', 'hogar', 'Arriendo', 'pagado:c1:2026-02']);
+      igual(pasarAPagos({ compromisos: paso.compromisos, movimientos: [ya, p] }, contador()), null, 'se puede repetir;');
+      const adelantado = pasarAPagos({ compromisos: [{ ...c, pagados: ['2026-12'] }], movimientos: [] }, contador(), '2026-11-02').movimientos[0];
+      igual([adelantado.fecha, adelantado.mes_pagado], ['2026-11-02', '2026-12'], 'sin fecha futura;');
+      igual(pasarAPagos({ compromisos: [{ ...c, pagados: ['2026-02'] }], movimientos: [{ ...p, fecha: '2026-01-31' }] }, contador()).movimientos, [], 'su id_externo ya está;');
+    });
+    prueba('Pagos: un mes en pagados que además tiene su movimiento cuenta una sola vez', () => {
+      const mes = mesActual();
+      conDatos({
+        compromisos: [{ id: 'c1', nombre: 'Arriendo', monto: 450000, activo: true, pagados: [mes] }],
+        movimientos: [{ id: 'm1', fecha: mes + '-05', monto: 455000, tipo: 'gasto', compromiso_id: 'c1' }],
+      }, () => {
+        igual(fijosDelMes(mes), 455000);
+        igual(compromisosPendientes(mes), []);
+      });
+    });
+    prueba('Pagos: lo pagado de verdad baja el disponible; lo pendiente descuenta lo planeado', () => {
+      const mes = mesActual();
+      conDatos({
+        compromisos: [{ id: 'a', nombre: 'Arriendo', monto: 400000, activo: true }, { id: 'b', nombre: 'Luz', monto: 50000, activo: true }],
+        movimientos: [{ id: 'm1', fecha: mes + '-01', monto: 420000, tipo: 'gasto', compromiso_id: 'a' }],
+      }, () => {
+        igual(fijosDelMes(mes), 470000);
+        igual([pagadoDelMes(datos.compromisos[0], mes), pagadoDelMes(datos.compromisos[1], mes)], [420000, 0]);
+        igual(compromisosPendientes(mes).map(c => c.id), ['b']);
+        igual(disponibleDelMes(mes).gastado, 0, 'el pago no es gasto del día a día;');
+      });
+    });
+    prueba('Pagos: el arriendo de este mes pagado el mes anterior cuenta en este mes', () => {
+      const mes = mesActual();
+      const antes = sumarMeses(mes, -1);
+      conDatos({
+        compromisos: [{ id: 'a', nombre: 'Arriendo', monto: 400000, activo: true }],
+        movimientos: [{ id: 'm1', fecha: antes + '-30', monto: 400000, tipo: 'gasto', compromiso_id: 'a', mes_pagado: mes }],
+      }, () => {
+        igual([estaPagado(datos.compromisos[0], mes), estaPagado(datos.compromisos[0], antes)], [true, false]);
+        igual(fijosDelMes(antes), 400000, 'el mes anterior sigue esperando su propio pago;');
+        igual(pagosDelMes(datos.movimientos, mes).length, 1);
+      });
+    });
+    prueba('Topes: los pagos fijos y las cuotas no gastan la categoría', () => {
+      const mes = mesActual();
+      conDatos({
+        movimientos: [
+          { id: 'm1', fecha: mes + '-01', monto: 400000, tipo: 'gasto', categoria_id: 'hogar', compromiso_id: 'a' },
+          { id: 'm2', fecha: mes + '-02', monto: 30000, tipo: 'gasto', categoria_id: 'hogar' },
+          { id: 'm3', fecha: mes + '-03', monto: 90000, tipo: 'gasto', categoria_id: 'hogar', deuda_id: 'd' },
+        ],
+      }, () => {
+        igual(gastoPorCategoria(mes, { soloVariable: true }).get('hogar'), 30000);
+        igual(gastoPorCategoria(mes).get('hogar'), 520000, 'en Gráficos sí se ve todo;');
+      });
+    });
+    prueba('Pagos: la fecha de pago no se pasa del último día del mes', () => {
+      igual([fechaDePago({ dia_pago: 31 }, '2026-02'), fechaDePago({}, '2026-11'), fechaDePago({ dia_pago: 5 }, '2026-11')], ['2026-02-28', '2026-11-01', '2026-11-05']);
+    });
+    prueba('Pagos: mes_pagado inválido se descarta', () => {
+      const f = normalizarFila('movimientos', { id: ID, fecha: '2026-11-01', monto: 1, mes_pagado: "2026-13'; drop" });
+      igual(f.mes_pagado, null);
+      igual(normalizarFila('movimientos', { id: ID, fecha: '2026-11-01', monto: 1, mes_pagado: '2026-10' }).mes_pagado, '2026-10');
+    });
+    prueba('Restaurar: un respaldo viejo con pagados trae sus pagos como movimientos', () => {
+      const { tablas } = prepararRespaldo({
+        version: 1, categorias: [{ id: ID, nombre: 'Hogar' }],
+        compromisos: [{ id: D1, nombre: 'Arriendo', monto: 400000, dia_pago: 5, categoria_id: ID, pagados: ['2026-10'] }],
+      }, contador());
+      igual(tablas.compromisos[0].pagados, []);
+      igual(tablas.movimientos.length, 1);
+      const p = tablas.movimientos[0];
+      igual([p.compromiso_id, p.categoria_id, p.mes_pagado, p.fecha, p.monto], [tablas.compromisos[0].id, tablas.categorias[0].id, '2026-10', '2026-10-05', 400000]);
+      igual(p.id_externo, `pagado:${tablas.compromisos[0].id}:2026-10`, 'con el id nuevo del compromiso;');
     });
     prueba('Descuentos en un comercio: solo los de tus bancos y vigentes', () => {
       const hoy = '2026-11-02';

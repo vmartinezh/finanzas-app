@@ -8,6 +8,7 @@
 import { NOMBRE_APP, hoyISO } from './util.js';
 import { armarTarjeta } from './beneficios.js';
 import { pasarAComercios, sinPatronesRepetidos } from './comercios.js';
+import { pasarAPagos, esPagoAnotado, idPago, mesQuePaga } from './pagos.js';
 // Las mismas reglas que usa el servidor (recibir-compra), para que calcen siempre.
 import { normalizarRut, nombreSirve, esMismoNombre } from '../supabase/functions/recibir-compra/cuentas.js';
 
@@ -215,6 +216,8 @@ const FORMAS = {
     cuenta_id: id(f.cuenta_id),
     // El comercio (tabla comercios); el texto como llegó queda en comercio.
     comercio_id: id(f.comercio_id),
+    // El mes que paga un pago fijo (puede ser otro que el de la fecha).
+    mes_pagado: mes(f.mes_pagado),
     origen: opcion(f.origen, ['manual', 'correo', 'wallet']),
     estado: opcion(f.estado, ['clasificado', 'pendiente']),
   }),
@@ -337,6 +340,14 @@ export function prepararRespaldo(copia, crearId) {
     enteras.comercios = mezclar(enteras.comercios, comercios.comercios);
     enteras.movimientos = mezclar(enteras.movimientos, comercios.movimientos);
   }
+  // Respaldos de antes de los pagos como movimientos: cada mes en pagados pasa
+  // a un movimiento. Después de soltar, así solo usa categorías que el respaldo trae.
+  const pagos = pasarAPagos(enteras, crearId);
+  if (pagos) {
+    creadas += pagos.movimientos.length;
+    enteras.movimientos = mezclar(enteras.movimientos, pagos.movimientos);
+    enteras.compromisos = mezclar(enteras.compromisos, pagos.compromisos);
+  }
   const recibidas = creadas + nombres.reduce((n, t) => n + (Array.isArray(copia[t]) ? copia[t].length : 0), 0);
   const descartadas = recibidas - nombres.reduce((n, t) => n + enteras[t].length, 0);
 
@@ -348,6 +359,11 @@ export function prepararRespaldo(copia, crearId) {
     }
     return fila;
   })]));
+  // Los pagos anotados por la app llevan el id del compromiso en id_externo: con
+  // los ids nuevos se rehace, para que siga impidiendo anotar dos veces el mismo mes.
+  tablas.movimientos = tablas.movimientos.map(m => (esPagoAnotado(m)
+    ? { ...m, id_externo: m.compromiso_id ? idPago(m.compromiso_id, mesQuePaga(m)) : null }
+    : m));
   // Cada tarjeta, una deuda (la base lo exige): si dos apuntan a la misma, la segunda queda sin tarjeta.
   const conDeuda = new Set();
   tablas.deudas = tablas.deudas.map(d => {

@@ -8,7 +8,7 @@ export const titulo = 'Presupuesto';
 export function render() {
   const mes = mesActual();
   const d = disponibleDelMes(mes);
-  const gastos = gastoPorCategoria(mes);
+  const gastos = gastoPorCategoria(mes, { soloVariable: true });
   const categorias = datos.categorias.filter(c => c.tipo !== 'ingreso').sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
   const sumaTopes = categorias.reduce((s, c) => s + (c.tope_mensual || 0), 0);
   const sinCategoria = gastos.get('sin') || 0;

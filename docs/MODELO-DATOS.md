@@ -153,6 +153,16 @@ que mañana quepan las cuentas sin rediseñar.
 `compromiso_id` y `mes_pagado`. Marcar "pagado" sin monto crea ese movimiento con el
 monto del compromiso. `pagados` se sigue leyendo para datos viejos, pero deja de
 escribirse.
+Así quedó (fase 4):
+- **Disponible:** los pagos fijos pagados descuentan lo que pagaste de verdad, en el mes
+  que pagan (`mes_pagado`); los pendientes, lo planeado (`fijosDelMes` en `js/calculos.js`).
+- **"Pagado" sin monto** anota el pago con el monto del compromiso e `id_externo =
+  'pagado:<compromiso>:<mes>'`, que la base exige único: el mismo mes no se anota dos
+  veces. "Deshacer" borra ese pago anotado; una compra real solo se suelta del compromiso.
+  Una compra real que paga el mes reemplaza al pago anotado.
+- **`pagados` queda vacío** tras el paso (si no, un pago deshecho volvería al recargar).
+  Se sigue leyendo solo si el paso no se pudo guardar.
+- **Topes de categoría:** cuentan solo el gasto del día a día; Gráficos muestra todo.
 - **Abre:** historial real ("el arriendo subió en marzo") y un "puedes gastar hoy" que
   siempre cuadra.
 
@@ -183,7 +193,7 @@ y migra el modo local al cargar. Además lleva pruebas y `/ecc:security-scan`.
 | 1 ✓ | `cuentas` + `deudas.cuenta_id`; `cupo_total` pasa a la cuenta | `perfil.tarjetas` → una fila por tarjeta; `deudas.tarjeta` → `cuenta_id` | Medio: toca Plan, Descuentos y Cumpleaños |
 | 2 ✓ | `movimientos.cuenta_id`; Atajo y correos leen los 4 dígitos (`tarjetaDeCompra`); una tarjeta con compras se archiva en vez de borrarse | — | Bajo |
 | 3 ✓ | `comercios` + `movimientos.comercio_id`; lo aprendido pasa de `reglas` a `comercios` | En la app (`pasarAComercios`): agrupa `movimientos.comercio` por `claveComercio` | Medio: el clasificador cambia de fuente |
-| 4 | Pagos de compromisos como movimientos (`mes_pagado`) | Cada mes en `pagados` sin movimiento → movimiento con el monto del compromiso | Medio: cambia "puedes gastar hoy"; hay que cuidar no contar doble |
+| 4 ✓ | Pagos de compromisos como movimientos (`mes_pagado`) | En la app (`pasarAPagos`): cada mes en `pagados` sin movimiento → movimiento con el monto del compromiso; `pagados` queda vacío | Medio: cambia "puedes gastar hoy"; hay que cuidar no contar doble |
 | 5 | `beneficios_usados` | `ruta_cumpleanos.usados` → filas | Bajo |
 | 6 | `movimientos.persona_id`, `personas.rut`, `cuenta_destino_id` | — | Bajo |
 
