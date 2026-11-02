@@ -855,16 +855,20 @@ dialog:not([open])::backdrop { opacity: 0; }
 .regalo > details > summary::-webkit-details-marker { display: none; }
 .regalo > details[open] > summary .chevron { transform: rotate(90deg); }
 .regalo-linea { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.regalo-titulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Hasta dos líneas: el regalo se alcanza a leer sin abrir la fila. */
+.regalo-titulo { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; line-height: 1.3; }
 .regalo-titulo b { font-weight: 600; }
 .regalo-que { color: var(--texto-2); }
 .regalo-linea small { font-size: .78rem; color: var(--texto-3); }
 .regalo-linea small .etiqueta { margin-left: 4px; }
 /* Abierta, el regalo completo (que en la línea se cortaba) y la letra chica. */
-.regalo > details[open] .regalo-titulo { white-space: normal; }
+.regalo > details[open] .regalo-titulo { display: block; }
 .regalo > details[open] .regalo-que { color: var(--acento); font-weight: 550; }
 .regalo-texto { display: flex; flex-direction: column; gap: 4px; padding: 0 2px 12px 52px; }
 .regalo-texto small { font-size: .8rem; color: var(--texto-2); }
+.regalo-datos { margin: 2px 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: .85rem; line-height: 1.35; }
+.regalo-datos dt { color: var(--texto-3); font-weight: 600; }
+.regalo-datos dd { margin: 0; color: var(--texto-2); }
 .regalo-antes { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--acento-suave); font-size: .88rem; }
 .regalo-antes.tarde { background: var(--superficie-2); color: var(--texto-2); }
 .regalo-texto .enlace { font-size: .85rem; }
@@ -873,6 +877,9 @@ dialog:not([open])::backdrop { opacity: 0; }
 .regalo.usado .regalo-titulo { text-decoration: line-through; color: var(--texto-3); }
 .regalo.usado .regalo-titulo .regalo-que { color: var(--texto-3); }
 .filtros-cumple { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+/* Cada fila de filtros en una línea que se desliza, a sangre como en Descuentos. */
+.tarjeta .filtros-cumple .chips { flex-wrap: nowrap; margin: 0 -16px; padding: 0 16px; }
+.filtros-cumple .interruptor { min-height: 44px; }
 #ver-mas { width: 100%; margin-top: 8px; }
 .aviso-ruta { margin: 0 0 8px; padding: 8px 10px; border-radius: 10px; background: var(--acento-suave); color: var(--acento); font-size: .88rem; font-weight: 550; }
 @media (max-width: 359px) { .regalo-texto { padding-left: 2px; } }

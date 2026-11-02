@@ -35,10 +35,13 @@ const CHEVRON = '<svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><pa
 
 const anioDe = fecha => Number(fecha.slice(0, 4));
 
-function cuentaRegresiva(dias, cumple) {
-  if (dias === 0) return '¡Hoy es tu cumpleaños! 🎉';
-  if (dias < 0) return `Tu cumpleaños fue el ${fechaCorta(cumple)}, pero tu mes sigue: aprovecha lo que te queda.`;
-  return `Faltan ${dias} ${dias === 1 ? 'día' : 'días'} para tu cumpleaños, el ${fechaCorta(cumple)}.`;
+// El número protagonista: los días que faltan; el día mismo, la fiesta; y
+// después, cuántos regalos te quedan.
+function cuentaRegresiva(dias, cumple, quedan) {
+  const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+  if (dias === 0) return { etiqueta: 'Es tu cumpleaños', numero: '¡Hoy! 🎉' };
+  if (dias < 0) return { etiqueta: `Tu cumpleaños fue el ${fechaCorta(cumple)} y todavía te quedan`, numero: plural(quedan, 'regalo', 'regalos') };
+  return { etiqueta: `Para tu cumpleaños, el ${fechaCorta(cumple)}, faltan`, numero: plural(dias, 'día', 'días') };
 }
 
 // De dónde sale el dato, para que cada persona decida si le cree.
@@ -63,7 +66,12 @@ function filaRegalo(b, ruta, r) {
   const elegido = ruta.elegidos.includes(b.id);
   const usado = ruta.usados.includes(b.id);
   const alcanzas = r.dias > 0;
-  const detalle = [ventana(b, r.cumple), b.condiciones, b.llevar ? `Lleva: ${b.llevar}` : null, b.donde].filter(Boolean);
+  const detalle = [
+    ['Cuándo', ventana(b, r.cumple)],
+    ['Ojo', b.condiciones],
+    ['Lleva', b.llevar],
+    ['Dónde', b.donde],
+  ].filter(([, texto]) => texto);
   const etiqueta = usado ? '<span class="etiqueta pagada">Usado</span>'
     : b.antes && alcanzas ? '<span class="etiqueta pendiente">Pide inscribirse</span>' : '';
   return `<li class="regalo${usado ? ' usado' : ''}">
@@ -78,7 +86,7 @@ function filaRegalo(b, ruta, r) {
       </summary>
       <div class="regalo-texto">
         ${b.antes ? `<p class="regalo-antes${alcanzas ? '' : ' tarde'}"><b>${alcanzas ? 'Hazlo antes' : 'Pedía inscribirse antes'}:</b> ${esc(b.antes)}</p>` : ''}
-        ${detalle.map(d => `<small>${esc(d)}</small>`).join('')}
+        <dl class="regalo-datos">${detalle.map(([nombre, texto]) => `<dt>${nombre}</dt><dd>${esc(texto)}</dd>`).join('')}</dl>
         <small class="origen ${o.clase}">${esc(o.etiqueta)}</small>
         <a class="enlace" href="${esc(b.fuente)}" target="_blank" rel="noopener noreferrer">${o.enlace}<span class="sr-only"> de ${esc(b.marca)} (abre otra página)</span></a>
         <div class="regalo-acciones">
@@ -131,15 +139,16 @@ export function render() {
   const cuando = cuandos.includes(filtroCuando) ? filtroCuando : null;
   const lista = filtrarRegalos(resto, { tipo, cuando, sinInscribirse });
   const hayFiltros = tipo || cuando || sinInscribirse;
+  const cuenta = cuentaRegresiva(r.dias, r.cumple, todos.length);
   const cortar = !verTodos && lista.length > PRIMEROS + 2;
   const visibles = cortar ? lista.slice(0, PRIMEROS) : lista;
 
   return `
     <section class="tarjeta hero hero-salvia">
-      <p class="hero-etiqueta">Tu ruta del cumpleañero</p>
-      <p class="hero-detalle"><b>${esc(cuentaRegresiva(r.dias, r.cumple))}</b></p>
+      <p class="hero-etiqueta">${esc(cuenta.etiqueta)}</p>
+      <p class="hero-numero">${esc(cuenta.numero)}</p>
       <p class="hero-detalle">${todos.length
-        ? `${todos.length} ${todos.length === 1 ? 'regalo' : 'regalos'} para ti${enRuta.length ? ` · ${enRuta.length} en tu ruta${usados ? ` · ${usados} ya ${usados === 1 ? 'usado' : 'usados'}` : ''}` : ''}.`
+        ? `${r.dias < 0 ? 'Aprovecha tu mes' : `${todos.length} ${todos.length === 1 ? 'regalo' : 'regalos'} para ti`}${enRuta.length ? ` · ${enRuta.length} en tu ruta${usados ? ` · ${usados} ya ${usados === 1 ? 'usado' : 'usados'}` : ''}` : ''}.`
         : 'Por ahora no encontramos regalos para tu fecha.'}</p>
     </section>
 
@@ -153,7 +162,7 @@ export function render() {
 
     ${resto.length ? `<section class="tarjeta">
       <h2>Explorar <span class="contador">${resto.length}</span></h2>
-      ${pendientesFuera ? `<p class="aviso-ruta">${pendientesFuera === 1 ? 'Uno pide' : `${pendientesFuera} piden`} inscribirse antes de tu cumpleaños: ${pendientesFuera === 1 ? 'tiene' : 'tienen'} la etiqueta "Pide inscribirse". Si te interesa${pendientesFuera === 1 ? '' : 'n'}, hazlo con tiempo.</p>` : ''}
+      ${pendientesFuera ? `<p class="ayuda">${pendientesFuera === 1 ? 'Uno pide' : `${pendientesFuera} piden`} inscribirse antes de tu cumpleaños: ${pendientesFuera === 1 ? 'tiene' : 'tienen'} la etiqueta "Pide inscribirse". Si te interesa${pendientesFuera === 1 ? '' : 'n'}, hazlo con tiempo.</p>` : ''}
       <div class="filtros-cumple">
         <div class="chips" role="group" aria-label="Tipo de regalo">
           ${chip('tipo', '', 'Todos', !tipo)}${tipos.map(t => chip('tipo', t, TIPOS_CUMPLE[t], tipo === t)).join('')}
