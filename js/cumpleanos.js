@@ -29,7 +29,7 @@
 import { diasDelMes, sumarDias } from './util.js';
 import { diaSemana } from './beneficios.js';
 
-export const REVISADO = '2026-11-01';
+export const REVISADO = '2026-11-16';
 
 // Guías de prensa usadas (2026, salvo Meganoticias de septiembre de 2025).
 const CHOCALE = 'https://chocale.cl/2026/02/beneficios-en-tu-cumpleanos-en-2026-la-guia-actualizada-de-tiendas-cines-y-panoramas/';
