@@ -13,7 +13,7 @@ import { normalizar } from './util.js';
 import { bancoPorNombre } from '../supabase/functions/recibir-compra/bancos.js';
 import { claveExacta } from './comercios.js';
 
-export const REVISADO = '2026-11-01';
+export const REVISADO = '2026-11-16';
 
 export const TARJETAS = [
   { id: 'santander', nombre: 'Santander', detalle: 'Tarjetas de crédito y débito Santander' },
@@ -48,9 +48,11 @@ export const BENEFICIOS = [
   // ── Santander ──
   { tarjeta: 'santander', comercio: 'Santa Brasa', rubro: 'restaurante', descuento: '50%', dias: [2], tope: 50000, hasta: '2026-11-30', fuente: SANTANDER + 'santa-brasa-3' },
   { tarjeta: 'santander', comercio: 'Petrizzio', rubro: 'restaurante', descuento: '25%', dias: [1, 2, 3, 6, 7], hasta: '2026-11-30', nota: 'Compras online.', fuente: SANTANDER + 'petrizzio' },
-  { tarjeta: 'santander', comercio: 'Farmacias Knop', rubro: 'farmacia', descuento: '25%', dias: [2, 4], hasta: '2026-11-30', fuente: SANTANDER + 'farmacias-knop-2' },
+  { tarjeta: 'santander', comercio: 'Farmacias Knop', rubro: 'farmacia', descuento: '25%', dias: [2, 4], hasta: '2026-11-30', nota: 'Solo en productos PharmaKnop y Knop Laboratorios.', fuente: SANTANDER + 'farmacias-knop-2' },
   { tarjeta: 'santander', comercio: 'PedidosYa Market', rubro: 'delivery', descuento: '30%', dias: [], tope: 10000, hasta: '2026-11-30', fuente: SANTANDER + 'pedidosya-market' },
-  { tarjeta: 'santander', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [1], hasta: '2026-11-30', fuente: SANTANDER + 'superzoo-2' },
+  { tarjeta: 'santander', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [1], hasta: '2026-11-30', nota: 'En delivery.', fuente: SANTANDER + 'superzoo-2' },
+  { tarjeta: 'santander', comercio: 'Burger King', rubro: 'comida-rapida', descuento: '40%', dias: [4], tope: 15000, hasta: '2026-11-30', nota: 'Compras online.', fuente: SANTANDER + 'burger-king-3' },
+  { tarjeta: 'santander', comercio: 'Just Burger', rubro: 'comida-rapida', descuento: '40%', dias: [3], hasta: '2026-11-30', nota: 'Solo con crédito Santander.', fuente: SANTANDER + 'just-burger-3' },
 
   // ── Banco de Chile ──
   { tarjeta: 'banco-de-chile', comercio: 'Domino’s Pizza', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-12-31', fuente: CHILE + 'dominos-pizza' },
@@ -64,13 +66,15 @@ export const BENEFICIOS = [
   { tarjeta: 'banco-de-chile', comercio: 'Dunkin’', rubro: 'cafe', descuento: '30%', dias: [1, 3], hasta: '2026-12-31', fuente: CHILE + 'dunkin-dto' },
   { tarjeta: 'banco-de-chile', comercio: 'Starbucks', rubro: 'cafe', descuento: '30%', dias: [5], hasta: '2026-12-31', fuente: CHILE + 'starbucks' },
   { tarjeta: 'banco-de-chile', comercio: 'Petrizzio', rubro: 'restaurante', descuento: '30%', dias: [4, 5], hasta: '2027-06-30', fuente: CHILE + 'petrizzio' },
-  { tarjeta: 'banco-de-chile', comercio: 'Farmacias Cruz Verde', rubro: 'farmacia', descuento: 'hasta 40%', dias: [1], hasta: '2027-02-15', fuente: CHILE + 'farmacias-cruz-verde' },
-  { tarjeta: 'banco-de-chile', comercio: 'Farmacias Knop', rubro: 'farmacia', descuento: '20%', dias: [], hasta: '2027-08-31', fuente: CHILE + 'farmacias-knop' },
-  { tarjeta: 'banco-de-chile', comercio: 'Cinépolis', rubro: 'cine', descuento: 'hasta 25%', dias: [], hasta: '2026-12-31', nota: 'En entradas.', fuente: CHILE + 'cinepolis' },
+  { tarjeta: 'banco-de-chile', comercio: 'Farmacias Cruz Verde', rubro: 'farmacia', descuento: 'hasta 60%', dias: [1], hasta: '2027-02-15', fuente: CHILE + 'farmacias-cruz-verde' },
+  { tarjeta: 'banco-de-chile', comercio: 'Farmacias Knop', rubro: 'farmacia', descuento: 'hasta 20%', dias: [], hasta: '2027-08-31', fuente: CHILE + 'farmacias-knop' },
+  { tarjeta: 'banco-de-chile', comercio: 'Cinépolis', rubro: 'cine', descuento: 'hasta 45%', dias: [], hasta: '2026-12-31', nota: 'En entradas. El porcentaje depende del plan de tu cuenta.', fuente: CHILE + 'cinepolis' },
 
   // ── Bci ──
   { tarjeta: 'bci', comercio: 'Starbucks', rubro: 'cafe', descuento: '30%', dias: [1], hasta: '2026-12-31', fuente: BCI + 'tu-cafe-favorito-y-el-momento-perfecto-para-recargar-tu-dia.-8nywci7' },
   { tarjeta: 'bci', comercio: 'KFC', rubro: 'comida-rapida', descuento: '30%', dias: [1], hasta: '2026-12-31', nota: 'En el combo Chicken Share.', fuente: BCI + 'todos-los-lunes-en-combo-chicken-share-alitas-us5tjzf' },
+  { tarjeta: 'bci', comercio: 'Starbucks', rubro: 'cafe', descuento: '50%', dias: [2, 3, 4], hasta: '2026-11-30', nota: 'Solo en locales, con las Bci Mastercard Black, Visa Infinite y Visa Signature.', fuente: BCI + '50-por-ciento-mgcj0mn' },
+  { tarjeta: 'bci', comercio: 'Mamut', rubro: 'restaurante', descuento: '40%', dias: [5], tope: 30000, hasta: '2026-12-31', nota: 'Solo en locales, con crédito Bci.', fuente: BCI + 'viernes-presencial-v5scbgu' },
   { tarjeta: 'bci', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-12-31', nota: 'Pidiendo en la app de McDonald’s.', fuente: BCI + 'todos-los-martes-en-tu-app-de-mcdonalds-nf4vg4m' },
   { tarjeta: 'bci', comercio: 'Juan Valdez', rubro: 'cafe', descuento: '40%', dias: [3], hasta: '2026-12-31', nota: 'Solo con crédito, en bebidas preparadas en barra.', fuente: BCI + '40-por-ciento-de-descuento-en-bebidas-preparadas-en-barra-5h1tty' },
   { tarjeta: 'bci', comercio: 'China Wok', rubro: 'comida-rapida', descuento: '30%', dias: [3], hasta: '2026-12-31', nota: 'En el combo Wok 1 pollo teriyaki.', fuente: BCI + 'todos-los-miercoles-en-combo-wok-1-pollo-tereyaki-kr43pym' },
@@ -79,7 +83,17 @@ export const BENEFICIOS = [
   { tarjeta: 'bci', comercio: 'PedidosYa Market', rubro: 'delivery', descuento: '30%', dias: [], tope: 8000, hasta: '2026-12-31', nota: 'Solo con crédito.', fuente: BCI + 'tu-pedido-en-tu-casa-ya-no-tienes-que-ir-al-supermercado-con-pedidosya-hjjwl2' },
 
   // ── CMR Falabella ──
-  // Los descuentos de comida terminaron el 31-10-2026; al 01-11 el banco aún no publica los de noviembre.
+  { tarjeta: 'cmr', comercio: 'Doggis', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Presencial y online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'doggis' },
+  { tarjeta: 'cmr', comercio: 'Domino’s Pizza', rubro: 'comida-rapida', descuento: '40%', dias: [3], hasta: '2026-11-30', nota: 'Presencial y online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'dominos-pizza' },
+  { tarjeta: 'cmr', comercio: 'Dunkin’', rubro: 'cafe', descuento: '40%', dias: [2], hasta: '2026-11-30', nota: 'Presencial y online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'dunkin' },
+  { tarjeta: 'cmr', comercio: 'Juan Maestro', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Compras online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'juan-maestro' },
+  { tarjeta: 'cmr', comercio: 'Juan Valdez', rubro: 'cafe', descuento: '40%', dias: [5], hasta: '2026-11-30', nota: 'Solo en locales, en bebidas preparadas en barra. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'juan-valdez' },
+  { tarjeta: 'cmr', comercio: 'Just Burger', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-11-30', nota: 'Presencial y online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'just-burger' },
+  { tarjeta: 'cmr', comercio: 'Mamut', rubro: 'restaurante', descuento: 'hasta 40%', dias: [1], hasta: '2026-11-30', nota: 'Solo en locales. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'mamut' },
+  { tarjeta: 'cmr', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Solo en locales. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'mccombodelmes' },
+  { tarjeta: 'cmr', comercio: 'Papa John’s', rubro: 'comida-rapida', descuento: '40%', dias: [2], hasta: '2026-11-30', nota: 'Presencial y online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'papa-johns' },
+  { tarjeta: 'cmr', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [5], hasta: '2026-11-30', nota: 'Compras online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'superzoo' },
+  { tarjeta: 'cmr', comercio: 'Tommy Beans', rubro: 'comida-rapida', descuento: '40%', dias: [1], hasta: '2026-11-30', nota: 'Compras online. Solo con CMR Mastercard y débito Banco Falabella.', fuente: CMR + 'tommybeans' },
 
   // ── BancoEstado ──
   { tarjeta: 'bancoestado', comercio: 'Doggis', rubro: 'comida-rapida', descuento: '30%', dias: [2], tope: 16000, hasta: '2026-12-31', fuente: ESTADO + 'doggis---beneficios-bancoestado.html' },
@@ -90,7 +104,7 @@ export const BENEFICIOS = [
   { tarjeta: 'bancoestado', comercio: 'Domino’s Pizza', rubro: 'comida-rapida', descuento: '40%', dias: [4], hasta: '2026-12-31', fuente: ESTADO + 'domino-s-pizza---beneficios-bancoestado.html' },
   { tarjeta: 'bancoestado', comercio: 'Burger King', rubro: 'comida-rapida', descuento: '40%', dias: [7], hasta: '2026-11-29', fuente: ESTADO + 'burger-king---beneficios-bancoestado.html' },
   { tarjeta: 'bancoestado', comercio: 'Papa John’s', rubro: 'comida-rapida', descuento: '25%', dias: [7], hasta: '2026-12-27', nota: 'Solo con crédito Mastercard BancoEstado.', fuente: ESTADO + 'papa-john-s---beneficios-bancoestado.html' },
-  { tarjeta: 'bancoestado', comercio: 'PedidosYa', rubro: 'delivery', descuento: '30%', dias: [], hasta: null, nota: 'En la app. Con CuentaRUT, solo en PedidosYa Market.', fuente: ESTADO + 'pedidosya.html' },
+  { tarjeta: 'bancoestado', comercio: 'PedidosYa', rubro: 'delivery', descuento: '30%', dias: [], hasta: '2026-11-30', tope: 5000, nota: 'En la app, tres usos al mes. Con CuentaRUT, solo en PedidosYa Market.', fuente: ESTADO + 'pedidosya.html' },
 
   // ── Scotiabank ──
   { tarjeta: 'scotiabank', comercio: 'Copec', rubro: 'bencina', descuento: 'hasta $100 por litro', dias: [3], hasta: '2026-11-30', nota: 'Solo con crédito, pagando con la App Copec.', fuente: 'https://www.scotiarewards.cl/scclubfront/categoria/mundos/descuentos?beneficio=APPCOPECAON25' },
@@ -100,6 +114,9 @@ export const BENEFICIOS = [
   { tarjeta: 'scotiabank', comercio: 'Farmacias Cruz Verde', rubro: 'farmacia', descuento: '25%', dias: [4], hasta: '2026-11-30', nota: 'En medicamentos y vitaminas, siendo socio del Club Cruz Verde.', fuente: 'https://www.scotiarewards.cl/scclubfront/categoria/mundos/descuentos?beneficio=CRUZVERDEAON25' },
 
   // ── Tarjeta Cencosud Scotiabank ──
+  { tarjeta: 'cencosud', comercio: 'Burger King', rubro: 'comida-rapida', descuento: '40%', dias: [1], tope: 15000, hasta: '2026-11-30', nota: 'Solo presencial (mesón y AutoKing).', fuente: CENCOSUD + 'burger-king' },
+  { tarjeta: 'cencosud', comercio: 'Santa Brasa', rubro: 'restaurante', descuento: '40%', dias: [2, 4, 6], tope: 40000, hasta: '2026-12-31', nota: 'Solo en locales.', fuente: CENCOSUD + 'la-ruta-del-sabor' },
+  { tarjeta: 'cencosud', comercio: 'Farmacias Cruz Verde', rubro: 'farmacia', descuento: '25%', dias: [4], hasta: '2026-11-30', fuente: CENCOSUD + 'cruz-verde' },
   { tarjeta: 'cencosud', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '40%', dias: [3], hasta: '2026-11-30', nota: 'En la app de McDonald’s, solo con Mastercard.', fuente: CENCOSUD + 'mcdonalds' },
 
   // ── Banco Ripley ──
@@ -110,8 +127,9 @@ export const BENEFICIOS = [
   { tarjeta: 'ripley', comercio: 'Papa John’s', rubro: 'comida-rapida', descuento: '40%', dias: [4], hasta: '2026-11-30', fuente: RIPLEY },
   { tarjeta: 'ripley', comercio: 'Cinépolis', rubro: 'cine', descuento: '2x1', dias: [5], hasta: '2026-11-30', nota: 'En entradas 2D y 3D.', fuente: RIPLEY },
   { tarjeta: 'ripley', comercio: 'SuperZoo', rubro: 'mascotas', descuento: '20%', dias: [6], hasta: '2026-11-30', nota: 'Solo en la primera compra web.', fuente: RIPLEY },
+  { tarjeta: 'ripley', comercio: 'McDonald’s', rubro: 'comida-rapida', descuento: '30%', dias: [], hasta: '2026-11-30', fuente: RIPLEY },
   { tarjeta: 'ripley', comercio: 'Farmacias Ahumada', rubro: 'farmacia', descuento: '20%', dias: [], tope: 10000, hasta: '2026-11-30', fuente: RIPLEY },
-  { tarjeta: 'ripley', comercio: 'Castaño', rubro: 'cafe', descuento: '30%', dias: [], tope: 10000, hasta: null, nota: 'Solo en locales.', fuente: RIPLEY },
+  { tarjeta: 'ripley', comercio: 'Castaño', rubro: 'cafe', descuento: '30%', dias: [], tope: 10000, hasta: '2026-11-30', nota: 'Solo en locales.', fuente: RIPLEY },
   { tarjeta: 'ripley', comercio: 'PedidosYa', rubro: 'delivery', descuento: '30%', dias: [], tope: 4000, hasta: '2026-11-30', nota: 'En restaurantes, con el código RIPLEYOCT26. Una compra al mes.', fuente: RIPLEY },
   { tarjeta: 'ripley', comercio: 'Unimarc', rubro: 'super', descuento: '6%', dias: [1], hasta: '2026-11-30', nota: '15% con Mastercard Black.', fuente: RIPLEY },
 
@@ -129,7 +147,7 @@ export const BENEFICIOS = [
   { tarjeta: 'lider-bci', comercio: 'Wendy’s', rubro: 'comida-rapida', descuento: '30%', dias: [3], hasta: '2026-11-30', nota: 'En el combo Baconator doble.', fuente: LIDER + '/wendys' },
   { tarjeta: 'lider-bci', comercio: 'Just Burger', rubro: 'comida-rapida', descuento: '40%', dias: [4], tope: 10000, hasta: '2026-11-30', fuente: LIDER + '/just-burger' },
   { tarjeta: 'lider-bci', comercio: 'Cinépolis', rubro: 'cine', descuento: '50%', dias: [4, 5, 6, 7], hasta: '2026-11-30', nota: 'En entradas 2D, 2 cupones al mes.', fuente: LIDER + '/cinepolis' },
-  { tarjeta: 'lider-bci', comercio: 'Salcobrand', rubro: 'farmacia', descuento: '20%', dias: [], hasta: '2026-11-30', nota: 'En la primera unidad de productos Mi Salcobrand, con la app de Salcobrand.', fuente: LIDER + '/salcobrand' },
+  { tarjeta: 'lider-bci', comercio: 'Salcobrand', rubro: 'farmacia', descuento: '20%', dias: [], tope: 20000, hasta: '2026-11-30', nota: 'En la primera unidad de productos Mi Salcobrand, con la app de Salcobrand.', fuente: LIDER + '/salcobrand' },
   { tarjeta: 'lider-bci', comercio: 'Copec', rubro: 'bencina', descuento: '$100 por litro', dias: [2], hasta: '2026-12-31', nota: 'Solo con crédito, pagando con la App Copec.', fuente: LIDER + '/copec' },
 ];
 
